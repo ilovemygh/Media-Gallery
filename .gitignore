@@ -1,14 +1,24 @@
-node_modules/
-dist/
-dist-electron/
-release/
-build/
-coverage/
+# Rust & Cargo
+/target/
+**/*.rs.bk
+
+# Flutter & Dart
+app/.dart_tool/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/build/
+app/.packages
+
+# Legacy reference build artifacts
+legacy/node_modules/
+legacy/dist/
+legacy/dist-electron/
+legacy/release/
+
+# Local runtime artifacts
 *.db
 *.db-shm
 *.db-wal
+*.log
 .DS_Store
 Thumbs.db
-*.log
-android/
-.capacitor/
