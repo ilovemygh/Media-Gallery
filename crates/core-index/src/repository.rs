@@ -38,6 +38,50 @@ pub fn now_ms() -> i64 {
         .unwrap_or(0)
 }
 
+pub fn normalize_db_path(raw: &str) -> String {
+    raw.replace('\\', "/")
+}
+
+fn exec_media_upsert_stmt(
+    stmt: &mut rusqlite::Statement<'_>,
+    effective_id: &str,
+    item: &MediaRecord,
+    norm_path: &str,
+    norm_folder: &str,
+    tags_json: &str,
+) -> Result<usize, rusqlite::Error> {
+    stmt.execute(params![
+        effective_id,
+        item.device_id,
+        norm_path,
+        norm_folder,
+        item.file_name,
+        item.media_type.as_str(),
+        item.mime,
+        item.size as i64,
+        item.blake3,
+        item.partial_hash,
+        item.created_at,
+        item.modified_at,
+        item.duration_ms as i64,
+        i64::from(item.width),
+        i64::from(item.height),
+        item.gps_lat,
+        item.gps_lon,
+        item.place,
+        tags_json,
+        item.alias,
+        item.auto_alias,
+        item.cover_id,
+        item.sync_state.as_str(),
+        i64::from(item.is_duplicate),
+        item.duplicate_group_id,
+        i64::from(item.is_trashed),
+        item.trashed_path,
+        item.updated_at,
+    ])
+}
+
 /// Converts user search text into a safe FTS5 prefix expression (e.g. `"2026"* "beach"*`).
 pub fn build_fts_match_query(raw_query: &str) -> String {
     let tokens: Vec<String> = raw_query
@@ -286,8 +330,7 @@ impl MediaIndex {
         let mut conn = self.lock()?;
         let tx = conn.transaction()?;
         {
-            let mut stmt = tx.prepare_cached(
-                "INSERT INTO media (
+            const UPSERT_SQL: &str = "INSERT INTO media (
                    id, device_id, path, folder_path, file_name, type, mime, size, blake3, partial_hash,
                    created_at, modified_at, duration_ms, width, height, gps_lat, gps_lon, place,
                    tags, alias, auto_alias, cover_id, sync_state, is_duplicate, duplicate_group_id,
@@ -298,8 +341,7 @@ impl MediaIndex {
                    ?19, ?20, ?21, ?22, ?23, ?24, ?25,
                    ?26, ?27, ?28
                  )
-                 ON CONFLICT(id) DO UPDATE SET
-                   path = excluded.path,
+                 ON CONFLICT(device_id, path) DO UPDATE SET
                    folder_path = excluded.folder_path,
                    file_name = excluded.file_name,
                    type = excluded.type,
@@ -315,49 +357,131 @@ impl MediaIndex {
                    gps_lat = COALESCE(excluded.gps_lat, media.gps_lat),
                    gps_lon = COALESCE(excluded.gps_lon, media.gps_lon),
                    place = COALESCE(excluded.place, media.place),
-                   tags = excluded.tags,
-                   alias = excluded.alias,
-                   auto_alias = excluded.auto_alias,
+                   tags = CASE WHEN excluded.tags != '{}' THEN excluded.tags ELSE media.tags END,
+                   alias = CASE
+                     WHEN excluded.alias != '' AND excluded.alias != excluded.auto_alias THEN excluded.alias
+                     WHEN media.alias != '' AND media.alias != media.auto_alias THEN media.alias
+                     WHEN excluded.alias != '' THEN excluded.alias
+                     ELSE media.alias
+                   END,
+                   auto_alias = CASE WHEN excluded.auto_alias != '' THEN excluded.auto_alias ELSE media.auto_alias END,
                    cover_id = COALESCE(excluded.cover_id, media.cover_id),
                    sync_state = excluded.sync_state,
                    is_duplicate = excluded.is_duplicate,
                    duplicate_group_id = excluded.duplicate_group_id,
                    is_trashed = excluded.is_trashed,
                    trashed_path = excluded.trashed_path,
-                   updated_at = excluded.updated_at",
-            )?;
+                   updated_at = excluded.updated_at";
+
+            const UPDATE_BY_ID_SQL: &str = "UPDATE media SET
+                   device_id = ?2,
+                   path = ?3,
+                   folder_path = ?4,
+                   file_name = ?5,
+                   type = ?6,
+                   mime = ?7,
+                   size = ?8,
+                   blake3 = CASE WHEN ?9 != '' THEN ?9 ELSE blake3 END,
+                   partial_hash = CASE WHEN ?10 != '' THEN ?10 ELSE partial_hash END,
+                   created_at = ?11,
+                   modified_at = ?12,
+                   duration_ms = CASE WHEN ?13 > 0 THEN ?13 ELSE duration_ms END,
+                   width = CASE WHEN ?14 > 0 THEN ?14 ELSE width END,
+                   height = CASE WHEN ?15 > 0 THEN ?15 ELSE height END,
+                   gps_lat = COALESCE(?16, gps_lat),
+                   gps_lon = COALESCE(?17, gps_lon),
+                   place = COALESCE(?18, place),
+                   tags = CASE WHEN ?19 != '{}' THEN ?19 ELSE tags END,
+                   alias = CASE
+                     WHEN ?20 != '' AND ?20 != ?21 THEN ?20
+                     WHEN alias != '' AND alias != auto_alias THEN alias
+                     WHEN ?20 != '' THEN ?20
+                     ELSE alias
+                   END,
+                   auto_alias = CASE WHEN ?21 != '' THEN ?21 ELSE auto_alias END,
+                   cover_id = COALESCE(?22, cover_id),
+                   sync_state = ?23,
+                   is_duplicate = ?24,
+                   duplicate_group_id = ?25,
+                   is_trashed = ?26,
+                   trashed_path = ?27,
+                   updated_at = ?28
+                 WHERE id = ?1";
+
+            let mut stmt = tx.prepare_cached(UPSERT_SQL)?;
+            let mut pk_check = tx.prepare_cached("SELECT device_id FROM media WHERE id = ?1")?;
+            let mut path_check =
+                tx.prepare_cached("SELECT id FROM media WHERE device_id = ?1 AND path = ?2")?;
+            let mut update_by_id = tx.prepare_cached(UPDATE_BY_ID_SQL)?;
 
             for item in items {
-                stmt.execute(params![
-                    item.id,
-                    item.device_id,
-                    item.path,
-                    item.folder_path,
-                    item.file_name,
-                    item.media_type.as_str(),
-                    item.mime,
-                    item.size as i64,
-                    item.blake3,
-                    item.partial_hash,
-                    item.created_at,
-                    item.modified_at,
-                    item.duration_ms as i64,
-                    i64::from(item.width),
-                    i64::from(item.height),
-                    item.gps_lat,
-                    item.gps_lon,
-                    item.place,
-                    serde_json::to_string(&item.tags)?,
-                    item.alias,
-                    item.auto_alias,
-                    item.cover_id,
-                    item.sync_state.as_str(),
-                    i64::from(item.is_duplicate),
-                    item.duplicate_group_id,
-                    i64::from(item.is_trashed),
-                    item.trashed_path,
-                    item.updated_at,
-                ])?;
+                let norm_path = normalize_db_path(&item.path);
+                let norm_folder = normalize_db_path(&item.folder_path);
+                let tags_json = serde_json::to_string(&item.tags)?;
+
+                let exec_res = exec_media_upsert_stmt(
+                    &mut stmt,
+                    &item.id,
+                    item,
+                    &norm_path,
+                    &norm_folder,
+                    &tags_json,
+                );
+
+                if let Err(err) = exec_res {
+                    let is_constraint = matches!(
+                        err,
+                        rusqlite::Error::SqliteFailure(ref f, _)
+                            if f.code == rusqlite::ErrorCode::ConstraintViolation
+                    );
+                    if !is_constraint {
+                        return Err(err.into());
+                    }
+
+                    // Primary key (`id`) collided with a different (device_id, path) row.
+                    let existing_dev: Option<String> =
+                        pk_check.query_row([&item.id], |r| r.get(0)).ok();
+                    let existing_path_id: Option<String> = path_check
+                        .query_row(params![item.device_id, norm_path], |r| r.get(0))
+                        .ok();
+
+                    match (existing_dev.as_deref(), existing_path_id) {
+                        (_, Some(target_id)) => {
+                            exec_media_upsert_stmt(
+                                &mut stmt,
+                                &target_id,
+                                item,
+                                &norm_path,
+                                &norm_folder,
+                                &tags_json,
+                            )?;
+                        }
+                        (Some(dev), None) if dev == item.device_id => {
+                            // Same item on same device moved/renamed to a new path.
+                            exec_media_upsert_stmt(
+                                &mut update_by_id,
+                                &item.id,
+                                item,
+                                &norm_path,
+                                &norm_folder,
+                                &tags_json,
+                            )?;
+                        }
+                        (Some(_), None) | (None, None) => {
+                            // Same `id` reused across another device_id: allocate deterministic per-(device, path) id.
+                            let derived_id =
+                                crate::scanner::stable_media_id(&item.device_id, &norm_path);
+                            exec_media_upsert_stmt(
+                                &mut stmt,
+                                &derived_id,
+                                item,
+                                &norm_path,
+                                &norm_folder,
+                                &tags_json,
+                            )?;
+                        }
+                    }
+                }
             }
         }
         tx.commit()?;
@@ -389,9 +513,10 @@ impl MediaIndex {
         device_id: &str,
         file_path: &str,
     ) -> Result<Option<MediaRecord>, IndexError> {
+        let norm_path = normalize_db_path(file_path);
         let conn = self.lock()?;
         let mut stmt = conn.prepare("SELECT * FROM media WHERE device_id = ?1 AND path = ?2")?;
-        let mut rows = stmt.query(params![device_id, file_path])?;
+        let mut rows = stmt.query(params![device_id, norm_path])?;
         if let Some(row) = rows.next()? {
             Ok(Some(map_media_row(row)?))
         } else {
@@ -639,10 +764,12 @@ impl MediaIndex {
         new_file_name: &str,
         new_folder_path: &str,
     ) -> Result<(), IndexError> {
+        let norm_path = normalize_db_path(new_path);
+        let norm_folder = normalize_db_path(new_folder_path);
         let conn = self.lock()?;
         conn.execute(
             "UPDATE media SET path = ?1, file_name = ?2, folder_path = ?3, updated_at = ?4 WHERE id = ?5",
-            params![new_path, new_file_name, new_folder_path, now_ms(), media_id],
+            params![norm_path, new_file_name, norm_folder, now_ms(), media_id],
         )?;
         Ok(())
     }
@@ -670,10 +797,11 @@ impl MediaIndex {
         device_id: &str,
         file_path: &str,
     ) -> Result<(), IndexError> {
+        let norm_path = normalize_db_path(file_path);
         let conn = self.lock()?;
         conn.execute(
             "DELETE FROM media WHERE device_id = ?1 AND path = ?2",
-            params![device_id, file_path],
+            params![device_id, norm_path],
         )?;
         Ok(())
     }
@@ -1170,9 +1298,13 @@ impl MediaIndex {
             if item.device_id != delta.device.id {
                 continue;
             }
-            let existing = self.get_media_by_id(&item.id)?;
+            let existing = if let Some(found) = self.get_media_by_id(&item.id)? {
+                Some(found.media)
+            } else {
+                self.get_media_by_path(&item.device_id, &item.path)?
+            };
             item.sync_state = match existing {
-                Some(ref ex) if ex.media.sync_state == SyncState::Synced => SyncState::Synced,
+                Some(ref ex) if ex.sync_state == SyncState::Synced => SyncState::Synced,
                 _ => SyncState::Remote,
             };
             authoritative_items.push(item);

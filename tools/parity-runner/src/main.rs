@@ -1,6 +1,8 @@
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
+use anyhow::{ensure, Context, Result};
 use core_index::{
     compute_file_blake3, import_legacy_sqlite, scan_folders, DeviceRecord, DeviceType, MediaFilter,
     MediaIndex, MediaRecord, MediaTags, MediaType, ProbedMediaMetadata, ScanRequest, SortSpec,
@@ -32,23 +34,42 @@ struct ParityBenchmarkReport {
     first_thumb_ms: f64,
 }
 
-fn temp_dir(prefix: &str) -> std::path::PathBuf {
+fn create_temp_root(prefix: &str) -> Result<PathBuf> {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap()
+        .context("read system clock while creating parity temp directory")?
         .as_nanos();
     let dir = std::env::temp_dir().join(format!("{prefix}-{nanos}"));
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
+    std::fs::create_dir_all(&dir)
+        .with_context(|| format!("create parity root directory at {}", dir.display()))?;
+    Ok(dir)
 }
 
-fn main() {
-    let root = temp_dir("mg-parity-bench");
+fn default_self_device(id: &str, name: &str, last_seen: i64) -> DeviceRecord {
+    DeviceRecord {
+        id: id.into(),
+        name: name.into(),
+        device_type: DeviceType::Pc,
+        public_key: format!("pk-{id}"),
+        last_seen,
+        transports: vec![TransportKind::WifiLan],
+        host: Some("127.0.0.1".into()),
+        port: Some(9443),
+        is_self: true,
+        is_online: true,
+        paired_at: None,
+    }
+}
+
+fn run_parity_and_benchmarks(root: &Path) -> Result<ParityBenchmarkReport> {
     let parity_dir = root.join("parity_fixtures");
+    let thumb_dir = root.join("thumb_parity");
     let bench_1k_dir = root.join("bench_1k");
     let cache_dir = root.join("thumbs");
-    std::fs::create_dir_all(&parity_dir).unwrap();
-    std::fs::create_dir_all(&bench_1k_dir).unwrap();
+    for dir in [&parity_dir, &thumb_dir, &bench_1k_dir, &cache_dir] {
+        std::fs::create_dir_all(dir)
+            .with_context(|| format!("create fixture directory {}", dir.display()))?;
+    }
 
     // 1. Parity fixture checks (16 supported extensions + duplicates)
     let exts = [
@@ -56,27 +77,25 @@ fn main() {
         "k.png", "l.jpg", "m.jpeg", "n.gif", "o.webp", "p.heic",
     ];
     for name in exts {
-        std::fs::write(parity_dir.join(name), format!("parity-payload-{name}")).unwrap();
+        let p = parity_dir.join(name);
+        std::fs::write(&p, format!("parity-payload-{name}"))
+            .with_context(|| format!("write parity fixture {}", p.display()))?;
     }
     let dup_bytes = vec![77u8; 4096];
-    std::fs::write(parity_dir.join("dup_a.jpg"), &dup_bytes).unwrap();
-    std::fs::write(parity_dir.join("dup_b.jpg"), &dup_bytes).unwrap();
+    for dup_name in ["dup_a.jpg", "dup_b.jpg"] {
+        let p = parity_dir.join(dup_name);
+        std::fs::write(&p, &dup_bytes)
+            .with_context(|| format!("write duplicate fixture {}", p.display()))?;
+    }
 
-    let idx = MediaIndex::open_in_memory().unwrap();
-    idx.upsert_device(&DeviceRecord {
-        id: "pc-1".into(),
-        name: "Workstation".into(),
-        device_type: DeviceType::Pc,
-        public_key: "pk-1".into(),
-        last_seen: 1_773_489_600_000,
-        transports: vec![TransportKind::WifiLan],
-        host: Some("127.0.0.1".into()),
-        port: Some(9443),
-        is_self: true,
-        is_online: true,
-        paired_at: None,
-    })
-    .unwrap();
+    let scan_idx = MediaIndex::open_in_memory().context("open scan parity SQLite index")?;
+    scan_idx
+        .upsert_device(&default_self_device(
+            "pc-1",
+            "Workstation",
+            1_773_489_600_000,
+        ))
+        .context("upsert pc-1 device for scan parity")?;
 
     let sidecar = Arc::new(DesktopFfmpegSidecar::default());
     let scan_req = ScanRequest {
@@ -90,19 +109,30 @@ fn main() {
         cancel: None,
     };
     let res = scan_folders(
-        &idx,
+        &scan_idx,
         &scan_req,
         &|p, mt, c, m, dev| {
             extract_metadata_and_alias(p, mt, c, m, dev, None, Some(sidecar.as_ref()))
         },
         |_| {},
     )
-    .unwrap();
-    assert_eq!(res.added_files, 18);
-    let dup_groups = idx.detect_and_flag_duplicates(Some("pc-1")).unwrap();
-    assert_eq!(dup_groups.len(), 1);
+    .with_context(|| format!("scan parity fixtures in {}", parity_dir.display()))?;
+    ensure!(
+        res.added_files == 18,
+        "expected 18 scanned parity files in {}, got {}",
+        parity_dir.display(),
+        res.added_files
+    );
+    let dup_groups = scan_idx
+        .detect_and_flag_duplicates(Some("pc-1"))
+        .context("detect duplicate fixture group on pc-1")?;
+    ensure!(
+        dup_groups.len() == 1,
+        "expected 1 duplicate group on pc-1, got {}",
+        dup_groups.len()
+    );
 
-    // Auto-alias parity checks
+    // 2. Auto-alias parity checks
     let march_2026 = 1_773_489_600_000_i64;
     let empty_tags = MediaTags::default();
     let (auto_alias_bali_photo, place_bali) = generate_auto_alias(&AutoAliasInput {
@@ -118,8 +148,14 @@ fn main() {
         template: None,
         use_utc_date: true,
     });
-    assert_eq!(place_bali.as_deref(), Some("Kuta Beach Bali"));
-    assert_eq!(auto_alias_bali_photo, "2026-03-14 Kuta Beach Bali");
+    ensure!(
+        place_bali.as_deref() == Some("Kuta Beach Bali"),
+        "expected Kuta Beach Bali geocoding match, got {place_bali:?}"
+    );
+    ensure!(
+        auto_alias_bali_photo == "2026-03-14 Kuta Beach Bali",
+        "unexpected Bali auto-alias: {auto_alias_bali_photo}"
+    );
 
     let (auto_alias_camel_video, _) = generate_auto_alias(&AutoAliasInput {
         file_name: "VID_0042_sunsetWalk-09.mp4",
@@ -134,22 +170,38 @@ fn main() {
         template: None,
         use_utc_date: true,
     });
-    assert_eq!(auto_alias_camel_video, "2026-03-14 sunset Walk");
-    assert_eq!(
-        clean_file_name_for_alias("VID_0042_sunsetWalk-09.mp4"),
-        "sunset Walk"
+    ensure!(
+        auto_alias_camel_video == "2026-03-14 sunset Walk",
+        "unexpected video auto-alias: {auto_alias_camel_video}"
+    );
+    ensure!(
+        clean_file_name_for_alias("VID_0042_sunsetWalk-09.mp4") == "sunset Walk",
+        "unexpected clean_file_name_for_alias result"
     );
 
-    // Thumbnail first-third parity
+    // 3. Thumbnail first-third parity (isolated DB & fixture path, independent of scan_folders)
+    let thumb_idx = MediaIndex::open_in_memory().context("open thumbnail parity SQLite index")?;
+    thumb_idx
+        .upsert_device(&default_self_device("pc-thumb", "Workstation", march_2026))
+        .context("upsert pc-thumb device for thumbnail parity")?;
+
+    let sample_video_file = thumb_dir.join("sample_video.mp4");
+    std::fs::write(&sample_video_file, b"sample-video-parity-payload").with_context(|| {
+        format!(
+            "write thumbnail parity fixture {}",
+            sample_video_file.display()
+        )
+    })?;
+    let sample_video_path = sample_video_file.to_string_lossy().replace('\\', "/");
     let sample_video = MediaRecord {
         id: "vid-parity".into(),
-        device_id: "pc-1".into(),
-        path: parity_dir.join("a.mp4").to_string_lossy().to_string(),
-        folder_path: parity_dir.to_string_lossy().to_string(),
-        file_name: "a.mp4".into(),
+        device_id: "pc-thumb".into(),
+        path: sample_video_path.clone(),
+        folder_path: thumb_dir.to_string_lossy().replace('\\', "/"),
+        file_name: "sample_video.mp4".into(),
         media_type: MediaType::Video,
         mime: "video/mp4".into(),
-        size: 32,
+        size: 27,
         blake3: String::new(),
         partial_hash: String::new(),
         created_at: march_2026,
@@ -171,9 +223,11 @@ fn main() {
         trashed_path: None,
         updated_at: march_2026,
     };
-    idx.upsert_media(&sample_video).unwrap();
+    thumb_idx
+        .upsert_media(&sample_video)
+        .with_context(|| format!("upsert synthetic sample video at {sample_video_path}"))?;
     let thumb_mgr = ThumbnailManager {
-        index: &idx,
+        index: &thumb_idx,
         sidecar: sidecar.as_ref(),
         cache_dir: &cache_dir,
         max_cache_bytes: None,
@@ -181,16 +235,30 @@ fn main() {
     let t_thumb0 = Instant::now();
     let cover = thumb_mgr
         .ensure_thumbnail(&sample_video, Some(0.5))
-        .unwrap();
+        .with_context(|| {
+            format!(
+                "generate first-third thumbnail for {} into {}",
+                sample_video_file.display(),
+                cache_dir.display()
+            )
+        })?;
     let first_thumb_ms = t_thumb0.elapsed().as_secs_f64() * 1000.0;
-    assert!(cover.frame_time_ms <= 30_000);
+    ensure!(
+        cover.frame_time_ms <= 30_000,
+        "frame_time_ms {} exceeded first third (30_000 ms) for {}",
+        cover.frame_time_ms,
+        sample_video_file.display()
+    );
 
-    // BLAKE3 transfer check
+    // 4. BLAKE3 transfer check
     let src_xfer = root.join("src.bin");
     let xfer_bytes = vec![55u8; 64 * 1024];
-    std::fs::write(&src_xfer, &xfer_bytes).unwrap();
-    let expected_b3 = compute_file_blake3(&src_xfer).unwrap();
-    let rx = TransferReceiver::new(root.join("rx"));
+    std::fs::write(&src_xfer, &xfer_bytes)
+        .with_context(|| format!("write transfer fixture {}", src_xfer.display()))?;
+    let expected_b3 = compute_file_blake3(&src_xfer)
+        .with_context(|| format!("compute BLAKE3 digest for {}", src_xfer.display()))?;
+    let rx_dir = root.join("rx");
+    let rx = TransferReceiver::new(rx_dir.clone());
     let final_rx = rx
         .handle_chunk(&FileChunkFrame {
             transfer_id: "tx-parity".into(),
@@ -201,15 +269,19 @@ fn main() {
             offset: 0,
             bytes_total: xfer_bytes.len() as u64,
             expected_blake3: expected_b3,
-            data: xfer_bytes.clone(),
+            data: xfer_bytes,
         })
-        .unwrap();
-    assert!(final_rx.is_some());
+        .with_context(|| format!("verify BLAKE3 transfer chunk into {}", rx_dir.display()))?;
+    ensure!(
+        final_rx.is_some(),
+        "expected TransferReceiver completion path for tx-parity"
+    );
 
-    // Legacy read-only SQLite import check
+    // 5. Legacy read-only SQLite import check (isolated DB)
     let leg_db = root.join("legacy.db");
     {
-        let conn = rusqlite::Connection::open(&leg_db).unwrap();
+        let conn = rusqlite::Connection::open(&leg_db)
+            .with_context(|| format!("create legacy fixture SQLite db {}", leg_db.display()))?;
         conn.execute_batch(
             "CREATE TABLE device (id TEXT PRIMARY KEY, name TEXT, type TEXT, public_key TEXT, last_seen INTEGER, transports TEXT, host TEXT, port INTEGER, is_self INTEGER, is_online INTEGER, paired_at INTEGER);
              CREATE TABLE media (id TEXT PRIMARY KEY, device_id TEXT, path TEXT, folder_path TEXT, file_name TEXT, type TEXT, mime TEXT, size INTEGER, hash TEXT, partial_hash TEXT, created_at INTEGER, modified_at INTEGER, duration_ms INTEGER, width INTEGER, height INTEGER, gps_lat REAL, gps_lon REAL, place TEXT, tags TEXT, alias TEXT, auto_alias TEXT, cover_id TEXT, sync_state TEXT, is_duplicate INTEGER, duplicate_group_id TEXT, is_trashed INTEGER, trashed_path TEXT, updated_at INTEGER);
@@ -220,36 +292,33 @@ fn main() {
              INSERT INTO device VALUES ('leg-pc', 'Legacy', 'pc', 'pk', 100, '[\"wifi_lan\"]', NULL, NULL, 1, 1, 100);
              INSERT INTO media VALUES ('leg-m1', 'leg-pc', 'C:/x.mp4', 'C:/', 'x.mp4', 'video', 'video/mp4', 100, 'sha', 'p', 1773489600000, 1773489600000, 30000, 1920, 1080, NULL, NULL, NULL, '{}', 'Legacy Video', 'Legacy Video', NULL, 'Local', 0, NULL, 0, NULL, 100);",
         )
-        .unwrap();
+        .with_context(|| format!("seed legacy fixture tables in {}", leg_db.display()))?;
     }
-    let import_report = import_legacy_sqlite(&idx, &leg_db).unwrap();
-    assert_eq!(import_report.imported_media, 1);
+    let import_idx = MediaIndex::open_in_memory().context("open isolated legacy import index")?;
+    let import_report = import_legacy_sqlite(&import_idx, &leg_db)
+        .with_context(|| format!("import legacy SQLite db from {}", leg_db.display()))?;
+    ensure!(
+        import_report.imported_media == 1,
+        "expected 1 imported legacy media row from {}, got {}",
+        leg_db.display(),
+        import_report.imported_media
+    );
 
-    // 2. Benchmark: 1,000 real fixture files filesystem scan (matches legacy benchmark)
+    // 6. Benchmark: 1,000 real fixture files filesystem scan (matches legacy benchmark)
     for i in 0..1000 {
         let name = if i == 500 {
             "IMG_2031_beach.jpg".to_string()
         } else {
             format!("IMG_{i:04}.jpg")
         };
-        std::fs::write(bench_1k_dir.join(name), b"stub-bytes").unwrap();
+        let p = bench_1k_dir.join(name);
+        std::fs::write(&p, b"stub-bytes")
+            .with_context(|| format!("write 1k benchmark file {}", p.display()))?;
     }
-    let bench_idx = MediaIndex::open_in_memory().unwrap();
+    let bench_idx = MediaIndex::open_in_memory().context("open 1k scan benchmark SQLite index")?;
     bench_idx
-        .upsert_device(&DeviceRecord {
-            id: "pc-1".into(),
-            name: "Workstation".into(),
-            device_type: DeviceType::Pc,
-            public_key: "pk".into(),
-            last_seen: march_2026,
-            transports: vec![TransportKind::WifiLan],
-            host: None,
-            port: None,
-            is_self: true,
-            is_online: true,
-            paired_at: None,
-        })
-        .unwrap();
+        .upsert_device(&default_self_device("pc-1", "Workstation", march_2026))
+        .context("upsert pc-1 device for 1k scan benchmark")?;
     let t_scan0 = Instant::now();
     scan_folders(
         &bench_idx,
@@ -257,7 +326,7 @@ fn main() {
             operation_id: "bench-1k".into(),
             device_id: "pc-1".into(),
             device_name: "Workstation".into(),
-            roots: vec![bench_1k_dir],
+            roots: vec![bench_1k_dir.clone()],
             excluded_folders: Vec::new(),
             compute_hashes: true,
             batch_size: 200,
@@ -266,10 +335,10 @@ fn main() {
         &|_p, _mt, _c, _m, _d| ProbedMediaMetadata::default(),
         |_| {},
     )
-    .unwrap();
+    .with_context(|| format!("run 1k file scan benchmark in {}", bench_1k_dir.display()))?;
     let scan_1k_files_ms = t_scan0.elapsed().as_secs_f64() * 1000.0;
 
-    // 3. Benchmark: 10,000 and 100,000 mixed media batch SQLite + FTS5 indexing (PRD Sec 15 & 18)
+    // 7. Benchmark: 10,000 and 100,000 mixed media batch SQLite + FTS5 indexing (PRD Sec 15 & 18)
     let make_batch = |count: usize, prefix: &str| -> Vec<MediaRecord> {
         (0..count)
             .map(|i| {
@@ -313,46 +382,27 @@ fn main() {
             .collect()
     };
 
-    let idx_10k = MediaIndex::open_in_memory().unwrap();
+    let idx_10k = MediaIndex::open_in_memory().context("open 10k batch benchmark SQLite index")?;
     idx_10k
-        .upsert_device(&DeviceRecord {
-            id: "pc-1".into(),
-            name: "PC".into(),
-            device_type: DeviceType::Pc,
-            public_key: "pk".into(),
-            last_seen: march_2026,
-            transports: vec![TransportKind::WifiLan],
-            host: None,
-            port: None,
-            is_self: true,
-            is_online: true,
-            paired_at: None,
-        })
-        .unwrap();
+        .upsert_device(&default_self_device("pc-1", "PC", march_2026))
+        .context("upsert pc-1 device for 10k batch benchmark")?;
     let batch_10k = make_batch(10_000, "b10k");
     let t_10k = Instant::now();
-    idx_10k.upsert_media_batch(&batch_10k).unwrap();
+    idx_10k
+        .upsert_media_batch(&batch_10k)
+        .context("upsert 10k media benchmark batch")?;
     let insert_10k_ms = t_10k.elapsed().as_secs_f64() * 1000.0;
 
-    let idx_100k = MediaIndex::open_in_memory().unwrap();
+    let idx_100k =
+        MediaIndex::open_in_memory().context("open 100k batch benchmark SQLite index")?;
     idx_100k
-        .upsert_device(&DeviceRecord {
-            id: "pc-1".into(),
-            name: "PC".into(),
-            device_type: DeviceType::Pc,
-            public_key: "pk".into(),
-            last_seen: march_2026,
-            transports: vec![TransportKind::WifiLan],
-            host: None,
-            port: None,
-            is_self: true,
-            is_online: true,
-            paired_at: None,
-        })
-        .unwrap();
+        .upsert_device(&default_self_device("pc-1", "PC", march_2026))
+        .context("upsert pc-1 device for 100k batch benchmark")?;
     let batch_100k = make_batch(100_000, "b100k");
     let t_100k = Instant::now();
-    idx_100k.upsert_media_batch(&batch_100k).unwrap();
+    idx_100k
+        .upsert_media_batch(&batch_100k)
+        .context("upsert 100k media benchmark batch")?;
     let insert_100k_ms = t_100k.elapsed().as_secs_f64() * 1000.0;
 
     let t_q = Instant::now();
@@ -366,11 +416,15 @@ fn main() {
             None,
             50,
         )
-        .unwrap();
+        .context("execute FTS5 '2026 beach' query against 100k media index")?;
     let fts_query_100k_ms = t_q.elapsed().as_secs_f64() * 1000.0;
-    assert_eq!(hits.total_count, 1);
+    ensure!(
+        hits.total_count == 1,
+        "expected 1 FTS5 hit for '2026 beach' across 100k records, got {}",
+        hits.total_count
+    );
 
-    let report = ParityBenchmarkReport {
+    Ok(ParityBenchmarkReport {
         parity_checks_passed: true,
         supported_extensions_count: 16,
         duplicate_groups_found: dup_groups.len(),
@@ -385,8 +439,16 @@ fn main() {
         insert_100k_ms: (insert_100k_ms * 100.0).round() / 100.0,
         fts_query_100k_ms: (fts_query_100k_ms * 100.0).round() / 100.0,
         first_thumb_ms: (first_thumb_ms * 100.0).round() / 100.0,
-    };
+    })
+}
 
-    println!("{}", serde_json::to_string_pretty(&report).unwrap());
-    let _ = std::fs::remove_dir_all(root);
+fn main() -> Result<()> {
+    let root = create_temp_root("mg-parity-bench")?;
+    let result = run_parity_and_benchmarks(&root);
+    let _ = std::fs::remove_dir_all(&root);
+    let report = result?;
+    let json =
+        serde_json::to_string_pretty(&report).context("serialize ParityBenchmarkReport to JSON")?;
+    println!("{json}");
+    Ok(())
 }

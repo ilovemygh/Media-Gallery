@@ -3,8 +3,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use core_index::{
     compute_file_blake3, compute_partial_blake3, import_legacy_sqlite,
-    ingest_android_mediastore_batch, scan_folders, DeviceRecord, DeviceType, MediaFilter,
-    MediaIndex, MediaType, ProbedMediaMetadata, ScanRequest, SortSpec, TransportKind,
+    ingest_android_mediastore_batch, scan_folders, AspectPreset, CoverRecord, CoverSource,
+    DeviceRecord, DeviceType, MediaFilter, MediaIndex, MediaRecord, MediaTags, MediaType,
+    ProbedMediaMetadata, ScanRequest, SortSpec, SyncState, TransportKind,
 };
 use core_platform::AndroidMediaStoreRow;
 
@@ -257,4 +258,211 @@ fn imports_legacy_v01_sqlite_idempotently_and_requires_relogin() {
     assert_eq!(r2.skipped_items, 1);
 
     let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn upsert_media_idempotency_after_scan_and_multi_device_isolation() {
+    let root = temp_dir("mg-upsert-idempotent");
+    let lib = root.join("videos");
+    std::fs::create_dir_all(&lib).unwrap();
+    let scanned_file = lib.join("a.mp4");
+    std::fs::write(&scanned_file, b"initial-video-bytes").unwrap();
+    let scanned_path = scanned_file.to_string_lossy().replace('\\', "/");
+    let scanned_folder = lib.to_string_lossy().replace('\\', "/");
+
+    let idx = setup_index_with_self();
+    idx.upsert_device(&DeviceRecord {
+        id: "pc-2".to_string(),
+        name: "Backup PC".to_string(),
+        device_type: DeviceType::Pc,
+        public_key: "pk-pc-2".to_string(),
+        last_seen: 1_700_000_000_000,
+        transports: vec![TransportKind::WifiLan],
+        host: None,
+        port: None,
+        is_self: false,
+        is_online: true,
+        paired_at: None,
+    })
+    .unwrap();
+
+    // (a) Calling upsert_media twice with same (device_id, path) leaves 1 row,
+    // preserves original id / user alias / cover_id, and updates mutable columns.
+    let manual_path = format!("{scanned_folder}/manual.mp4");
+    let rec1 = MediaRecord {
+        id: "manual-id-1".into(),
+        device_id: "pc-1".into(),
+        path: manual_path.clone(),
+        folder_path: scanned_folder.clone(),
+        file_name: "manual.mp4".into(),
+        media_type: MediaType::Video,
+        mime: "video/mp4".into(),
+        size: 100,
+        blake3: "hash-v1".into(),
+        partial_hash: "phash-v1".into(),
+        created_at: 1_773_489_600_000,
+        modified_at: 1_773_489_600_000,
+        duration_ms: 0,
+        width: 0,
+        height: 0,
+        gps_lat: None,
+        gps_lon: None,
+        place: None,
+        tags: MediaTags::default(),
+        alias: "Custom User Alias".into(),
+        auto_alias: "2026-03-14 manual".into(),
+        cover_id: None,
+        sync_state: SyncState::Local,
+        is_duplicate: false,
+        duplicate_group_id: None,
+        is_trashed: false,
+        trashed_path: None,
+        updated_at: 1_773_489_600_000,
+    };
+    idx.upsert_media(&rec1).unwrap();
+    idx.upsert_cover(&CoverRecord {
+        id: "cov-manual-1".into(),
+        media_id: "manual-id-1".into(),
+        source: CoverSource::Custom,
+        file_path: "C:/thumbs/cov-manual-1.png".into(),
+        cloud_id: None,
+        aspect: AspectPreset::Ratio16x9,
+        crop: None,
+        frame_time_ms: 4_000,
+        updated_at: 1_773_489_600_000,
+    })
+    .unwrap();
+
+    let rec2 = MediaRecord {
+        id: "manual-id-different".into(),
+        size: 2048,
+        blake3: "hash-v2".into(),
+        partial_hash: "phash-v2".into(),
+        modified_at: 1_773_489_700_000,
+        duration_ms: 90_000,
+        width: 1920,
+        height: 1080,
+        place: Some("Bali".into()),
+        tags: MediaTags {
+            title: Some("Updated Clip".into()),
+            ..Default::default()
+        },
+        alias: "2026-03-14 auto regenerated".into(),
+        auto_alias: "2026-03-14 auto regenerated".into(),
+        cover_id: None,
+        sync_state: SyncState::Synced,
+        updated_at: 1_773_489_700_000,
+        ..rec1.clone()
+    };
+    idx.upsert_media(&rec2).unwrap();
+
+    let all_manual = idx
+        .list_media(&MediaFilter::default(), SortSpec::default(), None, 50)
+        .unwrap();
+    assert_eq!(all_manual.total_count, 1);
+    let stored = idx
+        .get_media_by_path("pc-1", &manual_path)
+        .unwrap()
+        .unwrap();
+    assert_eq!(stored.id, "manual-id-1");
+    assert_eq!(stored.size, 2048);
+    assert_eq!(stored.blake3, "hash-v2");
+    assert_eq!(stored.duration_ms, 90_000);
+    assert_eq!(stored.width, 1920);
+    assert_eq!(stored.height, 1080);
+    assert_eq!(stored.alias, "Custom User Alias");
+    assert_eq!(stored.cover_id.as_deref(), Some("cov-manual-1"));
+    assert_eq!(stored.sync_state, SyncState::Synced);
+
+    // (b) Scan folder then call upsert_media on a scanned file with a different struct id
+    scan_folders(
+        &idx,
+        &ScanRequest {
+            operation_id: "op-upsert-parity".into(),
+            device_id: "pc-1".into(),
+            device_name: "Workstation".into(),
+            roots: vec![lib],
+            excluded_folders: Vec::new(),
+            compute_hashes: true,
+            batch_size: 50,
+            cancel: None,
+        },
+        &|_, _, _, _, _| ProbedMediaMetadata::default(),
+        |_| {},
+    )
+    .unwrap();
+
+    let scanned_row = idx
+        .get_media_by_path("pc-1", &scanned_path)
+        .unwrap()
+        .unwrap();
+    idx.upsert_media(&MediaRecord {
+        id: "vid-parity-override".into(),
+        device_id: "pc-1".into(),
+        path: scanned_path.clone(),
+        folder_path: scanned_folder.clone(),
+        file_name: "a.mp4".into(),
+        media_type: MediaType::Video,
+        mime: "video/mp4".into(),
+        size: 99_999,
+        blake3: "updated-b3".into(),
+        partial_hash: String::new(),
+        created_at: scanned_row.created_at,
+        modified_at: scanned_row.modified_at + 1000,
+        duration_ms: 45_000,
+        width: 1280,
+        height: 720,
+        gps_lat: None,
+        gps_lon: None,
+        place: Some("Tokyo".into()),
+        tags: MediaTags::default(),
+        alias: "a.mp4".into(),
+        auto_alias: "a.mp4".into(),
+        cover_id: None,
+        sync_state: SyncState::Local,
+        is_duplicate: false,
+        duplicate_group_id: None,
+        is_trashed: false,
+        trashed_path: None,
+        updated_at: scanned_row.updated_at + 1000,
+    })
+    .unwrap();
+
+    let after_scan_upsert = idx
+        .get_media_by_path("pc-1", &scanned_path)
+        .unwrap()
+        .unwrap();
+    assert_eq!(after_scan_upsert.id, scanned_row.id);
+    assert_eq!(after_scan_upsert.size, 99_999);
+    assert_eq!(after_scan_upsert.duration_ms, 45_000);
+
+    // (c) Same path on two different device_ids creates two distinct rows
+    idx.upsert_media(&MediaRecord {
+        device_id: "pc-2".into(),
+        ..rec1
+    })
+    .unwrap();
+
+    let across_devices = idx
+        .list_media(
+            &MediaFilter {
+                folder_path: Some(scanned_folder),
+                ..Default::default()
+            },
+            SortSpec::default(),
+            None,
+            50,
+        )
+        .unwrap();
+    assert_eq!(across_devices.total_count, 3);
+    assert!(idx
+        .get_media_by_path("pc-1", &manual_path)
+        .unwrap()
+        .is_some());
+    assert!(idx
+        .get_media_by_path("pc-2", &manual_path)
+        .unwrap()
+        .is_some());
+
+    let _ = std::fs::remove_dir_all(root);
 }

@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+anyhow.workspace = true
 core-api = { path = "../../crates/core-api" }
 core-index = { path = "../../crates/core-index" }
 core-media = { path = "../../crates/core-media" }

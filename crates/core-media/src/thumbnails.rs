@@ -44,9 +44,25 @@ impl<'a> ThumbnailManager<'a> {
         media: &MediaRecord,
         rng_sample: Option<f64>,
     ) -> Result<CoverRecord, MediaOpError> {
-        if let Some(existing) = self.index.get_cover_by_media_id(&media.id)? {
-            return Ok(existing);
-        }
+        let resolved_media_id = if let Some(existing) = self.index.get_media_by_id(&media.id)? {
+            if let Some(cov) = existing.cover {
+                return Ok(cov);
+            }
+            existing.media.id
+        } else if let Some(by_path) = self
+            .index
+            .get_media_by_path(&media.device_id, &media.path)?
+        {
+            if let Some(cov) = self.index.get_cover_by_media_id(&by_path.id)? {
+                return Ok(cov);
+            }
+            by_path.id
+        } else {
+            if let Some(cov) = self.index.get_cover_by_media_id(&media.id)? {
+                return Ok(cov);
+            }
+            media.id.clone()
+        };
 
         std::fs::create_dir_all(self.cache_dir)?;
         let frame_time_ms = if media.media_type == MediaType::Video {
@@ -71,7 +87,7 @@ impl<'a> ThumbnailManager<'a> {
 
         let cover = CoverRecord {
             id: Uuid::new_v4().to_string(),
-            media_id: media.id.clone(),
+            media_id: resolved_media_id,
             source,
             file_path: out_str,
             cloud_id: None,

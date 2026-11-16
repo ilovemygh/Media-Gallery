@@ -88,8 +88,11 @@ pub fn import_legacy_sqlite(
         let mut batch = Vec::new();
         while let Some(row) = rows.next()? {
             let id: String = row.get("id")?;
-            let existing = target.get_media_by_id(&id)?;
-            if existing.is_some() {
+            let device_id: String = row.get("device_id")?;
+            let path: String = row.get("path")?;
+            let already_imported = target.get_media_by_id(&id)?.is_some()
+                || target.get_media_by_path(&device_id, &path)?.is_some();
+            if already_imported {
                 report.skipped_items += 1;
                 continue;
             }
@@ -100,8 +103,8 @@ pub fn import_legacy_sqlite(
 
             batch.push(MediaRecord {
                 id,
-                device_id: row.get("device_id")?,
-                path: row.get("path")?,
+                device_id,
+                path,
                 folder_path: row.get("folder_path")?,
                 file_name: row.get("file_name")?,
                 media_type: MediaType::parse(&type_raw),
