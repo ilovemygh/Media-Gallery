@@ -255,8 +255,10 @@ export class MediaRepository {
   }
 
   forgetDevice(id: string): void {
+    const target = this.getDevice(id);
+    if (!target || target.isSelf) return;
     this.db.transaction(() => {
-      this.db.run('DELETE FROM media WHERE device_id = ? AND is_self = 0', [id]);
+      this.db.run('DELETE FROM media WHERE device_id = ?', [id]);
       this.db.run('DELETE FROM device WHERE id = ? AND is_self = 0', [id]);
     });
   }

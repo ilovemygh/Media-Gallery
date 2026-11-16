@@ -7,6 +7,7 @@ import type { SqlAdapter, SqlParam } from './sqlAdapter.ts';
  */
 export class NodeSqliteAdapter implements SqlAdapter {
   private readonly db: DatabaseSync;
+  private txDepth = 0;
 
   constructor(dbPath: string = ':memory:') {
     this.db = new DatabaseSync(dbPath);
@@ -37,13 +38,22 @@ export class NodeSqliteAdapter implements SqlAdapter {
   }
 
   transaction<T>(fn: () => T): T {
-    this.db.exec('BEGIN IMMEDIATE;');
+    const isOuter = this.txDepth === 0;
+    const spName = `sp_${this.txDepth}`;
+    this.db.exec(isOuter ? 'BEGIN IMMEDIATE;' : `SAVEPOINT ${spName};`);
+    this.txDepth += 1;
     try {
       const result = fn();
-      this.db.exec('COMMIT;');
+      this.txDepth -= 1;
+      this.db.exec(isOuter ? 'COMMIT;' : `RELEASE SAVEPOINT ${spName};`);
       return result;
     } catch (error) {
-      this.db.exec('ROLLBACK;');
+      this.txDepth -= 1;
+      this.db.exec(
+        isOuter
+          ? 'ROLLBACK;'
+          : `ROLLBACK TO SAVEPOINT ${spName}; RELEASE SAVEPOINT ${spName};`,
+      );
       throw error;
     }
   }
