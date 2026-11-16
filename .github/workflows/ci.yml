@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  rust-core:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Format check
+        run: cargo fmt --all -- --check
+      - name: Clippy lint check
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Workspace tests & spikes
+        run: cargo test --workspace
+      - name: Parity & 100k benchmark runner
+        run: cargo run --release -p parity-runner -- --benchmark-100k
+
+  flutter-and-bindings:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc, aarch64-linux-android, armv7-linux-androideabi
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Install FRB codegen & verify bindings up to date
+        run: |
+          cargo install flutter_rust_bridge_codegen --version 2.11.1
+          flutter_rust_bridge_codegen generate
+          git diff --exit-code app/lib/src/rust/ crates/core-api/src/frb_generated.rs
+      - name: Flutter analyze & widget/golden tests
+        working-directory: app
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+      - name: Windows release build
+        working-directory: app
+        run: flutter build windows --release
+      - name: Android release APK build
+        working-directory: app
+        run: flutter build apk --release
+
+  legacy-reference:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Verify read-only legacy tests still pass
+        run: |
+          npm --prefix legacy ci
+          npm --prefix legacy test

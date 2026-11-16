@@ -1,0 +1,19 @@
+[package]
+name = "core-api"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+core-index = { path = "../core-index" }
+core-media = { path = "../core-media" }
+core-net = { path = "../core-net" }
+core-platform = { path = "../core-platform" }
+core-sync = { path = "../core-sync" }
+core-ytdl = { path = "../core-ytdl" }
+flutter_rust_bridge.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+uuid.workspace = true

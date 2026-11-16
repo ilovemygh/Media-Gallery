@@ -1,0 +1,15 @@
+[package]
+name = "core-ytdl"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+chrono.workspace = true
+core-index = { path = "../core-index" }
+core-media = { path = "../core-media" }
+core-platform = { path = "../core-platform" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
