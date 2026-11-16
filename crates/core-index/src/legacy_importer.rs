@@ -108,7 +108,9 @@ pub fn import_legacy_sqlite(
                 mime: row.get("mime")?,
                 size: row.get::<_, i64>("size")? as u64,
                 blake3: String::new(),
-                partial_hash: row.get::<_, Option<String>>("partial_hash")?.unwrap_or_default(),
+                partial_hash: row
+                    .get::<_, Option<String>>("partial_hash")?
+                    .unwrap_or_default(),
                 created_at: row.get("created_at")?,
                 modified_at: row.get("modified_at")?,
                 duration_ms: row.get::<_, i64>("duration_ms")? as u64,
@@ -126,7 +128,9 @@ pub fn import_legacy_sqlite(
                 duplicate_group_id: row.get("duplicate_group_id")?,
                 is_trashed: row.get::<_, i64>("is_trashed")? != 0,
                 trashed_path: row.get("trashed_path")?,
-                updated_at: row.get::<_, Option<i64>>("updated_at")?.unwrap_or_else(now_ms),
+                updated_at: row
+                    .get::<_, Option<i64>>("updated_at")?
+                    .unwrap_or_else(now_ms),
             });
         }
         report.imported_media = batch.len() as u64;
@@ -240,9 +244,11 @@ pub fn import_legacy_sqlite(
     }
 
     // 7. Import non-secret app_settings
-    if let Ok(raw_settings) =
-        legacy.query_row::<String, _, _>("SELECT value FROM settings WHERE key = 'app_settings'", [], |r| r.get(0))
-    {
+    if let Ok(raw_settings) = legacy.query_row::<String, _, _>(
+        "SELECT value FROM settings WHERE key = 'app_settings'",
+        [],
+        |r| r.get(0),
+    ) {
         if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&raw_settings) {
             let mut settings = AppSettings::default();
             if let Some(w) = parsed.get("sidebarWidth").and_then(|v| v.as_u64()) {
@@ -257,7 +263,10 @@ pub fn import_legacy_sqlite(
             if let Some(tpl) = parsed.get("aliasTemplate").and_then(|v| v.as_str()) {
                 settings.alias_template = tpl.to_string();
             }
-            if let Some(geo) = parsed.get("onlineGeocodingEnabled").and_then(|v| v.as_bool()) {
+            if let Some(geo) = parsed
+                .get("onlineGeocodingEnabled")
+                .and_then(|v| v.as_bool())
+            {
                 settings.online_geocoding_enabled = geo;
             }
             target.save_app_settings(&settings)?;

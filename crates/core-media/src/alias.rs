@@ -56,10 +56,7 @@ pub fn format_time_period_token(timestamp_ms: i64, use_utc: bool) -> &'static st
 /// strips prefixes (`IMG_`, `VID_`, `Screenshot_`), replaces `_`/`-` with spaces,
 /// splits `camelCase`, and trims standalone numeric tokens.
 pub fn clean_file_name_for_alias(file_name: &str) -> String {
-    let base = file_name
-        .rsplit(['/', '\\'])
-        .next()
-        .unwrap_or(file_name);
+    let base = file_name.rsplit(['/', '\\']).next().unwrap_or(file_name);
     let stem = match base.rfind('.') {
         Some(idx) if idx > 0 => &base[..idx],
         _ => base,

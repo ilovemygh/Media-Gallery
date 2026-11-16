@@ -236,8 +236,9 @@ impl MediaIndex {
 
     pub fn list_devices(&self) -> Result<Vec<DeviceRecord>, IndexError> {
         let conn = self.lock()?;
-        let mut stmt =
-            conn.prepare("SELECT * FROM device ORDER BY is_self DESC, is_online DESC, last_seen DESC")?;
+        let mut stmt = conn.prepare(
+            "SELECT * FROM device ORDER BY is_self DESC, is_online DESC, last_seen DESC",
+        )?;
         let rows = stmt.query_map([], map_device_row)?;
         let mut out = Vec::new();
         for item in rows {
@@ -405,9 +406,7 @@ impl MediaIndex {
         cursor: Option<&str>,
         limit: u32,
     ) -> Result<MediaPage, IndexError> {
-        let offset: u64 = cursor
-            .and_then(|c| c.parse::<u64>().ok())
-            .unwrap_or(0);
+        let offset: u64 = cursor.and_then(|c| c.parse::<u64>().ok()).unwrap_or(0);
         let safe_limit = u64::from(limit.clamp(1, 10_000));
 
         let (where_sql, bind_params, join_fts) = build_where_clause(filter);
@@ -799,7 +798,8 @@ impl MediaIndex {
 
     pub fn list_pinned_folders(&self) -> Result<Vec<PinnedFolderRecord>, IndexError> {
         let conn = self.lock()?;
-        let mut stmt = conn.prepare("SELECT * FROM pinned_folder ORDER BY position ASC, label ASC")?;
+        let mut stmt =
+            conn.prepare("SELECT * FROM pinned_folder ORDER BY position ASC, label ASC")?;
         let rows = stmt.query_map([], |row| {
             Ok(PinnedFolderRecord {
                 id: row.get("id")?,
@@ -1326,13 +1326,16 @@ fn build_where_clause(filter: &MediaFilter) -> (String, Vec<Value>, bool) {
         params.push(Value::Integer(i64::from(min_w)));
     }
     if let Some(tod) = filter.time_of_day {
-        let hour_expr = "CAST(strftime('%H', m.created_at / 1000, 'unixepoch', 'localtime') AS INTEGER)";
+        let hour_expr =
+            "CAST(strftime('%H', m.created_at / 1000, 'unixepoch', 'localtime') AS INTEGER)";
         match tod {
             TimeOfDayFilter::All => {}
             TimeOfDayFilter::Morning => clauses.push(format!("{hour_expr} BETWEEN 5 AND 11")),
             TimeOfDayFilter::Afternoon => clauses.push(format!("{hour_expr} BETWEEN 12 AND 16")),
             TimeOfDayFilter::Evening => clauses.push(format!("{hour_expr} BETWEEN 17 AND 20")),
-            TimeOfDayFilter::Night => clauses.push(format!("({hour_expr} >= 21 OR {hour_expr} <= 4)")),
+            TimeOfDayFilter::Night => {
+                clauses.push(format!("({hour_expr} >= 21 OR {hour_expr} <= 4)"))
+            }
         }
     }
 

@@ -103,7 +103,12 @@ impl DesktopFfmpegSidecar {
         }
     }
 
-    fn render_fallback_png(&self, seed_text: &str, frame_time_ms: u64, out_path: &Path) -> Result<PathBuf, PlatformError> {
+    fn render_fallback_png(
+        &self,
+        seed_text: &str,
+        frame_time_ms: u64,
+        out_path: &Path,
+    ) -> Result<PathBuf, PlatformError> {
         if let Some(parent) = out_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -415,7 +420,11 @@ impl YtDlpBackend for DesktopYtDlpBackend {
                     }
                 }
             }
-            for prefix in ["Destination: ", "[ExtractAudio] Destination: ", "Merging formats into "] {
+            for prefix in [
+                "Destination: ",
+                "[ExtractAudio] Destination: ",
+                "Merging formats into ",
+            ] {
                 if let Some(idx) = line.find(prefix) {
                     let raw = line[idx + prefix.len()..].trim().trim_matches('"');
                     if !raw.is_empty() {

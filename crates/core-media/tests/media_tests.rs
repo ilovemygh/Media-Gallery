@@ -1,8 +1,8 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use core_index::{
-    DeviceRecord, DeviceType, MediaFilter, MediaIndex, MediaRecord, MediaTags, MediaType,
-    SortSpec, SyncState, TransportKind,
+    DeviceRecord, DeviceType, MediaFilter, MediaIndex, MediaRecord, MediaTags, MediaType, SortSpec,
+    SyncState, TransportKind,
 };
 use core_media::{
     apply_bulk_rename, apply_real_rename, clean_file_name_for_alias, compute_crop_for_aspect,
@@ -181,7 +181,10 @@ fn alias_disk_rename_undo_bulk_rename_folder_move_and_safe_trash_work() {
     let archive = dir.join("Archive");
     let moved = move_media_to_folder(&idx, "m1", &archive).unwrap();
     assert!(archive.join("IMG_01.jpg").exists());
-    assert_eq!(moved.folder_path, archive.to_string_lossy().replace('\\', "/"));
+    assert_eq!(
+        moved.folder_path,
+        archive.to_string_lossy().replace('\\', "/")
+    );
 
     let trash = ManagedTrashBackend::default();
     let trashed = move_to_trash(&idx, &trash, "m1").unwrap();

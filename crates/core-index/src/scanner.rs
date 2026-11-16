@@ -107,9 +107,10 @@ where
         if !root.exists() {
             continue;
         }
-        let iter = WalkDir::new(root).follow_links(false).into_iter().filter_entry(|e| {
-            !is_excluded(e.path(), &excluded_prefixes)
-        });
+        let iter = WalkDir::new(root)
+            .follow_links(false)
+            .into_iter()
+            .filter_entry(|e| !is_excluded(e.path(), &excluded_prefixes));
         for entry in iter.flatten() {
             if let Some(cancel) = req.cancel {
                 if cancel.load(Ordering::Relaxed) {
@@ -182,90 +183,117 @@ where
                     progress.skipped_files += 1;
                     continue;
                 }
-                to_process.push((path.clone(), path_str, *mt, *mime, size, created_at, modified_at, Some(existing)));
+                to_process.push((
+                    path.clone(),
+                    path_str,
+                    *mt,
+                    *mime,
+                    size,
+                    created_at,
+                    modified_at,
+                    Some(existing),
+                ));
             } else {
-                to_process.push((path.clone(), path_str, *mt, *mime, size, created_at, modified_at, None));
+                to_process.push((
+                    path.clone(),
+                    path_str,
+                    *mt,
+                    *mime,
+                    size,
+                    created_at,
+                    modified_at,
+                    None,
+                ));
             }
         }
 
         let built: Vec<(MediaRecord, bool)> = to_process
             .into_par_iter()
-            .map(|(path, path_str, mt, mime, size, fs_created, modified_at, existing)| {
-                let partial_hash = if req.compute_hashes {
-                    compute_partial_blake3(&path).unwrap_or_default()
-                } else {
-                    String::new()
-                };
-                let probed = enricher(&path, mt, fs_created, modified_at, &req.device_name);
-                let created_at = probed.created_at.unwrap_or(fs_created);
-                let file_name = path
-                    .file_name()
-                    .map(|n| n.to_string_lossy().to_string())
-                    .unwrap_or_default();
-                let folder_path = path
-                    .parent()
-                    .map(|p| p.to_string_lossy().replace('\\', "/"))
-                    .unwrap_or_default();
-                let auto_alias = probed
-                    .auto_alias
-                    .unwrap_or_else(|| file_name.clone());
+            .map(
+                |(path, path_str, mt, mime, size, fs_created, modified_at, existing)| {
+                    let partial_hash = if req.compute_hashes {
+                        compute_partial_blake3(&path).unwrap_or_default()
+                    } else {
+                        String::new()
+                    };
+                    let probed = enricher(&path, mt, fs_created, modified_at, &req.device_name);
+                    let created_at = probed.created_at.unwrap_or(fs_created);
+                    let file_name = path
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_default();
+                    let folder_path = path
+                        .parent()
+                        .map(|p| p.to_string_lossy().replace('\\', "/"))
+                        .unwrap_or_default();
+                    let auto_alias = probed.auto_alias.unwrap_or_else(|| file_name.clone());
 
-                let is_update = existing.is_some();
-                let (id, alias, blake3_val, cover_id, sync_state, is_dup, dup_grp) = match existing {
-                    Some(ex) => (
-                        ex.id,
-                        if ex.alias.is_empty() { auto_alias.clone() } else { ex.alias },
-                        if !ex.blake3.is_empty() { ex.blake3 } else { partial_hash.clone() },
-                        ex.cover_id,
-                        ex.sync_state,
-                        ex.is_duplicate,
-                        ex.duplicate_group_id,
-                    ),
-                    None => (
-                        stable_media_id(&req.device_id, &path_str),
-                        auto_alias.clone(),
-                        partial_hash.clone(),
-                        None,
-                        SyncState::Local,
-                        false,
-                        None,
-                    ),
-                };
+                    let is_update = existing.is_some();
+                    let (id, alias, blake3_val, cover_id, sync_state, is_dup, dup_grp) =
+                        match existing {
+                            Some(ex) => (
+                                ex.id,
+                                if ex.alias.is_empty() {
+                                    auto_alias.clone()
+                                } else {
+                                    ex.alias
+                                },
+                                if !ex.blake3.is_empty() {
+                                    ex.blake3
+                                } else {
+                                    partial_hash.clone()
+                                },
+                                ex.cover_id,
+                                ex.sync_state,
+                                ex.is_duplicate,
+                                ex.duplicate_group_id,
+                            ),
+                            None => (
+                                stable_media_id(&req.device_id, &path_str),
+                                auto_alias.clone(),
+                                partial_hash.clone(),
+                                None,
+                                SyncState::Local,
+                                false,
+                                None,
+                            ),
+                        };
 
-                (
-                    MediaRecord {
-                        id,
-                        device_id: req.device_id.clone(),
-                        path: path_str,
-                        folder_path,
-                        file_name,
-                        media_type: mt,
-                        mime: mime.to_string(),
-                        size,
-                        blake3: blake3_val,
-                        partial_hash,
-                        created_at,
-                        modified_at,
-                        duration_ms: probed.duration_ms,
-                        width: probed.width,
-                        height: probed.height,
-                        gps_lat: probed.gps_lat,
-                        gps_lon: probed.gps_lon,
-                        place: probed.place,
-                        tags: probed.tags,
-                        alias,
-                        auto_alias,
-                        cover_id,
-                        sync_state,
-                        is_duplicate: is_dup,
-                        duplicate_group_id: dup_grp,
-                        is_trashed: false,
-                        trashed_path: None,
-                        updated_at: now_ms(),
-                    },
-                    is_update,
-                )
-            })
+                    (
+                        MediaRecord {
+                            id,
+                            device_id: req.device_id.clone(),
+                            path: path_str,
+                            folder_path,
+                            file_name,
+                            media_type: mt,
+                            mime: mime.to_string(),
+                            size,
+                            blake3: blake3_val,
+                            partial_hash,
+                            created_at,
+                            modified_at,
+                            duration_ms: probed.duration_ms,
+                            width: probed.width,
+                            height: probed.height,
+                            gps_lat: probed.gps_lat,
+                            gps_lon: probed.gps_lon,
+                            place: probed.place,
+                            tags: probed.tags,
+                            alias,
+                            auto_alias,
+                            cover_id,
+                            sync_state,
+                            is_duplicate: is_dup,
+                            duplicate_group_id: dup_grp,
+                            is_trashed: false,
+                            trashed_path: None,
+                            updated_at: now_ms(),
+                        },
+                        is_update,
+                    )
+                },
+            )
             .collect();
 
         let mut batch_records = Vec::with_capacity(built.len());

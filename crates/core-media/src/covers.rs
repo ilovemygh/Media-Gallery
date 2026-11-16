@@ -1,8 +1,6 @@
 use std::path::Path;
 
-use core_index::{
-    now_ms, AspectPreset, CoverRecord, CoverSource, CropRect, MediaIndex, MediaType,
-};
+use core_index::{now_ms, AspectPreset, CoverRecord, CoverSource, CropRect, MediaIndex, MediaType};
 use core_platform::ThumbnailSidecar;
 use lofty::config::WriteOptions;
 use lofty::file::TaggedFileExt;
@@ -111,7 +109,10 @@ pub fn pick_video_frame(
         source: CoverSource::Generated,
         file_path: file.to_string_lossy().replace('\\', "/"),
         cloud_id: existing.as_ref().and_then(|c| c.cloud_id.clone()),
-        aspect: existing.as_ref().map(|c| c.aspect).unwrap_or(AspectPreset::Ratio16x9),
+        aspect: existing
+            .as_ref()
+            .map(|c| c.aspect)
+            .unwrap_or(AspectPreset::Ratio16x9),
         crop: existing.and_then(|c| c.crop),
         frame_time_ms: bounded,
         updated_at: now_ms(),

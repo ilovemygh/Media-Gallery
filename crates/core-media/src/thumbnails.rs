@@ -1,7 +1,9 @@
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
-use core_index::{now_ms, AspectPreset, CoverRecord, CoverSource, MediaIndex, MediaRecord, MediaType};
+use core_index::{
+    now_ms, AspectPreset, CoverRecord, CoverSource, MediaIndex, MediaRecord, MediaType,
+};
 use core_platform::ThumbnailSidecar;
 use image::{ImageBuffer, Rgba};
 use lofty::file::TaggedFileExt;
@@ -60,13 +62,12 @@ impl<'a> ThumbnailManager<'a> {
         } else {
             AspectPreset::Ratio16x9
         };
-        let source = if media.media_type == MediaType::Audio
-            && media.tags.original_cover_path.is_some()
-        {
-            CoverSource::Embedded
-        } else {
-            CoverSource::Generated
-        };
+        let source =
+            if media.media_type == MediaType::Audio && media.tags.original_cover_path.is_some() {
+                CoverSource::Embedded
+            } else {
+                CoverSource::Generated
+            };
 
         let cover = CoverRecord {
             id: Uuid::new_v4().to_string(),
@@ -99,9 +100,11 @@ impl<'a> ThumbnailManager<'a> {
         match media.media_type {
             MediaType::Video => {
                 let target = self.cache_dir.join(format!("{stem}.jpg"));
-                Ok(self
-                    .sidecar
-                    .extract_video_frame(Path::new(&media.path), frame_time_ms, &target)?)
+                Ok(self.sidecar.extract_video_frame(
+                    Path::new(&media.path),
+                    frame_time_ms,
+                    &target,
+                )?)
             }
             MediaType::Image => {
                 let target = self.cache_dir.join(format!("{stem}.jpg"));
@@ -111,7 +114,11 @@ impl<'a> ThumbnailManager<'a> {
                         return Ok(target);
                     }
                 }
-                write_deterministic_png(&self.cache_dir.join(format!("{stem}.png")), &media.file_name, [15, 118, 110])
+                write_deterministic_png(
+                    &self.cache_dir.join(format!("{stem}.png")),
+                    &media.file_name,
+                    [15, 118, 110],
+                )
             }
             MediaType::Audio => {
                 if let Ok(tagged) = Probe::open(&media.path).and_then(|p| p.read()) {
@@ -125,7 +132,11 @@ impl<'a> ThumbnailManager<'a> {
                         return Ok(target);
                     }
                 }
-                write_deterministic_png(&self.cache_dir.join(format!("{stem}.png")), &media.file_name, [124, 58, 237])
+                write_deterministic_png(
+                    &self.cache_dir.join(format!("{stem}.png")),
+                    &media.file_name,
+                    [124, 58, 237],
+                )
             }
         }
     }

@@ -51,7 +51,11 @@ pub fn sanitize_filename_segment(raw: &str) -> String {
 }
 
 /// Non-destructive DB alias update (PRD C3).
-pub fn set_alias(index: &MediaIndex, media_id: &str, alias: &str) -> Result<MediaRecord, MediaOpError> {
+pub fn set_alias(
+    index: &MediaIndex,
+    media_id: &str,
+    alias: &str,
+) -> Result<MediaRecord, MediaOpError> {
     if index.get_media_by_id(media_id)?.is_none() {
         return Err(MediaOpError::NotFound(media_id.to_string()));
     }

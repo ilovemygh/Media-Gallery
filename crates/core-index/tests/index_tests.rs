@@ -46,8 +46,7 @@ fn scans_all_16_formats_skips_excluded_and_flags_duplicates_with_blake3() {
     std::fs::create_dir_all(&excluded).unwrap();
 
     let supported = [
-        "a.mp4", "b.mkv", "c.webm", "d.mov", "e.avi",
-        "f.mp3", "g.m4a", "h.flac", "i.wav", "j.ogg",
+        "a.mp4", "b.mkv", "c.webm", "d.mov", "e.avi", "f.mp3", "g.m4a", "h.flac", "i.wav", "j.ogg",
         "k.png", "l.jpg", "m.jpeg", "n.gif", "o.webp", "p.heic",
     ];
     for name in supported {
@@ -165,20 +164,18 @@ fn cursor_paging_fts5_and_mediastore_batch_ingestion_work() {
         })
         .collect();
 
-    let inserted = ingest_android_mediastore_batch(
-        &idx,
-        "phone-1",
-        "Pixel 9",
-        &rows,
-        &|r, _mt, _dev| {
+    let inserted =
+        ingest_android_mediastore_batch(&idx, "phone-1", "Pixel 9", &rows, &|r, _mt, _dev| {
             if r.display_name.contains("_2.") {
-                ("2026-03-14 Kuta Beach Bali".to_string(), Some("Kuta Beach Bali".to_string()))
+                (
+                    "2026-03-14 Kuta Beach Bali".to_string(),
+                    Some("Kuta Beach Bali".to_string()),
+                )
             } else {
                 ("2026-03-14 Home".to_string(), Some("Home".to_string()))
             }
-        },
-    )
-    .unwrap();
+        })
+        .unwrap();
     assert_eq!(inserted, 5);
 
     // Paged query (2 per page)
