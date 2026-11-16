@@ -1,0 +1,137 @@
+use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use core_api::{CoreConfig, CoreEvent, MediaGalleryCore};
+use core_index::{DeviceType, MediaFilter, SortSpec};
+use core_net::{CtrlMessage, IrohQuicNode};
+use core_platform::AndroidMediaStoreRow;
+
+fn temp_dir(prefix: &str) -> std::path::PathBuf {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let dir = std::env::temp_dir().join(format!("{prefix}-{nanos}"));
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+/// M0 Spike (a): iroh endpoints connect via key-based QUIC dialing across nodes.
+#[tokio::test]
+async fn spike_a_iroh_endpoints_connect_and_exchange_control_messages() {
+    let server = IrohQuicNode::bind(false, None, Arc::new(|_| Ok(())), Arc::new(|_| Ok(())))
+        .await
+        .unwrap();
+    let client = IrohQuicNode::bind(false, None, Arc::new(|_| Ok(())), Arc::new(|_| Ok(())))
+        .await
+        .unwrap();
+
+    let reply = client
+        .send_ctrl(
+            server.endpoint.addr(),
+            &CtrlMessage::Ping {
+                from_device: "spike-client".into(),
+            },
+        )
+        .await
+        .unwrap();
+    assert!(reply.ok);
+    assert_eq!(reply.message, "pong:spike-client");
+
+    client.shutdown().await;
+    server.shutdown().await;
+}
+
+/// M0 Spike (b), (c), (d): FRB-style event streaming + cursor paging, thumbnail sidecar by path,
+/// and Kotlin MediaStore row batch ingestion into Rust SQLite + FTS5.
+#[tokio::test]
+async fn spike_bcd_frb_streams_sidecar_thumbnail_and_mediastore_ingest() {
+    let dir = temp_dir("mg-m0-spikes");
+    let lib = dir.join("videos");
+    let cache = dir.join("cache");
+    std::fs::create_dir_all(&lib).unwrap();
+    std::fs::write(lib.join("holiday_clip.mp4"), b"fake-mp4-stream").unwrap();
+
+    let core = Arc::new(
+        MediaGalleryCore::init(CoreConfig {
+            db_path: None,
+            cache_dir: cache.clone(),
+            self_device_id: "pc-spike".into(),
+            self_device_name: "Spike PC".into(),
+            self_device_type: DeviceType::Pc,
+            max_thumb_cache_bytes: Some(50 * 1024 * 1024),
+        })
+        .unwrap(),
+    );
+
+    // Spike (b): subscribe to broadcast stream and start background scan
+    let mut rx = core.subscribe_events();
+    let op_id = core.start_scan(vec![lib], vec![]).await.unwrap();
+    assert!(!op_id.is_empty());
+
+    let mut saw_completed_scan = false;
+    for _ in 0..20 {
+        if let Ok(CoreEvent::ScanProgress(prog)) =
+            tokio::time::timeout(std::time::Duration::from_secs(2), rx.recv())
+                .await
+                .unwrap()
+        {
+            if !prog.in_progress {
+                saw_completed_scan = true;
+                break;
+            }
+        }
+    }
+    assert!(saw_completed_scan);
+
+    // Paged query returns item
+    let page = core
+        .list_media(&MediaFilter::default(), SortSpec::default(), None, 10)
+        .unwrap();
+    assert_eq!(page.total_count, 1);
+
+    // Spike (c): Sidecar writes thumbnail file to cache and returns file path (not raw bytes)
+    let vid_id = &page.items[0].media.id;
+    let cover = core.ensure_thumbnail(vid_id).unwrap();
+    assert!(std::path::Path::new(&cover.file_path).exists());
+
+    // Spike (d): Kotlin MediaStore rows ingest into Rust index and are FTS5-searchable
+    let rows = vec![AndroidMediaStoreRow {
+        uri: "content://media/external/images/media/9001".into(),
+        display_name: "IMG_2031.jpg".into(),
+        relative_path: "DCIM/Camera/".into(),
+        mime_type: "image/jpeg".into(),
+        size: 3_500_000,
+        date_added_sec: 1_773_489_600,
+        date_modified_sec: 1_773_489_600,
+        duration_ms: 0,
+        width: 4032,
+        height: 3024,
+        latitude: Some(-8.7185),
+        longitude: Some(115.1686),
+        artist: None,
+        album: None,
+        title: None,
+    }];
+    let ingested = core
+        .ingest_android_mediastore_batch("phone-spike", "Pixel 9", &rows)
+        .unwrap();
+    assert_eq!(ingested, 1);
+
+    let hits = core
+        .list_media(
+            &MediaFilter {
+                query: "2026 beach".into(),
+                ..Default::default()
+            },
+            SortSpec::default(),
+            None,
+            10,
+        )
+        .unwrap();
+    assert_eq!(hits.total_count, 1);
+    assert_eq!(hits.items[0].media.file_name, "IMG_2031.jpg");
+
+    core.shutdown();
+    let _ = std::fs::remove_dir_all(dir);
+}

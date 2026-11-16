@@ -12,6 +12,7 @@ core-platform = { path = "../core-platform" }
 core-sync = { path = "../core-sync" }
 core-ytdl = { path = "../core-ytdl" }
 flutter_rust_bridge.workspace = true
+rand.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
