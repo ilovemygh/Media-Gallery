@@ -107,4 +107,58 @@ describe('ScannerService & DuplicateDetector (M1)', () => {
 
     repo.close();
   });
+
+  it('indexes 10,000 mixed media records and runs paged FTS5 search without stalling (PRD Sec 13 & Criterion 1)', async () => {
+    const { repo } = await createFixtureEnv();
+    const batch = [];
+    const baseTime = Date.UTC(2026, 2, 14, 12, 0, 0);
+
+    for (let i = 0; i < 10_000; i += 1) {
+      const isTarget = i === 7777;
+      const type = i % 3 === 0 ? 'video' : i % 3 === 1 ? 'image' : 'audio';
+      const place = isTarget ? 'Kuta Beach Bali' : 'Home';
+      const fileName = isTarget ? 'IMG_2031_beach.jpg' : `IMG_${String(i).padStart(5, '0')}.jpg`;
+      batch.push({
+        id: `perf-${i}`,
+        deviceId: 'pc-test',
+        path: `C:/Media/Batch/${Math.floor(i / 500)}/${fileName}`,
+        folderPath: `C:/Media/Batch/${Math.floor(i / 500)}`,
+        fileName,
+        type: type as 'video' | 'image' | 'audio',
+        mime: type === 'video' ? 'video/mp4' : type === 'audio' ? 'audio/mpeg' : 'image/jpeg',
+        size: 1024 + i,
+        hash: `h-${i}`,
+        partialHash: `ph-${i}`,
+        createdAt: baseTime + i * 1000,
+        modifiedAt: baseTime + i * 1000,
+        durationMs: type === 'image' ? 0 : 45_000,
+        width: 1920,
+        height: 1080,
+        gpsLat: null,
+        gpsLon: null,
+        place,
+        tags: {},
+        alias: `2026-03-14 ${place} ${i}`,
+        autoAlias: `2026-03-14 ${place} ${i}`,
+        coverId: null,
+        syncState: 'Local' as const,
+      });
+    }
+
+    const startInsert = performance.now();
+    repo.upsertMediaBatch(batch);
+    const insertMs = performance.now() - startInsert;
+
+    const startSearch = performance.now();
+    const hits = repo.queryMedia('2026 beach', { limit: 50, offset: 0 });
+    const searchMs = performance.now() - startSearch;
+
+    expect(repo.countMedia('', {})).toBe(10_000);
+    expect(hits).toHaveLength(1);
+    expect(hits[0].id).toBe('perf-7777');
+    expect(insertMs).toBeLessThan(5000);
+    expect(searchMs).toBeLessThan(500);
+
+    repo.close();
+  });
 });

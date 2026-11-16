@@ -11,16 +11,11 @@ import type {
 } from '../../core/types/domain.ts';
 import { ScannerService } from '../scanner/scannerService.ts';
 
+import { YOUTUBE_COMPLIANCE_NOTICE, YOUTUBE_PORTAL_URLS } from './youtubeConstants.ts';
+
 const execFileAsync = promisify(execFile);
 
-export const YOUTUBE_COMPLIANCE_NOTICE =
-  'Download only content you have the right to download under applicable laws and platform terms.';
-
-export const YOUTUBE_PORTAL_URLS = {
-  upload: 'https://studio.youtube.com/channel/UC/videos/upload',
-  channel: 'https://www.youtube.com/channel/mine',
-  studio: 'https://studio.youtube.com',
-} as const;
+export { YOUTUBE_COMPLIANCE_NOTICE, YOUTUBE_PORTAL_URLS };
 
 export interface YoutubeDownloadRequest {
   url: string;
