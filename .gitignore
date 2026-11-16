@@ -1,0 +1,14 @@
+node_modules/
+dist/
+dist-electron/
+release/
+build/
+coverage/
+*.db
+*.db-shm
+*.db-wal
+.DS_Store
+Thumbs.db
+*.log
+android/
+.capacitor/
