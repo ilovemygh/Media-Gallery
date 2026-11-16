@@ -150,6 +150,7 @@ impl From<PlatformError> for ApiError {
 }
 
 /// Coarse event stream emitted to Flutter via `flutter_rust_bridge` `StreamSink`.
+#[flutter_rust_bridge::frb(ignore)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "event", content = "payload")]
 pub enum CoreEvent {
@@ -161,6 +162,7 @@ pub enum CoreEvent {
     InfoBanner(String),
 }
 
+#[flutter_rust_bridge::frb(ignore)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CoreConfig {
     pub db_path: Option<PathBuf>,
@@ -172,6 +174,7 @@ pub struct CoreConfig {
 }
 
 /// Coarse-grained FRB v2 facade owning SQLite, background workers, and event streams.
+#[flutter_rust_bridge::frb(ignore)]
 pub struct MediaGalleryCore {
     pub index: MediaIndex,
     pub cache_dir: PathBuf,
@@ -188,6 +191,7 @@ pub struct MediaGalleryCore {
     cancel_flags: Mutex<HashMap<String, Arc<AtomicBool>>>,
 }
 
+#[flutter_rust_bridge::frb(ignore)]
 impl MediaGalleryCore {
     pub fn init(config: CoreConfig) -> Result<Self, ApiError> {
         std::fs::create_dir_all(&config.cache_dir).map_err(|e| ApiError {
@@ -680,4 +684,54 @@ impl MediaGalleryCore {
     pub fn shutdown(&self) {
         self.watcher.stop();
     }
+}
+
+/// Summary returned across FFI when importing a read-only v0.1 SQLite database.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrbLegacyImportReport {
+    pub imported_devices: u64,
+    pub imported_media: u64,
+    pub imported_covers: u64,
+    pub imported_pinned_folders: u64,
+    pub imported_rename_logs: u64,
+    pub skipped_items: u64,
+    pub auth_relogin_required: bool,
+    pub errors: Vec<String>,
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn frb_health_check() -> String {
+    "core-api v0.2.0 ready".to_string()
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn frb_clean_alias_name(file_name: String) -> String {
+    core_media::clean_file_name_for_alias(&file_name)
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn frb_select_first_third_frame_ms(duration_ms: u64, sample: Option<f64>) -> u64 {
+    core_media::select_random_first_third_frame_ms(duration_ms, sample)
+}
+
+pub fn frb_detect_legacy_database(legacy_db_path: String) -> bool {
+    Path::new(&legacy_db_path).exists()
+}
+
+pub fn frb_import_legacy_database(
+    target_db_path: String,
+    legacy_db_path: String,
+) -> Result<FrbLegacyImportReport, ApiError> {
+    let target = MediaIndex::open(Path::new(&target_db_path))?;
+    let report = import_legacy_sqlite(&target, Path::new(&legacy_db_path))?;
+    Ok(FrbLegacyImportReport {
+        imported_devices: report.imported_devices,
+        imported_media: report.imported_media,
+        imported_covers: report.imported_covers,
+        imported_pinned_folders: report.imported_pinned_folders,
+        imported_rename_logs: report.imported_rename_logs,
+        skipped_items: report.skipped_items,
+        auth_relogin_required: report.auth_relogin_required,
+        errors: report.errors,
+    })
 }

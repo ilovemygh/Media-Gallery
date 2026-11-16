@@ -23,7 +23,7 @@ blake3 = "1.8"
 bytes = "1.11"
 chrono = { version = "0.4", features = ["serde"] }
 fast_image_resize = "6.1"
-flutter_rust_bridge = "2.11.1"
+flutter_rust_bridge = "=2.11.1"
 hex = "0.4"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp"] }
 iroh = "1.4.1"

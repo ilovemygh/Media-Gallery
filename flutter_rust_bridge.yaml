@@ -1,0 +1,4 @@
+rust_input: crate::api
+rust_root: crates/core-api/
+dart_output: app/lib/src/rust/
+dart_root: app/

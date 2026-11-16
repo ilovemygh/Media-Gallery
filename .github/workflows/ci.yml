@@ -38,10 +38,13 @@ jobs:
         with:
           channel: stable
       - name: Install FRB codegen & verify bindings up to date
+        shell: bash
         run: |
-          cargo install flutter_rust_bridge_codegen --version 2.11.1
+          cargo install flutter_rust_bridge_codegen --version 2.11.1 --locked
           flutter_rust_bridge_codegen generate
-          git diff --exit-code app/lib/src/rust/ crates/core-api/src/frb_generated.rs
+          git add -N .
+          git diff --exit-code
+          test -z "$(git status --porcelain)"
       - name: Flutter analyze & widget/golden tests
         working-directory: app
         run: |

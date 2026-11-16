@@ -1,6 +1,9 @@
 //! The ONLY crate exposed to Flutter across `flutter_rust_bridge` v2 (PRD Section 6 & 7).
+#![allow(unexpected_cfgs)]
 
 pub mod api;
+#[rustfmt::skip]
+mod frb_generated;
 pub mod music;
 
 pub use api::{ApiError, ApiErrorCode, CoreConfig, CoreEvent, MediaGalleryCore};
