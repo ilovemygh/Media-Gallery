@@ -88,9 +88,9 @@ jobs:
           STAGE="flutter-pub-get ($(flutter --version | head -n 1))"
           (cd app && flutter pub get)
           STAGE="frb-generate-1"
-          flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml 2>&1 | tee "${RUNNER_TEMP}/frb.log"
+          RUSTC_BOOTSTRAP=1 flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml 2>&1 | tee "${RUNNER_TEMP}/frb.log"
           STAGE="frb-generate-2"
-          flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml 2>&1 | tee -a "${RUNNER_TEMP}/frb.log"
+          RUSTC_BOOTSTRAP=1 flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml 2>&1 | tee -a "${RUNNER_TEMP}/frb.log"
           STAGE="git-diff-check"
           git add -N app/lib/src/rust crates/core-api/src/frb_generated.rs
           git status --short
