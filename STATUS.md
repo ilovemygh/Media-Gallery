@@ -11,8 +11,8 @@
 - [x] **Step A0:** Inspect git state, remote branches/commits, failing CI run `43814810190`, and record findings in `STATUS.md`
 - [x] **Failure 1 (FRB codegen & drift check):** Pinned FRB `2.11.1`, added `flutter_rust_bridge.yaml`, committed generated bindings (`app/lib/src/rust/`, `crates/core-api/src/frb_generated.rs`), added `.gitattributes` LF rules, updated `.github/workflows/ci.yml` (`flutter pub get` before codegen + `--locked` + untracked-aware drift check), verified clean-checkout zero-diff twice locally (`b9498d7`)
 - [x] **Failure 2 (`upsert_media` & `parity-runner`):** Switch `media` upsert to `ON CONFLICT(device_id, path) DO UPDATE`, isolate parity-runner DB/fixtures, replace `unwrap()` with `anyhow::Context`, add 3 regression tests in `core-index`
-- [/] **Flutter CI readiness (`flutter test`, `windows`, `android`):** Fixed collapsed `_SidebarNavTile` layout crash in `app/lib/features/shell/desktop_shell.dart` (`flutter analyze` + `flutter test` 2/2 passing); next: scaffold `app/windows/` and `app/android/` (`applicationId = io.mediagallery.app`, `core-api` `cdylib` build) so `flutter build windows --release` and `flutter build apk --release` pass in CI
-- [ ] **Part A Gate:** Push to `main` and confirm real GitHub Actions CI run is 100% green (`rust-core` Windows+Ubuntu, `flutter-and-bindings`, `legacy-reference`)
+- [x] **Flutter CI readiness (`flutter test`, `windows`, `android`):** Fixed collapsed `_SidebarNavTile` overflow in `app/lib/features/shell/desktop_shell.dart` (`4c88a3d`), added `[lib] crate-type = ["cdylib", "rlib"]` to `crates/core-api/Cargo.toml`, scaffolded `app/windows/` (CMake `core_api.dll` build + bundle) & `app/android/` (`io.mediagallery.app` + env-driven release signing), and updated `.github/workflows/ci.yml` (verified prebuilt FRB `2.11.1`, JDK 17, NDK `28.2.13676358`, `cargo-ndk`)
+- [/] **Part A Gate:** Push platform runners & CI updates to `main` and confirm real GitHub Actions CI run is 100% green (`rust-core` Windows+Ubuntu, `flutter-and-bindings`, `legacy-reference`)
 
 ---
 
