@@ -9,9 +9,9 @@
 
 ## PART A: Fix CI
 - [x] **Step A0:** Inspect git state, remote branches/commits, failing CI run `43814810190`, and record findings in `STATUS.md`
-- [ ] **Failure 1 (FRB codegen & drift check):** Pin FRB `2.11.1`, add `flutter_rust_bridge.yaml`, commit generated bindings (`app/lib/src/rust/`, `crates/core-api/src/frb_generated.rs`), add `.gitattributes` LF rules, run `flutter pub get` before codegen in CI with `--locked` & untracked-aware drift check, verify deterministic zero-diff across repeated runs
+- [x] **Failure 1 (FRB codegen & drift check):** Pinned FRB `2.11.1`, added `flutter_rust_bridge.yaml`, committed generated bindings (`app/lib/src/rust/`, `crates/core-api/src/frb_generated.rs`), added `.gitattributes` LF rules, updated `.github/workflows/ci.yml` (`flutter pub get` before codegen + `--locked` + untracked-aware drift check), verified clean-checkout zero-diff twice locally (`b9498d7`)
 - [x] **Failure 2 (`upsert_media` & `parity-runner`):** Switch `media` upsert to `ON CONFLICT(device_id, path) DO UPDATE`, isolate parity-runner DB/fixtures, replace `unwrap()` with `anyhow::Context`, add 3 regression tests in `core-index`
-- [ ] **Flutter CI readiness (`flutter test`, `windows`, `android`):** Fix collapsed `_SidebarNavTile` layout crash in `app/lib/features/shell/desktop_shell.dart`, add Flutter `windows/` + `android/` runners (`applicationId = io.mediagallery.app`, `cdylib` build of `core-api`), verify `flutter analyze`, `flutter test`, `flutter build windows --release`, `flutter build apk --release`
+- [/] **Flutter CI readiness (`flutter test`, `windows`, `android`):** Fixed collapsed `_SidebarNavTile` layout crash in `app/lib/features/shell/desktop_shell.dart` (`flutter analyze` + `flutter test` 2/2 passing); next: scaffold `app/windows/` and `app/android/` (`applicationId = io.mediagallery.app`, `core-api` `cdylib` build) so `flutter build windows --release` and `flutter build apk --release` pass in CI
 - [ ] **Part A Gate:** Push to `main` and confirm real GitHub Actions CI run is 100% green (`rust-core` Windows+Ubuntu, `flutter-and-bindings`, `legacy-reference`)
 
 ---

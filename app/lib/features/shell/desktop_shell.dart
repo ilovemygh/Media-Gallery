@@ -664,11 +664,37 @@ class _SidebarNavTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (collapsed) {
+      return Tooltip(
+        message: label,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: onTap,
+            child: Container(
+              height: 44,
+              alignment: Alignment.center,
+              decoration: selected
+                  ? BoxDecoration(
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(8),
+                    )
+                  : null,
+              child: Icon(
+                icon,
+                color: selected ? Theme.of(context).colorScheme.primary : null,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     return ListTile(
       dense: true,
       selected: selected,
       leading: Icon(icon),
-      title: collapsed ? null : Text(label, overflow: TextOverflow.ellipsis),
+      title: Text(label, overflow: TextOverflow.ellipsis),
       onTap: onTap,
     );
   }
