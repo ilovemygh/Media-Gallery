@@ -1,0 +1,413 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (build and verify all packages without publishing a GitHub Release)'
+        type: boolean
+        required: true
+        default: true
+      prerelease:
+        description: 'Mark release as pre-release (ignored during dry run; auto-enabled for tags containing "-")'
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      app_version: ${{ steps.meta.outputs.app_version }}
+      version_code: ${{ steps.meta.outputs.version_code }}
+      tag: ${{ steps.meta.outputs.tag }}
+      is_prerelease: ${{ steps.meta.outputs.is_prerelease }}
+      is_dry_run: ${{ steps.meta.outputs.is_dry_run }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate tag, Cargo.toml, and app/pubspec.yaml version parity
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY'
+          import os, pathlib, re, sys
+
+          cargo_text = pathlib.Path("Cargo.toml").read_text(encoding="utf-8")
+          m_cargo = re.search(r'(?ms)^\[workspace\.package\]\s*(?:[^\[]*?)\bversion\s*=\s*"([^"]+)"', cargo_text)
+          if not m_cargo:
+              raise SystemExit("Failed to read [workspace.package] version from Cargo.toml")
+          cargo_ver = m_cargo.group(1).strip()
+
+          pubspec_text = pathlib.Path("app/pubspec.yaml").read_text(encoding="utf-8")
+          m_pub = re.search(r'(?m)^version:\s*([^+\r\n]+)(?:\+(\d+))?\s*$', pubspec_text)
+          if not m_pub:
+              raise SystemExit("Failed to read version from app/pubspec.yaml")
+          pub_ver = m_pub.group(1).strip()
+          pub_code = (m_pub.group(2) or "1").strip()
+
+          if cargo_ver != pub_ver:
+              raise SystemExit(
+                  f"Version mismatch between Cargo.toml ({cargo_ver}) and app/pubspec.yaml ({pub_ver}). "
+                  "Run tools/release/set-version.ps1 or set-version.sh first."
+              )
+
+          event_name = os.environ["GITHUB_EVENT_NAME"]
+          ref_name = os.environ.get("GITHUB_REF_NAME", "")
+
+          if event_name == "push":
+              tag = ref_name
+              if not tag.startswith("v"):
+                  raise SystemExit(f"Release tag must start with 'v': {tag}")
+              tag_ver = tag[1:]
+              if not re.match(r'^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$', tag_ver):
+                  raise SystemExit(f"Tag '{tag}' is not valid SemVer (expected vX.Y.Z or vX.Y.Z-prerelease)")
+
+              is_prerelease = "-" in tag_ver
+              base_tag_ver = tag_ver.split("-", 1)[0]
+
+              if is_prerelease:
+                  if cargo_ver not in (tag_ver, base_tag_ver):
+                      raise SystemExit(
+                          f"Pre-release tag {tag} does not match Cargo.toml/pubspec version ({cargo_ver})"
+                      )
+              else:
+                  if cargo_ver != tag_ver:
+                      raise SystemExit(
+                          f"Release tag {tag} ({tag_ver}) does not match Cargo.toml/pubspec version ({cargo_ver})"
+                      )
+
+              release_ver = tag_ver
+              is_dry_run = "false"
+          else:
+              release_ver = cargo_ver
+              tag = f"v{release_ver}"
+              is_dry_run = os.environ.get("INPUT_DRY_RUN", "true").lower()
+              is_prerelease = (os.environ.get("INPUT_PRERELEASE", "false").lower() == "true") or ("-" in release_ver)
+
+          out_path = os.environ["GITHUB_OUTPUT"]
+          with open(out_path, "a", encoding="utf-8") as fh:
+              fh.write(f"version={release_ver}\n")
+              fh.write(f"app_version={pub_ver}\n")
+              fh.write(f"version_code={pub_code}\n")
+              fh.write(f"tag={tag}\n")
+              fh.write(f"is_prerelease={'true' if is_prerelease else 'false'}\n")
+              fh.write(f"is_dry_run={is_dry_run}\n")
+
+          print(f"Release version={release_ver}, app_version={pub_ver}+{pub_code}, tag={tag}, prerelease={is_prerelease}, dry_run={is_dry_run}")
+          PY
+        env:
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+          INPUT_PRERELEASE: ${{ inputs.prerelease }}
+
+  ci-gate:
+    needs: prepare
+    uses: ./.github/workflows/ci.yml
+
+  build-windows:
+    needs: [prepare, ci-gate]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.100.0
+        with:
+          targets: x86_64-pc-windows-msvc
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.50.0'
+          channel: stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Ensure Inno Setup 6 is available
+        shell: pwsh
+        run: |
+          $iscc = Get-Command iscc -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+          if (-not $iscc -and (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          }
+          if (-not $iscc) {
+            choco install innosetup -y --no-progress
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - name: Build, bundle sidecars, package, and verify Windows release
+        shell: pwsh
+        env:
+          WINDOWS_CERT_PFX_BASE64: ${{ secrets.WINDOWS_CERT_PFX_BASE64 }}
+          WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: |
+          $distDir = Join-Path $env:RUNNER_TEMP "dist-windows"
+          $cacheDir = Join-Path $env:RUNNER_TEMP "sidecar-cache"
+          & "$env:GITHUB_WORKSPACE\tools\release\windows\stage-windows.ps1" `
+            -Version "${{ needs.prepare.outputs.version }}" `
+            -OutputDir $distDir `
+            -CacheDir $cacheDir `
+            -VerifyInstaller
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-release-assets
+          path: |
+            ${{ runner.temp }}/dist-windows/MediaGallery-${{ needs.prepare.outputs.version }}-windows-x64-setup.exe
+            ${{ runner.temp }}/dist-windows/MediaGallery-${{ needs.prepare.outputs.version }}-windows-x64-portable.zip
+          if-no-files-found: error
+
+  build-android:
+    needs: [prepare, ci-gate]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.100.0
+        with:
+          targets: aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.50.0'
+          channel: stable
+      - name: Cache Cargo NDK & Registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/cargo-ndk*
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: release-ndk-${{ runner.os }}-v1
+      - name: Configure Android release signing policy
+        shell: pwsh
+        env:
+          IS_DRY_RUN: ${{ needs.prepare.outputs.is_dry_run }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          $hasAll = (-not [string]::IsNullOrWhiteSpace($env:ANDROID_KEYSTORE_BASE64)) -and
+            (-not [string]::IsNullOrWhiteSpace($env:ANDROID_KEYSTORE_PASSWORD)) -and
+            (-not [string]::IsNullOrWhiteSpace($env:ANDROID_KEY_ALIAS)) -and
+            (-not [string]::IsNullOrWhiteSpace($env:ANDROID_KEY_PASSWORD))
+
+          if ($env:IS_DRY_RUN -ne "true" -and -not $hasAll) {
+            throw "Release builds require ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD secrets."
+          }
+
+          if ($hasAll) {
+            $ksPath = Join-Path $env:RUNNER_TEMP "release-signing.jks"
+            [System.IO.File]::WriteAllBytes($ksPath, [Convert]::FromBase64String($env:ANDROID_KEYSTORE_BASE64))
+            "ANDROID_KEYSTORE_PATH=$ksPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+            "REQUIRE_RELEASE_SIGNING=true" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+            "EXPECT_RELEASE_SIGNED=true" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          } else {
+            Write-Output "::warning::Android signing secrets are not set; dry-run will verify APK builds with debug signing fallback (tag releases fail unless signing secrets exist)."
+            "REQUIRE_RELEASE_SIGNING=false" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+            "EXPECT_RELEASE_SIGNED=false" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          }
+      - name: Build Android Rust native libraries
+        shell: pwsh
+        run: |
+          if (-not (Get-Command cargo-ndk -ErrorAction SilentlyContinue)) {
+            cargo install cargo-ndk --locked
+          }
+          $sdkRoot = if ($env:ANDROID_SDK_ROOT) { $env:ANDROID_SDK_ROOT } else { $env:ANDROID_HOME }
+          $ndkVersion = "28.2.13676358"
+          $ndkDir = Join-Path $sdkRoot "ndk\$ndkVersion"
+          if (-not (Test-Path $ndkDir)) {
+            $sdkMgr = Get-ChildItem "$sdkRoot\cmdline-tools" -Recurse -Filter "sdkmanager.bat" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+            if (-not $sdkMgr) {
+              throw "sdkmanager.bat not found under $sdkRoot\cmdline-tools"
+            }
+            "y`ny`ny`ny`ny`ny`ny`ny`ny`ny" | & $sdkMgr --licenses | Out-Null
+            & $sdkMgr "ndk;$ndkVersion"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          $env:ANDROID_NDK_HOME = $ndkDir
+          cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 -o app/android/app/src/main/jniLibs build --release -p core-api
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build split and universal Android APKs
+        shell: pwsh
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          $version = "${{ needs.prepare.outputs.version }}"
+          $apkOutDir = Join-Path $env:RUNNER_TEMP "dist-android"
+          New-Item -ItemType Directory -Force -Path $apkOutDir | Out-Null
+          $flutterApkDir = Join-Path $env:GITHUB_WORKSPACE "app\build\app\outputs\flutter-apk"
+
+          Push-Location (Join-Path $env:GITHUB_WORKSPACE "app")
+          try {
+            flutter pub get
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+            flutter build apk --release --split-per-abi
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            Copy-Item -Path (Join-Path $flutterApkDir "app-arm64-v8a-release.apk") -Destination (Join-Path $apkOutDir "MediaGallery-$version-android-arm64-v8a.apk") -Force
+            Copy-Item -Path (Join-Path $flutterApkDir "app-armeabi-v7a-release.apk") -Destination (Join-Path $apkOutDir "MediaGallery-$version-android-armeabi-v7a.apk") -Force
+
+            flutter build apk --release
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            Copy-Item -Path (Join-Path $flutterApkDir "app-release.apk") -Destination (Join-Path $apkOutDir "MediaGallery-$version-android-universal.apk") -Force
+          } finally {
+            Pop-Location
+          }
+      - name: Verify release APKs
+        shell: pwsh
+        run: |
+          $version = "${{ needs.prepare.outputs.version }}"
+          $appVersion = "${{ needs.prepare.outputs.app_version }}"
+          $versionCode = "${{ needs.prepare.outputs.version_code }}"
+          $apkOutDir = Join-Path $env:RUNNER_TEMP "dist-android"
+
+          $verifyArgs = @(
+            "-File", "$env:GITHUB_WORKSPACE\tools\release\android\verify-apks.ps1",
+            "-ApkDir", $apkOutDir,
+            "-Version", $version,
+            "-AppVersion", $appVersion,
+            "-VersionCode", $versionCode
+          )
+          if ($env:EXPECT_RELEASE_SIGNED -eq "true") {
+            $verifyArgs += "-ExpectReleaseSigned"
+          }
+          & pwsh @verifyArgs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Clean up temporary keystore
+        if: always()
+        shell: pwsh
+        run: |
+          if ($env:ANDROID_KEYSTORE_PATH -and (Test-Path $env:ANDROID_KEYSTORE_PATH)) {
+            Remove-Item -Force $env:ANDROID_KEYSTORE_PATH -ErrorAction SilentlyContinue
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-release-assets
+          path: |
+            ${{ runner.temp }}/dist-android/MediaGallery-${{ needs.prepare.outputs.version }}-android-arm64-v8a.apk
+            ${{ runner.temp }}/dist-android/MediaGallery-${{ needs.prepare.outputs.version }}-android-armeabi-v7a.apk
+            ${{ runner.temp }}/dist-android/MediaGallery-${{ needs.prepare.outputs.version }}-android-universal.apk
+          if-no-files-found: error
+
+  publish:
+    needs: [prepare, build-windows, build-android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-release-assets
+          path: release-assets
+      - uses: actions/download-artifact@v4
+        with:
+          name: android-release-assets
+          path: release-assets
+      - name: Verify all release assets and generate SHA256SUMS.txt
+        shell: bash
+        run: |
+          set -euo pipefail
+          V="${{ needs.prepare.outputs.version }}"
+          EXPECTED=(
+            "MediaGallery-${V}-windows-x64-setup.exe"
+            "MediaGallery-${V}-windows-x64-portable.zip"
+            "MediaGallery-${V}-android-arm64-v8a.apk"
+            "MediaGallery-${V}-android-armeabi-v7a.apk"
+            "MediaGallery-${V}-android-universal.apk"
+          )
+          cd release-assets
+          for f in "${EXPECTED[@]}"; do
+            if [[ ! -s "$f" ]]; then
+              echo "Missing or empty expected release asset: $f" >&2
+              exit 1
+            fi
+          done
+          LC_ALL=C sha256sum "${EXPECTED[@]}" > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+          ls -lh
+          cat SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-assets
+          path: release-assets/*
+          if-no-files-found: error
+      - name: Draft, upload, verify, and publish GitHub Release
+        if: ${{ needs.prepare.outputs.is_dry_run != 'true' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          V="${{ needs.prepare.outputs.version }}"
+          TAG="${{ needs.prepare.outputs.tag }}"
+          IS_PRE="${{ needs.prepare.outputs.is_prerelease }}"
+
+          RELEASE_VERSION="$V" RELEASE_TAG="$TAG" python3 - <<'PY'
+          import json, os, pathlib
+
+          v = os.environ["RELEASE_VERSION"]
+          tag = os.environ["RELEASE_TAG"]
+          lock = json.loads(pathlib.Path("tools/release/sidecars.lock").read_text(encoding="utf-8"))
+          ffmpeg_ver = lock["sidecars"]["ffmpeg_win64_lgpl"]["version"]
+          ytdlp_ver = lock["sidecars"]["yt_dlp_win64"]["version"]
+          sums = pathlib.Path("release-assets/SHA256SUMS.txt").read_text(encoding="utf-8").strip()
+
+          notes = f"""
+          ## Media Gallery {tag}
+
+          ### Downloads
+
+          | Platform | Asset | Notes |
+          |---|---|---|
+          | **Windows x64 Installer** | `MediaGallery-{v}-windows-x64-setup.exe` | Recommended for Windows 10/11 (Start Menu shortcuts, clean uninstaller, bundled sidecars) |
+          | **Windows x64 Portable** | `MediaGallery-{v}-windows-x64-portable.zip` | Extract and run `media_gallery.exe` with zero installation |
+          | **Android (64-bit ARM)** | `MediaGallery-{v}-android-arm64-v8a.apk` | Recommended for modern Android devices (2018+) |
+          | **Android (32-bit ARM)** | `MediaGallery-{v}-android-armeabi-v7a.apk` | Older 32-bit ARM devices |
+          | **Android (Universal)** | `MediaGallery-{v}-android-universal.apk` | Multi-ABI APK (`arm64-v8a`, `armeabi-v7a`, `x86_64`) |
+          | **Checksums** | `SHA256SUMS.txt` | Verify download integrity |
+
+          ### Included Windows Sidecars & Licenses
+          - **FFmpeg / ffprobe (LGPL v2.1+):** `{ffmpeg_ver}` (built without `--enable-gpl`)
+          - **yt-dlp (Unlicense):** `{ytdlp_ver}`
+          - See `THIRD_PARTY_LICENSES.txt` inside the Windows distribution and [`README.md`](https://github.com/ilovemygh/Media-Gallery#install) for SmartScreen, Android sideload, and SHA-256 verification guides.
+
+          ### SHA-256 Checksums
+          ```text
+          {sums}
+          ```
+          """
+          import textwrap
+          pathlib.Path("RELEASE_NOTES.md").write_text(textwrap.dedent(notes).lstrip(), encoding="utf-8")
+          PY
+
+          # Remove leftover draft with same tag if retrying a failed publish
+          if gh release view "$TAG" --json isDraft -q '.isDraft' 2>/dev/null | grep -qx "true"; then
+            gh release delete "$TAG" --yes
+          fi
+
+          PRE_FLAG=""
+          if [[ "$IS_PRE" == "true" ]]; then
+            PRE_FLAG="--prerelease"
+          fi
+
+          gh release create "$TAG" \
+            --draft \
+            ${PRE_FLAG} \
+            --title "Media Gallery ${TAG}" \
+            --notes-file RELEASE_NOTES.md
+
+          gh release upload "$TAG" release-assets/* --clobber
+
+          ASSET_COUNT="$(gh release view "$TAG" --json assets -q '.assets | length')"
+          if [[ "$ASSET_COUNT" -ne 6 ]]; then
+            echo "Expected 6 uploaded assets on draft release $TAG, found $ASSET_COUNT" >&2
+            exit 1
+          fi
+
+          gh release edit "$TAG" --draft=false
