@@ -5,6 +5,9 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$Version,
 
+    [Parameter(Mandatory = $false)]
+    [string]$AppVersion = "",
+
     [Parameter(Mandatory = $true)]
     [string]$VersionCode,
 
@@ -13,6 +16,9 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+if (-not $AppVersion) {
+    $AppVersion = $Version
+}
 
 $SdkRoot = if ($env:ANDROID_SDK_ROOT) { $env:ANDROID_SDK_ROOT } else { $env:ANDROID_HOME }
 if (-not $SdkRoot -or -not (Test-Path $SdkRoot)) {
@@ -102,9 +108,9 @@ foreach ($spec in $ExpectedApks) {
     if ($badging -notmatch "versionCode='$([regex]::Escape($VersionCode))'") {
         throw "$($spec.File) versionCode did not match '$VersionCode':`n$badging"
     }
-    if ($badging -notmatch "versionName='$([regex]::Escape($Version))'") {
-        throw "$($spec.File) versionName did not match '$Version':`n$badging"
+    if ($badging -notmatch "versionName='$([regex]::Escape($AppVersion))'") {
+        throw "$($spec.File) versionName did not match '$AppVersion':`n$badging"
     }
 
-    Write-Output "  OK: native libs, signature, and metadata verified ($Version+$VersionCode)"
+    Write-Output "  OK: native libs, signature, and metadata verified ($AppVersion+$VersionCode)"
 }
