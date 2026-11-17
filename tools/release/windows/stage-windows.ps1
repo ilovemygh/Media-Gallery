@@ -260,8 +260,15 @@ try {
     # 7. Build Inno Setup .exe installer
     $Iscc = Get-Command "iscc" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
     if (-not $Iscc) {
-        $CandidateIscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-        if (Test-Path $CandidateIscc) { $Iscc = $CandidateIscc }
+        foreach ($candidate in @(
+            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+            "${env:ProgramFiles}\Inno Setup 6\ISCC.exe"
+        )) {
+            if ($candidate -and (Test-Path $candidate)) {
+                $Iscc = $candidate
+                break
+            }
+        }
     }
     if (-not $Iscc) {
         throw "Inno Setup 6 (iscc.exe) not found. Install Inno Setup 6 before building the Windows installer."
