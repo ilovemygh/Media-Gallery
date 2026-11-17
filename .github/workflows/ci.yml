@@ -55,6 +55,22 @@ jobs:
       - name: Install FRB codegen & verify bindings up to date
         shell: bash
         run: |
+          set -eEo pipefail
+          STAGE="init"
+          emit_err() {
+            local rc=$?
+            local line=$1
+            local status_out diff_out diff_head frb_tail
+            status_out=$(git status --porcelain 2>&1 | head -n 30 | tr -d '\r' | sed ':a;N;$!ba;s/\n/%0A/g')
+            diff_out=$(git diff --stat 2>&1 | head -n 30 | tr -d '\r' | sed ':a;N;$!ba;s/\n/%0A/g')
+            diff_head=$(git diff -U1 2>&1 | head -n 30 | tr -d '\r' | sed ':a;N;$!ba;s/\n/%0A/g')
+            frb_tail=$(tail -n 25 "${RUNNER_TEMP}/frb.log" 2>/dev/null | tr -d '\r' | sed ':a;N;$!ba;s/\n/%0A/g' || true)
+            echo "::error::FRB check failed line=${line} rc=${rc} stage=${STAGE}%0AFRB_LOG:%0A${frb_tail}%0ASTATUS:%0A${status_out}%0ADIFFSTAT:%0A${diff_out}%0ADIFFHEAD:%0A${diff_head}"
+            exit "$rc"
+          }
+          trap 'emit_err $LINENO' ERR
+
+          STAGE="install-frb-codegen"
           if ! flutter_rust_bridge_codegen --version 2>/dev/null | grep -q "2.11.1"; then
             mkdir -p ~/.cargo/bin
             curl -fsSL -o "${RUNNER_TEMP}/frb.zip" \
@@ -65,16 +81,22 @@ jobs:
             rm -f "${RUNNER_TEMP}/frb.zip"
           fi
           flutter_rust_bridge_codegen --version | grep -q "2.11.1"
+          STAGE="install-cargo-expand"
           if ! command -v cargo-expand >/dev/null 2>&1; then
             cargo install cargo-expand --locked
           fi
+          STAGE="flutter-pub-get ($(flutter --version | head -n 1))"
           (cd app && flutter pub get)
-          flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml
-          flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml
+          STAGE="frb-generate-1"
+          flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml 2>&1 | tee "${RUNNER_TEMP}/frb.log"
+          STAGE="frb-generate-2"
+          flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml 2>&1 | tee -a "${RUNNER_TEMP}/frb.log"
+          STAGE="git-diff-check"
           git add -N app/lib/src/rust crates/core-api/src/frb_generated.rs
           git status --short
           git diff --stat -- app/lib/src/rust crates/core-api/src/frb_generated.rs
           git diff --exit-code -- app/lib/src/rust crates/core-api/src/frb_generated.rs
+          STAGE="git-clean-check"
           test -z "$(git status --porcelain)"
       - name: Flutter analyze & widget/golden tests
         working-directory: app
