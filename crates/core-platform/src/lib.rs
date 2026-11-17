@@ -71,6 +71,37 @@ pub trait ThumbnailSidecar: Send + Sync {
     fn probe_video(&self, video_path: &Path) -> Result<ProbedVideoMeta, PlatformError>;
 }
 
+/// Resolves a sidecar executable path by searching next to the current binary
+/// (`<exe_dir>/<name>` and `<exe_dir>/sidecars/<name>`), falling back to `PATH`.
+pub fn resolve_sidecar_bin(bin_name: &str) -> PathBuf {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(Path::to_path_buf));
+    resolve_sidecar_bin_in_dir(exe_dir.as_deref(), bin_name)
+}
+
+fn resolve_sidecar_bin_in_dir(base_dir: Option<&Path>, bin_name: &str) -> PathBuf {
+    let file_name = if cfg!(windows) && Path::new(bin_name).extension().is_none() {
+        format!("{bin_name}.exe")
+    } else {
+        bin_name.to_string()
+    };
+
+    if let Some(dir) = base_dir {
+        for candidate in [
+            dir.join(&file_name),
+            dir.join("sidecars").join(&file_name),
+            dir.join("bin").join(&file_name),
+        ] {
+            if candidate.is_file() {
+                return candidate;
+            }
+        }
+    }
+
+    PathBuf::from(bin_name)
+}
+
 /// Desktop implementation invoking an external LGPL `ffmpeg` / `ffprobe` sidecar binary,
 /// with an optional deterministic PNG placeholder fallback when `ffmpeg` is absent or on synthetic fixtures.
 #[derive(Debug, Clone)]
@@ -83,8 +114,8 @@ pub struct DesktopFfmpegSidecar {
 impl Default for DesktopFfmpegSidecar {
     fn default() -> Self {
         Self {
-            ffmpeg_bin: PathBuf::from("ffmpeg"),
-            ffprobe_bin: PathBuf::from("ffprobe"),
+            ffmpeg_bin: resolve_sidecar_bin("ffmpeg"),
+            ffprobe_bin: resolve_sidecar_bin("ffprobe"),
             allow_fallback_render: true,
         }
     }
@@ -393,7 +424,7 @@ pub struct DesktopYtDlpBackend {
 impl Default for DesktopYtDlpBackend {
     fn default() -> Self {
         Self {
-            yt_dlp_bin: PathBuf::from("yt-dlp"),
+            yt_dlp_bin: resolve_sidecar_bin("yt-dlp"),
         }
     }
 }
@@ -449,5 +480,52 @@ impl YtDlpBackend for DesktopYtDlpBackend {
         } else {
             Err(PlatformError::Sidecar(combined))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn make_temp_dir(label: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let dir = std::env::temp_dir().join(format!("mg-platform-{label}-{nanos}"));
+        fs::create_dir_all(&dir).expect("create temp dir");
+        dir
+    }
+
+    #[test]
+    fn resolves_executable_next_to_binary_and_in_sidecars_subdir() {
+        let dir = make_temp_dir("sidecar-lookup");
+        let file_name = if cfg!(windows) {
+            "ffmpeg.exe"
+        } else {
+            "ffmpeg"
+        };
+
+        // Fallback when no bundled binary exists
+        assert_eq!(
+            resolve_sidecar_bin_in_dir(Some(&dir), "ffmpeg"),
+            PathBuf::from("ffmpeg")
+        );
+
+        // Finds binary in sidecars/ subdirectory
+        let sidecars_dir = dir.join("sidecars");
+        fs::create_dir_all(&sidecars_dir).expect("create sidecars dir");
+        let sub_bin = sidecars_dir.join(file_name);
+        fs::write(&sub_bin, b"stub").expect("write sidecars bin");
+        assert_eq!(resolve_sidecar_bin_in_dir(Some(&dir), "ffmpeg"), sub_bin);
+
+        // Prefers binary directly alongside executable over sidecars/
+        let root_bin = dir.join(file_name);
+        fs::write(&root_bin, b"stub").expect("write root bin");
+        assert_eq!(resolve_sidecar_bin_in_dir(Some(&dir), "ffmpeg"), root_bin);
+
+        let _ = fs::remove_dir_all(&dir);
     }
 }

@@ -19,9 +19,9 @@ use core_media::{
 };
 use core_net::{NetError, PairingManager, PairingSession};
 use core_platform::{
-    AndroidMediaStoreRow, DesktopFfmpegSidecar, DesktopFileWatcher, DesktopYtDlpBackend,
-    EncryptedMemoryStore, ManagedTrashBackend, PlatformError, SecureStore, ThumbnailSidecar,
-    TrashBackend, YtDlpBackend,
+    resolve_sidecar_bin, AndroidMediaStoreRow, DesktopFfmpegSidecar, DesktopFileWatcher,
+    DesktopYtDlpBackend, EncryptedMemoryStore, ManagedTrashBackend, PlatformError, SecureStore,
+    ThumbnailSidecar, TrashBackend, YtDlpBackend,
 };
 use core_sync::{
     GoogleCloudSyncClient, GoogleSession, InMemoryDriveBackend, IndexSyncManager, SyncError,
@@ -624,13 +624,20 @@ impl MediaGalleryCore {
         &self,
         req: &YoutubeDownloadRequest,
     ) -> Result<DownloadJobRecord, ApiError> {
+        let mut effective_req = req.clone();
+        if effective_req.ffmpeg_bin.is_none() {
+            let resolved_ffmpeg = resolve_sidecar_bin("ffmpeg");
+            if resolved_ffmpeg.is_file() {
+                effective_req.ffmpeg_bin = Some(resolved_ffmpeg.to_string_lossy().to_string());
+            }
+        }
         let downloader = YoutubeDownloader::new(
             self.index.clone(),
             Arc::clone(&self.ytdl_backend),
             Arc::clone(&self.sidecar),
             &self.cache_dir,
         );
-        let (job, _) = downloader.enqueue_and_download(req, |j| {
+        let (job, _) = downloader.enqueue_and_download(&effective_req, |j| {
             let _ = self.events_tx.send(CoreEvent::DownloadProgress(j.clone()));
         })?;
         Ok(job)
