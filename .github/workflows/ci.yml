@@ -37,13 +37,29 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+      - name: Cache FRB & Cargo tools
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/flutter_rust_bridge_codegen*
+            ~/.cargo/bin/cargo-expand*
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: frb-tools-${{ runner.os }}-2.11.1
       - name: Install FRB codegen & verify bindings up to date
         shell: bash
         run: |
-          cargo install flutter_rust_bridge_codegen --version 2.11.1 --locked
-          flutter_rust_bridge_codegen generate
-          git add -N .
-          git diff --exit-code
+          if ! flutter_rust_bridge_codegen --version 2>/dev/null | grep -q "2.11.1"; then
+            cargo install flutter_rust_bridge_codegen --version 2.11.1 --locked
+          fi
+          if ! command -v cargo-expand >/dev/null 2>&1; then
+            cargo install cargo-expand --locked
+          fi
+          (cd app && flutter pub get)
+          flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml
+          flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml
+          git add -N app/lib/src/rust crates/core-api/src/frb_generated.rs
+          git diff --exit-code -- app/lib/src/rust crates/core-api/src/frb_generated.rs
           test -z "$(git status --porcelain)"
       - name: Flutter analyze & widget/golden tests
         working-directory: app
