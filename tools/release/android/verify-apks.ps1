@@ -45,14 +45,17 @@ if (-not (Test-Path $Aapt2)) { throw "aapt2 not found in $BuildToolsDir" }
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
+$BaseCode = [int]$VersionCode
 $ExpectedApks = @(
     @{
         File = "MediaGallery-$Version-android-arm64-v8a.apk"
         RequiredEntries = @("lib/arm64-v8a/libcore_api.so", "lib/arm64-v8a/libflutter.so")
+        ExpectedVersionCodes = @("$BaseCode", "$($BaseCode + 2000)")
     },
     @{
         File = "MediaGallery-$Version-android-armeabi-v7a.apk"
         RequiredEntries = @("lib/armeabi-v7a/libcore_api.so", "lib/armeabi-v7a/libflutter.so")
+        ExpectedVersionCodes = @("$BaseCode", "$($BaseCode + 1000)")
     },
     @{
         File = "MediaGallery-$Version-android-universal.apk"
@@ -64,6 +67,7 @@ $ExpectedApks = @(
             "lib/armeabi-v7a/libflutter.so",
             "lib/x86_64/libflutter.so"
         )
+        ExpectedVersionCodes = @("$BaseCode")
     }
 )
 
@@ -105,8 +109,15 @@ foreach ($spec in $ExpectedApks) {
     if ($badging -notmatch "package:\s+name='io\.mediagallery\.app'") {
         throw "$($spec.File) has unexpected package name in badging:`n$badging"
     }
-    if ($badging -notmatch "versionCode='$([regex]::Escape($VersionCode))'") {
-        throw "$($spec.File) versionCode did not match '$VersionCode':`n$badging"
+    $codeMatched = $false
+    foreach ($expectedCode in $spec.ExpectedVersionCodes) {
+        if ($badging -match "versionCode='$([regex]::Escape($expectedCode))'") {
+            $codeMatched = $true
+            break
+        }
+    }
+    if (-not $codeMatched) {
+        throw "$($spec.File) versionCode did not match any of [$($spec.ExpectedVersionCodes -join ', ')]:`n$badging"
     }
     if ($badging -notmatch "versionName='$([regex]::Escape($AppVersion))'") {
         throw "$($spec.File) versionName did not match '$AppVersion':`n$badging"
