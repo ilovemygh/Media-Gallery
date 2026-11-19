@@ -497,8 +497,11 @@ class CleanerDashboardView extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(
                         'Storage & Smart Cleanup',
@@ -739,13 +742,13 @@ class _DevicesBackupViewState extends ConsumerState<DevicesBackupView> {
                       ),
                       trailing: dev.isSelf
                           ? const Chip(label: Text('Host'))
-                          : Wrap(
-                              spacing: 8,
+                          : Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                OutlinedButton.icon(
+                                IconButton(
+                                  tooltip: 'Backup Now',
+                                  icon: const Icon(Icons.backup),
                                   onPressed: () => ctrl.refresh(),
-                                  icon: const Icon(Icons.backup, size: 16),
-                                  label: const Text('Backup Now'),
                                 ),
                                 IconButton(
                                   tooltip: 'Forget device',

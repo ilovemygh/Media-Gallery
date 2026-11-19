@@ -370,10 +370,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                                         ui.activeFolder == null &&
                                         ui.searchQuery.isEmpty)
                                       SliverToBoxAdapter(
-                                        child: _HomeOverviewSection(
-                                          ui: ui,
-                                          onOpenMedia: (m) => showMediaViewerDialog(context, ref, m),
-                                        ),
+                                        child: _HomeOverviewSection(ui: ui),
                                       ),
 
                                     // Explorer Toolbar (Header, Density S/M/L/List, Sort, Multi-select)
@@ -621,8 +618,6 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                                                       onTap: () => ui.selectionMode
                                                           ? ctrl.toggleItemSelected(item.id)
                                                           : ctrl.selectMedia(item.id),
-                                                      onDoubleTap: () =>
-                                                          showMediaViewerDialog(context, ref, item),
                                                       child: Padding(
                                                         padding: const EdgeInsets.all(8),
                                                         child: Column(
@@ -971,13 +966,9 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
 }
 
 class _HomeOverviewSection extends ConsumerWidget {
-  const _HomeOverviewSection({
-    required this.ui,
-    required this.onOpenMedia,
-  });
+  const _HomeOverviewSection({required this.ui});
 
   final GalleryUiState ui;
-  final void Function(MediaItem) onOpenMedia;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1040,7 +1031,6 @@ class _HomeOverviewSection extends ConsumerWidget {
                       clipBehavior: Clip.antiAlias,
                       child: InkWell(
                         onTap: () => ctrl.selectMedia(item.id),
-                        onDoubleTap: () => onOpenMedia(item),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
