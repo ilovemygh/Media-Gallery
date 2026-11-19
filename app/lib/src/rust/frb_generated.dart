@@ -35,12 +35,8 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 
   /// Initialize flutter_rust_bridge in mock mode.
   /// No libraries for FFI are loaded.
-  static void initMock({
-    required RustLibApi api,
-  }) {
-    instance.initMockImpl(
-      api: api,
-    );
+  static void initMock({required RustLibApi api}) {
+    instance.initMockImpl(api: api);
   }
 
   /// Dispose flutter_rust_bridge
@@ -68,28 +64,162 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 1536898745;
+  int get rustContentHash => -147493653;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
-    stem: 'core_api',
-    ioDirectory: '../crates/core-api/target/release/',
-    webPrefix: 'pkg/',
-  );
+        stem: 'core_api',
+        ioDirectory: '../crates/core-api/target/release/',
+        webPrefix: 'pkg/',
+      );
 }
 
 abstract class RustLibApi extends BaseApi {
+  Future<FrbBulkRenameResult> crateApiFrbApplyBulkRename({
+    required List<String> mediaIds,
+    required String template,
+  });
+
+  Future<FrbMediaItem> crateApiFrbApplyRealRename({
+    required String mediaId,
+    required String newName,
+  });
+
   String crateApiFrbCleanAliasName({required String fileName});
+
+  Future<FrbPairingSession> crateApiFrbCreatePairingSession();
 
   Future<bool> crateApiFrbDetectLegacyDatabase({required String legacyDbPath});
 
+  Future<BigInt> crateApiFrbEmptyTrash({String? mediaId});
+
+  Future<FrbDownloadJob> crateApiFrbEnqueueYoutubeDownload({
+    required String url,
+    required String format,
+    required String quality,
+    required String destinationFolder,
+  });
+
+  Future<List<FrbThumbnailEntry>> crateApiFrbEnsureThumbnailsBatch({
+    required List<String> mediaIds,
+  });
+
+  Future<void> crateApiFrbForgetDevice({required String deviceId});
+
+  Future<FrbAppSettings> crateApiFrbGetSettings();
+
+  Future<FrbStorageStats> crateApiFrbGetStorageStats();
+
   String crateApiFrbHealthCheck();
 
-  Future<FrbLegacyImportReport> crateApiFrbImportLegacyDatabase(
-      {required String targetDbPath, required String legacyDbPath});
+  Future<FrbLegacyImportReport> crateApiFrbImportLegacyDatabase({
+    required String targetDbPath,
+    required String legacyDbPath,
+  });
 
-  BigInt crateApiFrbSelectFirstThirdFrameMs(
-      {required BigInt durationMs, double? sample});
+  Future<int> crateApiFrbIngestAndroidMediastore({
+    required String deviceId,
+    required String deviceName,
+    required String rowsJson,
+  });
+
+  Future<void> crateApiFrbInitCore({
+    String? dbPath,
+    required String cacheDir,
+    required String selfDeviceId,
+    required String selfDeviceName,
+    required bool isPhone,
+  });
+
+  Future<List<FrbDeviceItem>> crateApiFrbListDevices();
+
+  Future<List<FrbDownloadJob>> crateApiFrbListDownloadJobs();
+
+  Future<List<FrbFolderSummary>> crateApiFrbListFolders({
+    String? deviceId,
+    String? mediaType,
+  });
+
+  Future<FrbMediaPage> crateApiFrbListMedia({
+    required String query,
+    String? mediaType,
+    String? deviceId,
+    String? folderPath,
+    String? syncState,
+    BigInt? minSize,
+    required bool onlyDuplicates,
+    required bool trashedOnly,
+    required String sortField,
+    required String sortDir,
+    String? cursor,
+    required int limit,
+  });
+
+  Future<List<FrbPinnedFolder>> crateApiFrbListPinnedFolders();
+
+  Future<FrbMediaItem> crateApiFrbMoveMediaToFolder({
+    required String mediaId,
+    required String targetFolder,
+  });
+
+  Future<String> crateApiFrbMoveToTrash({required String mediaId});
+
+  Future<FrbCoverItem> crateApiFrbPickVideoFrame({
+    required String mediaId,
+    required BigInt frameTimeMs,
+  });
+
+  Future<List<FrbBulkRenamePreview>> crateApiFrbPreviewBulkRename({
+    required List<String> mediaIds,
+    required String template,
+  });
+
+  Future<void> crateApiFrbRemovePinnedFolder({required String id});
+
+  Future<void> crateApiFrbReorderPinnedFolders({
+    required List<String> orderedIds,
+  });
+
+  Future<FrbCoverItem> crateApiFrbRerollVideoThumbnail({
+    required String mediaId,
+  });
+
+  Future<FrbMediaItem> crateApiFrbRestoreFromTrash({required String mediaId});
+
+  Future<void> crateApiFrbSaveSettings({required FrbAppSettings settings});
+
+  Future<BigInt> crateApiFrbScanFolders({
+    required List<String> roots,
+    required List<String> excluded,
+  });
+
+  BigInt crateApiFrbSelectFirstThirdFrameMs({
+    required BigInt durationMs,
+    double? sample,
+  });
+
+  Future<FrbMediaItem> crateApiFrbSetAlias({
+    required String mediaId,
+    required String alias,
+  });
+
+  Future<FrbCoverItem> crateApiFrbSetCustomCover({
+    required String mediaId,
+    required String imagePath,
+    required String aspect,
+    required bool confirmedEmbeddedWrite,
+  });
+
+  Future<int> crateApiFrbUndoBulkRename({required String batchId});
+
+  Future<bool> crateApiFrbUndoLastRename({String? mediaId});
+
+  Future<FrbCoverItem> crateApiFrbUpdateCoverAspect({
+    required String mediaId,
+    required String aspect,
+  });
+
+  Future<void> crateApiFrbUpsertPinnedFolder({required FrbPinnedFolder folder});
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -101,45 +231,151 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   });
 
   @override
-  String crateApiFrbCleanAliasName({required String fileName}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_String(fileName, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 1)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_String,
-        decodeErrorData: null,
+  Future<FrbBulkRenameResult> crateApiFrbApplyBulkRename({
+    required List<String> mediaIds,
+    required String template,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_String(mediaIds, serializer);
+          sse_encode_String(template, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 1,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_frb_bulk_rename_result,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbApplyBulkRenameConstMeta,
+        argValues: [mediaIds, template],
+        apiImpl: this,
       ),
-      constMeta: kCrateApiFrbCleanAliasNameConstMeta,
-      argValues: [fileName],
-      apiImpl: this,
-    ));
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbApplyBulkRenameConstMeta => const TaskConstMeta(
+    debugName: "frb_apply_bulk_rename",
+    argNames: ["mediaIds", "template"],
+  );
+
+  @override
+  Future<FrbMediaItem> crateApiFrbApplyRealRename({
+    required String mediaId,
+    required String newName,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mediaId, serializer);
+          sse_encode_String(newName, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 2,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_frb_media_item,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbApplyRealRenameConstMeta,
+        argValues: [mediaId, newName],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbApplyRealRenameConstMeta => const TaskConstMeta(
+    debugName: "frb_apply_real_rename",
+    argNames: ["mediaId", "newName"],
+  );
+
+  @override
+  String crateApiFrbCleanAliasName({required String fileName}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(fileName, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiFrbCleanAliasNameConstMeta,
+        argValues: [fileName],
+        apiImpl: this,
+      ),
+    );
   }
 
   TaskConstMeta get kCrateApiFrbCleanAliasNameConstMeta => const TaskConstMeta(
-        debugName: "frb_clean_alias_name",
-        argNames: ["fileName"],
+    debugName: "frb_clean_alias_name",
+    argNames: ["fileName"],
+  );
+
+  @override
+  Future<FrbPairingSession> crateApiFrbCreatePairingSession() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 4,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_frb_pairing_session,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbCreatePairingSessionConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbCreatePairingSessionConstMeta =>
+      const TaskConstMeta(
+        debugName: "frb_create_pairing_session",
+        argNames: [],
       );
 
   @override
   Future<bool> crateApiFrbDetectLegacyDatabase({required String legacyDbPath}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_String(legacyDbPath, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 2, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_bool,
-        decodeErrorData: null,
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(legacyDbPath, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 5,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiFrbDetectLegacyDatabaseConstMeta,
+        argValues: [legacyDbPath],
+        apiImpl: this,
       ),
-      constMeta: kCrateApiFrbDetectLegacyDatabaseConstMeta,
-      argValues: [legacyDbPath],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateApiFrbDetectLegacyDatabaseConstMeta =>
@@ -149,46 +385,238 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  String crateApiFrbHealthCheck() {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_String,
-        decodeErrorData: null,
+  Future<BigInt> crateApiFrbEmptyTrash({String? mediaId}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_opt_String(mediaId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 6,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_u_64,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbEmptyTrashConstMeta,
+        argValues: [mediaId],
+        apiImpl: this,
       ),
-      constMeta: kCrateApiFrbHealthCheckConstMeta,
-      argValues: [],
-      apiImpl: this,
-    ));
+    );
   }
 
-  TaskConstMeta get kCrateApiFrbHealthCheckConstMeta => const TaskConstMeta(
-        debugName: "frb_health_check",
-        argNames: [],
+  TaskConstMeta get kCrateApiFrbEmptyTrashConstMeta =>
+      const TaskConstMeta(debugName: "frb_empty_trash", argNames: ["mediaId"]);
+
+  @override
+  Future<FrbDownloadJob> crateApiFrbEnqueueYoutubeDownload({
+    required String url,
+    required String format,
+    required String quality,
+    required String destinationFolder,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(url, serializer);
+          sse_encode_String(format, serializer);
+          sse_encode_String(quality, serializer);
+          sse_encode_String(destinationFolder, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 7,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_frb_download_job,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbEnqueueYoutubeDownloadConstMeta,
+        argValues: [url, format, quality, destinationFolder],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbEnqueueYoutubeDownloadConstMeta =>
+      const TaskConstMeta(
+        debugName: "frb_enqueue_youtube_download",
+        argNames: ["url", "format", "quality", "destinationFolder"],
       );
 
   @override
-  Future<FrbLegacyImportReport> crateApiFrbImportLegacyDatabase(
-      {required String targetDbPath, required String legacyDbPath}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_String(targetDbPath, serializer);
-        sse_encode_String(legacyDbPath, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 4, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_frb_legacy_import_report,
-        decodeErrorData: sse_decode_api_error,
+  Future<List<FrbThumbnailEntry>> crateApiFrbEnsureThumbnailsBatch({
+    required List<String> mediaIds,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_String(mediaIds, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 8,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_frb_thumbnail_entry,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbEnsureThumbnailsBatchConstMeta,
+        argValues: [mediaIds],
+        apiImpl: this,
       ),
-      constMeta: kCrateApiFrbImportLegacyDatabaseConstMeta,
-      argValues: [targetDbPath, legacyDbPath],
-      apiImpl: this,
-    ));
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbEnsureThumbnailsBatchConstMeta =>
+      const TaskConstMeta(
+        debugName: "frb_ensure_thumbnails_batch",
+        argNames: ["mediaIds"],
+      );
+
+  @override
+  Future<void> crateApiFrbForgetDevice({required String deviceId}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(deviceId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 9,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbForgetDeviceConstMeta,
+        argValues: [deviceId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbForgetDeviceConstMeta => const TaskConstMeta(
+    debugName: "frb_forget_device",
+    argNames: ["deviceId"],
+  );
+
+  @override
+  Future<FrbAppSettings> crateApiFrbGetSettings() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 10,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_frb_app_settings,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbGetSettingsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbGetSettingsConstMeta =>
+      const TaskConstMeta(debugName: "frb_get_settings", argNames: []);
+
+  @override
+  Future<FrbStorageStats> crateApiFrbGetStorageStats() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 11,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_frb_storage_stats,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbGetStorageStatsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbGetStorageStatsConstMeta =>
+      const TaskConstMeta(debugName: "frb_get_storage_stats", argNames: []);
+
+  @override
+  String crateApiFrbHealthCheck() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiFrbHealthCheckConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbHealthCheckConstMeta =>
+      const TaskConstMeta(debugName: "frb_health_check", argNames: []);
+
+  @override
+  Future<FrbLegacyImportReport> crateApiFrbImportLegacyDatabase({
+    required String targetDbPath,
+    required String legacyDbPath,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(targetDbPath, serializer);
+          sse_encode_String(legacyDbPath, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 13,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_frb_legacy_import_report,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbImportLegacyDatabaseConstMeta,
+        argValues: [targetDbPath, legacyDbPath],
+        apiImpl: this,
+      ),
+    );
   }
 
   TaskConstMeta get kCrateApiFrbImportLegacyDatabaseConstMeta =>
@@ -198,29 +626,837 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  BigInt crateApiFrbSelectFirstThirdFrameMs(
-      {required BigInt durationMs, double? sample}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_u_64(durationMs, serializer);
-        sse_encode_opt_box_autoadd_f_64(sample, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_u_64,
-        decodeErrorData: null,
+  Future<int> crateApiFrbIngestAndroidMediastore({
+    required String deviceId,
+    required String deviceName,
+    required String rowsJson,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(deviceId, serializer);
+          sse_encode_String(deviceName, serializer);
+          sse_encode_String(rowsJson, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 14,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_u_32,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbIngestAndroidMediastoreConstMeta,
+        argValues: [deviceId, deviceName, rowsJson],
+        apiImpl: this,
       ),
-      constMeta: kCrateApiFrbSelectFirstThirdFrameMsConstMeta,
-      argValues: [durationMs, sample],
-      apiImpl: this,
-    ));
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbIngestAndroidMediastoreConstMeta =>
+      const TaskConstMeta(
+        debugName: "frb_ingest_android_mediastore",
+        argNames: ["deviceId", "deviceName", "rowsJson"],
+      );
+
+  @override
+  Future<void> crateApiFrbInitCore({
+    String? dbPath,
+    required String cacheDir,
+    required String selfDeviceId,
+    required String selfDeviceName,
+    required bool isPhone,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_opt_String(dbPath, serializer);
+          sse_encode_String(cacheDir, serializer);
+          sse_encode_String(selfDeviceId, serializer);
+          sse_encode_String(selfDeviceName, serializer);
+          sse_encode_bool(isPhone, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 15,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbInitCoreConstMeta,
+        argValues: [dbPath, cacheDir, selfDeviceId, selfDeviceName, isPhone],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbInitCoreConstMeta => const TaskConstMeta(
+    debugName: "frb_init_core",
+    argNames: [
+      "dbPath",
+      "cacheDir",
+      "selfDeviceId",
+      "selfDeviceName",
+      "isPhone",
+    ],
+  );
+
+  @override
+  Future<List<FrbDeviceItem>> crateApiFrbListDevices() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 16,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_frb_device_item,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbListDevicesConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbListDevicesConstMeta =>
+      const TaskConstMeta(debugName: "frb_list_devices", argNames: []);
+
+  @override
+  Future<List<FrbDownloadJob>> crateApiFrbListDownloadJobs() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 17,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_frb_download_job,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbListDownloadJobsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbListDownloadJobsConstMeta =>
+      const TaskConstMeta(debugName: "frb_list_download_jobs", argNames: []);
+
+  @override
+  Future<List<FrbFolderSummary>> crateApiFrbListFolders({
+    String? deviceId,
+    String? mediaType,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_opt_String(deviceId, serializer);
+          sse_encode_opt_String(mediaType, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 18,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_frb_folder_summary,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbListFoldersConstMeta,
+        argValues: [deviceId, mediaType],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbListFoldersConstMeta => const TaskConstMeta(
+    debugName: "frb_list_folders",
+    argNames: ["deviceId", "mediaType"],
+  );
+
+  @override
+  Future<FrbMediaPage> crateApiFrbListMedia({
+    required String query,
+    String? mediaType,
+    String? deviceId,
+    String? folderPath,
+    String? syncState,
+    BigInt? minSize,
+    required bool onlyDuplicates,
+    required bool trashedOnly,
+    required String sortField,
+    required String sortDir,
+    String? cursor,
+    required int limit,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(query, serializer);
+          sse_encode_opt_String(mediaType, serializer);
+          sse_encode_opt_String(deviceId, serializer);
+          sse_encode_opt_String(folderPath, serializer);
+          sse_encode_opt_String(syncState, serializer);
+          sse_encode_opt_box_autoadd_u_64(minSize, serializer);
+          sse_encode_bool(onlyDuplicates, serializer);
+          sse_encode_bool(trashedOnly, serializer);
+          sse_encode_String(sortField, serializer);
+          sse_encode_String(sortDir, serializer);
+          sse_encode_opt_String(cursor, serializer);
+          sse_encode_u_32(limit, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 19,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_frb_media_page,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbListMediaConstMeta,
+        argValues: [
+          query,
+          mediaType,
+          deviceId,
+          folderPath,
+          syncState,
+          minSize,
+          onlyDuplicates,
+          trashedOnly,
+          sortField,
+          sortDir,
+          cursor,
+          limit,
+        ],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbListMediaConstMeta => const TaskConstMeta(
+    debugName: "frb_list_media",
+    argNames: [
+      "query",
+      "mediaType",
+      "deviceId",
+      "folderPath",
+      "syncState",
+      "minSize",
+      "onlyDuplicates",
+      "trashedOnly",
+      "sortField",
+      "sortDir",
+      "cursor",
+      "limit",
+    ],
+  );
+
+  @override
+  Future<List<FrbPinnedFolder>> crateApiFrbListPinnedFolders() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 20,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_frb_pinned_folder,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbListPinnedFoldersConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbListPinnedFoldersConstMeta =>
+      const TaskConstMeta(debugName: "frb_list_pinned_folders", argNames: []);
+
+  @override
+  Future<FrbMediaItem> crateApiFrbMoveMediaToFolder({
+    required String mediaId,
+    required String targetFolder,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mediaId, serializer);
+          sse_encode_String(targetFolder, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 21,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_frb_media_item,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbMoveMediaToFolderConstMeta,
+        argValues: [mediaId, targetFolder],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbMoveMediaToFolderConstMeta =>
+      const TaskConstMeta(
+        debugName: "frb_move_media_to_folder",
+        argNames: ["mediaId", "targetFolder"],
+      );
+
+  @override
+  Future<String> crateApiFrbMoveToTrash({required String mediaId}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mediaId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 22,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbMoveToTrashConstMeta,
+        argValues: [mediaId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbMoveToTrashConstMeta => const TaskConstMeta(
+    debugName: "frb_move_to_trash",
+    argNames: ["mediaId"],
+  );
+
+  @override
+  Future<FrbCoverItem> crateApiFrbPickVideoFrame({
+    required String mediaId,
+    required BigInt frameTimeMs,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mediaId, serializer);
+          sse_encode_u_64(frameTimeMs, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 23,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_frb_cover_item,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbPickVideoFrameConstMeta,
+        argValues: [mediaId, frameTimeMs],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbPickVideoFrameConstMeta => const TaskConstMeta(
+    debugName: "frb_pick_video_frame",
+    argNames: ["mediaId", "frameTimeMs"],
+  );
+
+  @override
+  Future<List<FrbBulkRenamePreview>> crateApiFrbPreviewBulkRename({
+    required List<String> mediaIds,
+    required String template,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_String(mediaIds, serializer);
+          sse_encode_String(template, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 24,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_frb_bulk_rename_preview,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbPreviewBulkRenameConstMeta,
+        argValues: [mediaIds, template],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbPreviewBulkRenameConstMeta =>
+      const TaskConstMeta(
+        debugName: "frb_preview_bulk_rename",
+        argNames: ["mediaIds", "template"],
+      );
+
+  @override
+  Future<void> crateApiFrbRemovePinnedFolder({required String id}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(id, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 25,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbRemovePinnedFolderConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbRemovePinnedFolderConstMeta =>
+      const TaskConstMeta(
+        debugName: "frb_remove_pinned_folder",
+        argNames: ["id"],
+      );
+
+  @override
+  Future<void> crateApiFrbReorderPinnedFolders({
+    required List<String> orderedIds,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_String(orderedIds, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 26,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbReorderPinnedFoldersConstMeta,
+        argValues: [orderedIds],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbReorderPinnedFoldersConstMeta =>
+      const TaskConstMeta(
+        debugName: "frb_reorder_pinned_folders",
+        argNames: ["orderedIds"],
+      );
+
+  @override
+  Future<FrbCoverItem> crateApiFrbRerollVideoThumbnail({
+    required String mediaId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mediaId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 27,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_frb_cover_item,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbRerollVideoThumbnailConstMeta,
+        argValues: [mediaId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbRerollVideoThumbnailConstMeta =>
+      const TaskConstMeta(
+        debugName: "frb_reroll_video_thumbnail",
+        argNames: ["mediaId"],
+      );
+
+  @override
+  Future<FrbMediaItem> crateApiFrbRestoreFromTrash({required String mediaId}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mediaId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 28,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_frb_media_item,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbRestoreFromTrashConstMeta,
+        argValues: [mediaId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbRestoreFromTrashConstMeta =>
+      const TaskConstMeta(
+        debugName: "frb_restore_from_trash",
+        argNames: ["mediaId"],
+      );
+
+  @override
+  Future<void> crateApiFrbSaveSettings({required FrbAppSettings settings}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_frb_app_settings(settings, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 29,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbSaveSettingsConstMeta,
+        argValues: [settings],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbSaveSettingsConstMeta => const TaskConstMeta(
+    debugName: "frb_save_settings",
+    argNames: ["settings"],
+  );
+
+  @override
+  Future<BigInt> crateApiFrbScanFolders({
+    required List<String> roots,
+    required List<String> excluded,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_String(roots, serializer);
+          sse_encode_list_String(excluded, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 30,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_u_64,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbScanFoldersConstMeta,
+        argValues: [roots, excluded],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbScanFoldersConstMeta => const TaskConstMeta(
+    debugName: "frb_scan_folders",
+    argNames: ["roots", "excluded"],
+  );
+
+  @override
+  BigInt crateApiFrbSelectFirstThirdFrameMs({
+    required BigInt durationMs,
+    double? sample,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_u_64(durationMs, serializer);
+          sse_encode_opt_box_autoadd_f_64(sample, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 31)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_u_64,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiFrbSelectFirstThirdFrameMsConstMeta,
+        argValues: [durationMs, sample],
+        apiImpl: this,
+      ),
+    );
   }
 
   TaskConstMeta get kCrateApiFrbSelectFirstThirdFrameMsConstMeta =>
       const TaskConstMeta(
         debugName: "frb_select_first_third_frame_ms",
         argNames: ["durationMs", "sample"],
+      );
+
+  @override
+  Future<FrbMediaItem> crateApiFrbSetAlias({
+    required String mediaId,
+    required String alias,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mediaId, serializer);
+          sse_encode_String(alias, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 32,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_frb_media_item,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbSetAliasConstMeta,
+        argValues: [mediaId, alias],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbSetAliasConstMeta => const TaskConstMeta(
+    debugName: "frb_set_alias",
+    argNames: ["mediaId", "alias"],
+  );
+
+  @override
+  Future<FrbCoverItem> crateApiFrbSetCustomCover({
+    required String mediaId,
+    required String imagePath,
+    required String aspect,
+    required bool confirmedEmbeddedWrite,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mediaId, serializer);
+          sse_encode_String(imagePath, serializer);
+          sse_encode_String(aspect, serializer);
+          sse_encode_bool(confirmedEmbeddedWrite, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 33,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_frb_cover_item,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbSetCustomCoverConstMeta,
+        argValues: [mediaId, imagePath, aspect, confirmedEmbeddedWrite],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbSetCustomCoverConstMeta => const TaskConstMeta(
+    debugName: "frb_set_custom_cover",
+    argNames: ["mediaId", "imagePath", "aspect", "confirmedEmbeddedWrite"],
+  );
+
+  @override
+  Future<int> crateApiFrbUndoBulkRename({required String batchId}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(batchId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 34,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_u_32,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbUndoBulkRenameConstMeta,
+        argValues: [batchId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbUndoBulkRenameConstMeta => const TaskConstMeta(
+    debugName: "frb_undo_bulk_rename",
+    argNames: ["batchId"],
+  );
+
+  @override
+  Future<bool> crateApiFrbUndoLastRename({String? mediaId}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_opt_String(mediaId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 35,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbUndoLastRenameConstMeta,
+        argValues: [mediaId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbUndoLastRenameConstMeta => const TaskConstMeta(
+    debugName: "frb_undo_last_rename",
+    argNames: ["mediaId"],
+  );
+
+  @override
+  Future<FrbCoverItem> crateApiFrbUpdateCoverAspect({
+    required String mediaId,
+    required String aspect,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mediaId, serializer);
+          sse_encode_String(aspect, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 36,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_frb_cover_item,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbUpdateCoverAspectConstMeta,
+        argValues: [mediaId, aspect],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbUpdateCoverAspectConstMeta =>
+      const TaskConstMeta(
+        debugName: "frb_update_cover_aspect",
+        argNames: ["mediaId", "aspect"],
+      );
+
+  @override
+  Future<void> crateApiFrbUpsertPinnedFolder({
+    required FrbPinnedFolder folder,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_frb_pinned_folder(folder, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 37,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_api_error,
+        ),
+        constMeta: kCrateApiFrbUpsertPinnedFolderConstMeta,
+        argValues: [folder],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbUpsertPinnedFolderConstMeta =>
+      const TaskConstMeta(
+        debugName: "frb_upsert_pinned_folder",
+        argNames: ["folder"],
       );
 
   @protected
@@ -260,9 +1496,147 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  FrbAppSettings dco_decode_box_autoadd_frb_app_settings(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_frb_app_settings(raw);
+  }
+
+  @protected
+  FrbCoverItem dco_decode_box_autoadd_frb_cover_item(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_frb_cover_item(raw);
+  }
+
+  @protected
+  FrbPinnedFolder dco_decode_box_autoadd_frb_pinned_folder(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_frb_pinned_folder(raw);
+  }
+
+  @protected
+  PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_i_64(raw);
+  }
+
+  @protected
+  BigInt dco_decode_box_autoadd_u_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_u_64(raw);
+  }
+
+  @protected
   double dco_decode_f_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as double;
+  }
+
+  @protected
+  FrbAppSettings dco_decode_frb_app_settings(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return FrbAppSettings(
+      sidebarWidth: dco_decode_u_32(arr[0]),
+      sidebarCollapsed: dco_decode_bool(arr[1]),
+      darkMode: dco_decode_bool(arr[2]),
+      manualTransportOverride: dco_decode_opt_String(arr[3]),
+      aliasTemplate: dco_decode_String(arr[4]),
+      scanFolders: dco_decode_list_String(arr[5]),
+    );
+  }
+
+  @protected
+  FrbBulkRenamePreview dco_decode_frb_bulk_rename_preview(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return FrbBulkRenamePreview(
+      mediaId: dco_decode_String(arr[0]),
+      oldFileName: dco_decode_String(arr[1]),
+      newFileName: dco_decode_String(arr[2]),
+      conflict: dco_decode_bool(arr[3]),
+    );
+  }
+
+  @protected
+  FrbBulkRenameResult dco_decode_frb_bulk_rename_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return FrbBulkRenameResult(
+      batchId: dco_decode_String(arr[0]),
+      renamedCount: dco_decode_u_32(arr[1]),
+    );
+  }
+
+  @protected
+  FrbCoverItem dco_decode_frb_cover_item(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return FrbCoverItem(
+      id: dco_decode_String(arr[0]),
+      mediaId: dco_decode_String(arr[1]),
+      filePath: dco_decode_String(arr[2]),
+      aspect: dco_decode_String(arr[3]),
+      frameTimeMs: dco_decode_u_64(arr[4]),
+    );
+  }
+
+  @protected
+  FrbDeviceItem dco_decode_frb_device_item(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return FrbDeviceItem(
+      id: dco_decode_String(arr[0]),
+      name: dco_decode_String(arr[1]),
+      deviceType: dco_decode_String(arr[2]),
+      transports: dco_decode_list_String(arr[3]),
+      isSelf: dco_decode_bool(arr[4]),
+      isOnline: dco_decode_bool(arr[5]),
+      pairedAt: dco_decode_opt_box_autoadd_i_64(arr[6]),
+    );
+  }
+
+  @protected
+  FrbDownloadJob dco_decode_frb_download_job(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    return FrbDownloadJob(
+      id: dco_decode_String(arr[0]),
+      url: dco_decode_String(arr[1]),
+      title: dco_decode_opt_String(arr[2]),
+      format: dco_decode_String(arr[3]),
+      quality: dco_decode_String(arr[4]),
+      destinationFolder: dco_decode_String(arr[5]),
+      status: dco_decode_String(arr[6]),
+      progress: dco_decode_f_64(arr[7]),
+      error: dco_decode_opt_String(arr[8]),
+    );
+  }
+
+  @protected
+  FrbFolderSummary dco_decode_frb_folder_summary(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return FrbFolderSummary(
+      path: dco_decode_String(arr[0]),
+      name: dco_decode_String(arr[1]),
+      deviceId: dco_decode_String(arr[2]),
+      itemCount: dco_decode_u_64(arr[3]),
+      previewCovers: dco_decode_list_String(arr[4]),
+    );
   }
 
   @protected
@@ -284,9 +1658,124 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  FrbMediaItem dco_decode_frb_media_item(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 22)
+      throw Exception('unexpected arr length: expect 22 but see ${arr.length}');
+    return FrbMediaItem(
+      id: dco_decode_String(arr[0]),
+      deviceId: dco_decode_String(arr[1]),
+      deviceName: dco_decode_String(arr[2]),
+      deviceOnline: dco_decode_bool(arr[3]),
+      path: dco_decode_String(arr[4]),
+      folderPath: dco_decode_String(arr[5]),
+      fileName: dco_decode_String(arr[6]),
+      mediaType: dco_decode_String(arr[7]),
+      size: dco_decode_u_64(arr[8]),
+      createdAt: dco_decode_i_64(arr[9]),
+      durationMs: dco_decode_u_64(arr[10]),
+      width: dco_decode_u_32(arr[11]),
+      height: dco_decode_u_32(arr[12]),
+      alias: dco_decode_String(arr[13]),
+      autoAlias: dco_decode_String(arr[14]),
+      syncState: dco_decode_String(arr[15]),
+      place: dco_decode_opt_String(arr[16]),
+      artist: dco_decode_opt_String(arr[17]),
+      album: dco_decode_opt_String(arr[18]),
+      cover: dco_decode_opt_box_autoadd_frb_cover_item(arr[19]),
+      isDuplicate: dco_decode_bool(arr[20]),
+      isTrashed: dco_decode_bool(arr[21]),
+    );
+  }
+
+  @protected
+  FrbMediaPage dco_decode_frb_media_page(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return FrbMediaPage(
+      items: dco_decode_list_frb_media_item(arr[0]),
+      totalCount: dco_decode_u_64(arr[1]),
+      nextCursor: dco_decode_opt_String(arr[2]),
+    );
+  }
+
+  @protected
+  FrbPairingSession dco_decode_frb_pairing_session(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return FrbPairingSession(
+      pin: dco_decode_String(arr[0]),
+      qrPayload: dco_decode_String(arr[1]),
+      expiresAt: dco_decode_i_64(arr[2]),
+    );
+  }
+
+  @protected
+  FrbPinnedFolder dco_decode_frb_pinned_folder(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return FrbPinnedFolder(
+      id: dco_decode_String(arr[0]),
+      deviceId: dco_decode_String(arr[1]),
+      path: dco_decode_String(arr[2]),
+      label: dco_decode_String(arr[3]),
+      icon: dco_decode_String(arr[4]),
+      position: dco_decode_i_32(arr[5]),
+    );
+  }
+
+  @protected
+  FrbStorageStats dco_decode_frb_storage_stats(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 13)
+      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
+    return FrbStorageStats(
+      totalFiles: dco_decode_u_64(arr[0]),
+      totalBytes: dco_decode_u_64(arr[1]),
+      videoCount: dco_decode_u_64(arr[2]),
+      videoBytes: dco_decode_u_64(arr[3]),
+      imageCount: dco_decode_u_64(arr[4]),
+      imageBytes: dco_decode_u_64(arr[5]),
+      audioCount: dco_decode_u_64(arr[6]),
+      audioBytes: dco_decode_u_64(arr[7]),
+      duplicateGroups: dco_decode_u_64(arr[8]),
+      duplicateExtraBytes: dco_decode_u_64(arr[9]),
+      trashedCount: dco_decode_u_64(arr[10]),
+      trashedBytes: dco_decode_u_64(arr[11]),
+      largeFilesCount: dco_decode_u_64(arr[12]),
+    );
+  }
+
+  @protected
+  FrbThumbnailEntry dco_decode_frb_thumbnail_entry(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return FrbThumbnailEntry(
+      mediaId: dco_decode_String(arr[0]),
+      filePath: dco_decode_String(arr[1]),
+    );
+  }
+
+  @protected
   int dco_decode_i_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
+  }
+
+  @protected
+  PlatformInt64 dco_decode_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeI64(raw);
   }
 
   @protected
@@ -296,15 +1785,91 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<FrbBulkRenamePreview> dco_decode_list_frb_bulk_rename_preview(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_frb_bulk_rename_preview)
+        .toList();
+  }
+
+  @protected
+  List<FrbDeviceItem> dco_decode_list_frb_device_item(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_frb_device_item).toList();
+  }
+
+  @protected
+  List<FrbDownloadJob> dco_decode_list_frb_download_job(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_frb_download_job).toList();
+  }
+
+  @protected
+  List<FrbFolderSummary> dco_decode_list_frb_folder_summary(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_frb_folder_summary).toList();
+  }
+
+  @protected
+  List<FrbMediaItem> dco_decode_list_frb_media_item(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_frb_media_item).toList();
+  }
+
+  @protected
+  List<FrbPinnedFolder> dco_decode_list_frb_pinned_folder(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_frb_pinned_folder).toList();
+  }
+
+  @protected
+  List<FrbThumbnailEntry> dco_decode_list_frb_thumbnail_entry(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_frb_thumbnail_entry).toList();
+  }
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Uint8List;
   }
 
   @protected
+  String? dco_decode_opt_String(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_String(raw);
+  }
+
+  @protected
   double? dco_decode_opt_box_autoadd_f_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_f_64(raw);
+  }
+
+  @protected
+  FrbCoverItem? dco_decode_opt_box_autoadd_frb_cover_item(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_frb_cover_item(raw);
+  }
+
+  @protected
+  PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_i_64(raw);
+  }
+
+  @protected
+  BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_u_64(raw);
+  }
+
+  @protected
+  int dco_decode_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
   }
 
   @protected
@@ -360,14 +1925,180 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  FrbAppSettings sse_decode_box_autoadd_frb_app_settings(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_frb_app_settings(deserializer));
+  }
+
+  @protected
+  FrbCoverItem sse_decode_box_autoadd_frb_cover_item(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_frb_cover_item(deserializer));
+  }
+
+  @protected
+  FrbPinnedFolder sse_decode_box_autoadd_frb_pinned_folder(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_frb_pinned_folder(deserializer));
+  }
+
+  @protected
+  PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_i_64(deserializer));
+  }
+
+  @protected
+  BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_u_64(deserializer));
+  }
+
+  @protected
   double sse_decode_f_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getFloat64();
   }
 
   @protected
+  FrbAppSettings sse_decode_frb_app_settings(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_sidebarWidth = sse_decode_u_32(deserializer);
+    var var_sidebarCollapsed = sse_decode_bool(deserializer);
+    var var_darkMode = sse_decode_bool(deserializer);
+    var var_manualTransportOverride = sse_decode_opt_String(deserializer);
+    var var_aliasTemplate = sse_decode_String(deserializer);
+    var var_scanFolders = sse_decode_list_String(deserializer);
+    return FrbAppSettings(
+      sidebarWidth: var_sidebarWidth,
+      sidebarCollapsed: var_sidebarCollapsed,
+      darkMode: var_darkMode,
+      manualTransportOverride: var_manualTransportOverride,
+      aliasTemplate: var_aliasTemplate,
+      scanFolders: var_scanFolders,
+    );
+  }
+
+  @protected
+  FrbBulkRenamePreview sse_decode_frb_bulk_rename_preview(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_mediaId = sse_decode_String(deserializer);
+    var var_oldFileName = sse_decode_String(deserializer);
+    var var_newFileName = sse_decode_String(deserializer);
+    var var_conflict = sse_decode_bool(deserializer);
+    return FrbBulkRenamePreview(
+      mediaId: var_mediaId,
+      oldFileName: var_oldFileName,
+      newFileName: var_newFileName,
+      conflict: var_conflict,
+    );
+  }
+
+  @protected
+  FrbBulkRenameResult sse_decode_frb_bulk_rename_result(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_batchId = sse_decode_String(deserializer);
+    var var_renamedCount = sse_decode_u_32(deserializer);
+    return FrbBulkRenameResult(
+      batchId: var_batchId,
+      renamedCount: var_renamedCount,
+    );
+  }
+
+  @protected
+  FrbCoverItem sse_decode_frb_cover_item(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_mediaId = sse_decode_String(deserializer);
+    var var_filePath = sse_decode_String(deserializer);
+    var var_aspect = sse_decode_String(deserializer);
+    var var_frameTimeMs = sse_decode_u_64(deserializer);
+    return FrbCoverItem(
+      id: var_id,
+      mediaId: var_mediaId,
+      filePath: var_filePath,
+      aspect: var_aspect,
+      frameTimeMs: var_frameTimeMs,
+    );
+  }
+
+  @protected
+  FrbDeviceItem sse_decode_frb_device_item(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_deviceType = sse_decode_String(deserializer);
+    var var_transports = sse_decode_list_String(deserializer);
+    var var_isSelf = sse_decode_bool(deserializer);
+    var var_isOnline = sse_decode_bool(deserializer);
+    var var_pairedAt = sse_decode_opt_box_autoadd_i_64(deserializer);
+    return FrbDeviceItem(
+      id: var_id,
+      name: var_name,
+      deviceType: var_deviceType,
+      transports: var_transports,
+      isSelf: var_isSelf,
+      isOnline: var_isOnline,
+      pairedAt: var_pairedAt,
+    );
+  }
+
+  @protected
+  FrbDownloadJob sse_decode_frb_download_job(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_url = sse_decode_String(deserializer);
+    var var_title = sse_decode_opt_String(deserializer);
+    var var_format = sse_decode_String(deserializer);
+    var var_quality = sse_decode_String(deserializer);
+    var var_destinationFolder = sse_decode_String(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    var var_progress = sse_decode_f_64(deserializer);
+    var var_error = sse_decode_opt_String(deserializer);
+    return FrbDownloadJob(
+      id: var_id,
+      url: var_url,
+      title: var_title,
+      format: var_format,
+      quality: var_quality,
+      destinationFolder: var_destinationFolder,
+      status: var_status,
+      progress: var_progress,
+      error: var_error,
+    );
+  }
+
+  @protected
+  FrbFolderSummary sse_decode_frb_folder_summary(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_path = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_deviceId = sse_decode_String(deserializer);
+    var var_itemCount = sse_decode_u_64(deserializer);
+    var var_previewCovers = sse_decode_list_String(deserializer);
+    return FrbFolderSummary(
+      path: var_path,
+      name: var_name,
+      deviceId: var_deviceId,
+      itemCount: var_itemCount,
+      previewCovers: var_previewCovers,
+    );
+  }
+
+  @protected
   FrbLegacyImportReport sse_decode_frb_legacy_import_report(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_importedDevices = sse_decode_u_64(deserializer);
     var var_importedMedia = sse_decode_u_64(deserializer);
@@ -378,20 +2109,168 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_authReloginRequired = sse_decode_bool(deserializer);
     var var_errors = sse_decode_list_String(deserializer);
     return FrbLegacyImportReport(
-        importedDevices: var_importedDevices,
-        importedMedia: var_importedMedia,
-        importedCovers: var_importedCovers,
-        importedPinnedFolders: var_importedPinnedFolders,
-        importedRenameLogs: var_importedRenameLogs,
-        skippedItems: var_skippedItems,
-        authReloginRequired: var_authReloginRequired,
-        errors: var_errors);
+      importedDevices: var_importedDevices,
+      importedMedia: var_importedMedia,
+      importedCovers: var_importedCovers,
+      importedPinnedFolders: var_importedPinnedFolders,
+      importedRenameLogs: var_importedRenameLogs,
+      skippedItems: var_skippedItems,
+      authReloginRequired: var_authReloginRequired,
+      errors: var_errors,
+    );
+  }
+
+  @protected
+  FrbMediaItem sse_decode_frb_media_item(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_deviceId = sse_decode_String(deserializer);
+    var var_deviceName = sse_decode_String(deserializer);
+    var var_deviceOnline = sse_decode_bool(deserializer);
+    var var_path = sse_decode_String(deserializer);
+    var var_folderPath = sse_decode_String(deserializer);
+    var var_fileName = sse_decode_String(deserializer);
+    var var_mediaType = sse_decode_String(deserializer);
+    var var_size = sse_decode_u_64(deserializer);
+    var var_createdAt = sse_decode_i_64(deserializer);
+    var var_durationMs = sse_decode_u_64(deserializer);
+    var var_width = sse_decode_u_32(deserializer);
+    var var_height = sse_decode_u_32(deserializer);
+    var var_alias = sse_decode_String(deserializer);
+    var var_autoAlias = sse_decode_String(deserializer);
+    var var_syncState = sse_decode_String(deserializer);
+    var var_place = sse_decode_opt_String(deserializer);
+    var var_artist = sse_decode_opt_String(deserializer);
+    var var_album = sse_decode_opt_String(deserializer);
+    var var_cover = sse_decode_opt_box_autoadd_frb_cover_item(deserializer);
+    var var_isDuplicate = sse_decode_bool(deserializer);
+    var var_isTrashed = sse_decode_bool(deserializer);
+    return FrbMediaItem(
+      id: var_id,
+      deviceId: var_deviceId,
+      deviceName: var_deviceName,
+      deviceOnline: var_deviceOnline,
+      path: var_path,
+      folderPath: var_folderPath,
+      fileName: var_fileName,
+      mediaType: var_mediaType,
+      size: var_size,
+      createdAt: var_createdAt,
+      durationMs: var_durationMs,
+      width: var_width,
+      height: var_height,
+      alias: var_alias,
+      autoAlias: var_autoAlias,
+      syncState: var_syncState,
+      place: var_place,
+      artist: var_artist,
+      album: var_album,
+      cover: var_cover,
+      isDuplicate: var_isDuplicate,
+      isTrashed: var_isTrashed,
+    );
+  }
+
+  @protected
+  FrbMediaPage sse_decode_frb_media_page(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_items = sse_decode_list_frb_media_item(deserializer);
+    var var_totalCount = sse_decode_u_64(deserializer);
+    var var_nextCursor = sse_decode_opt_String(deserializer);
+    return FrbMediaPage(
+      items: var_items,
+      totalCount: var_totalCount,
+      nextCursor: var_nextCursor,
+    );
+  }
+
+  @protected
+  FrbPairingSession sse_decode_frb_pairing_session(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_pin = sse_decode_String(deserializer);
+    var var_qrPayload = sse_decode_String(deserializer);
+    var var_expiresAt = sse_decode_i_64(deserializer);
+    return FrbPairingSession(
+      pin: var_pin,
+      qrPayload: var_qrPayload,
+      expiresAt: var_expiresAt,
+    );
+  }
+
+  @protected
+  FrbPinnedFolder sse_decode_frb_pinned_folder(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_deviceId = sse_decode_String(deserializer);
+    var var_path = sse_decode_String(deserializer);
+    var var_label = sse_decode_String(deserializer);
+    var var_icon = sse_decode_String(deserializer);
+    var var_position = sse_decode_i_32(deserializer);
+    return FrbPinnedFolder(
+      id: var_id,
+      deviceId: var_deviceId,
+      path: var_path,
+      label: var_label,
+      icon: var_icon,
+      position: var_position,
+    );
+  }
+
+  @protected
+  FrbStorageStats sse_decode_frb_storage_stats(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_totalFiles = sse_decode_u_64(deserializer);
+    var var_totalBytes = sse_decode_u_64(deserializer);
+    var var_videoCount = sse_decode_u_64(deserializer);
+    var var_videoBytes = sse_decode_u_64(deserializer);
+    var var_imageCount = sse_decode_u_64(deserializer);
+    var var_imageBytes = sse_decode_u_64(deserializer);
+    var var_audioCount = sse_decode_u_64(deserializer);
+    var var_audioBytes = sse_decode_u_64(deserializer);
+    var var_duplicateGroups = sse_decode_u_64(deserializer);
+    var var_duplicateExtraBytes = sse_decode_u_64(deserializer);
+    var var_trashedCount = sse_decode_u_64(deserializer);
+    var var_trashedBytes = sse_decode_u_64(deserializer);
+    var var_largeFilesCount = sse_decode_u_64(deserializer);
+    return FrbStorageStats(
+      totalFiles: var_totalFiles,
+      totalBytes: var_totalBytes,
+      videoCount: var_videoCount,
+      videoBytes: var_videoBytes,
+      imageCount: var_imageCount,
+      imageBytes: var_imageBytes,
+      audioCount: var_audioCount,
+      audioBytes: var_audioBytes,
+      duplicateGroups: var_duplicateGroups,
+      duplicateExtraBytes: var_duplicateExtraBytes,
+      trashedCount: var_trashedCount,
+      trashedBytes: var_trashedBytes,
+      largeFilesCount: var_largeFilesCount,
+    );
+  }
+
+  @protected
+  FrbThumbnailEntry sse_decode_frb_thumbnail_entry(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_mediaId = sse_decode_String(deserializer);
+    var var_filePath = sse_decode_String(deserializer);
+    return FrbThumbnailEntry(mediaId: var_mediaId, filePath: var_filePath);
   }
 
   @protected
   int sse_decode_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getInt32();
+  }
+
+  @protected
+  PlatformInt64 sse_decode_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getPlatformInt64();
   }
 
   @protected
@@ -407,10 +2286,119 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<FrbBulkRenamePreview> sse_decode_list_frb_bulk_rename_preview(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <FrbBulkRenamePreview>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_frb_bulk_rename_preview(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<FrbDeviceItem> sse_decode_list_frb_device_item(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <FrbDeviceItem>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_frb_device_item(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<FrbDownloadJob> sse_decode_list_frb_download_job(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <FrbDownloadJob>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_frb_download_job(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<FrbFolderSummary> sse_decode_list_frb_folder_summary(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <FrbFolderSummary>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_frb_folder_summary(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<FrbMediaItem> sse_decode_list_frb_media_item(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <FrbMediaItem>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_frb_media_item(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<FrbPinnedFolder> sse_decode_list_frb_pinned_folder(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <FrbPinnedFolder>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_frb_pinned_folder(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<FrbThumbnailEntry> sse_decode_list_frb_thumbnail_entry(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <FrbThumbnailEntry>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_frb_thumbnail_entry(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
     return deserializer.buffer.getUint8List(len_);
+  }
+
+  @protected
+  String? sse_decode_opt_String(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_String(deserializer));
+    } else {
+      return null;
+    }
   }
 
   @protected
@@ -422,6 +2410,47 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     } else {
       return null;
     }
+  }
+
+  @protected
+  FrbCoverItem? sse_decode_opt_box_autoadd_frb_cover_item(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_frb_cover_item(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_i_64(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_u_64(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  int sse_decode_u_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getUint32();
   }
 
   @protected
@@ -473,14 +2502,149 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_frb_app_settings(
+    FrbAppSettings self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_frb_app_settings(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_frb_cover_item(
+    FrbCoverItem self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_frb_cover_item(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_frb_pinned_folder(
+    FrbPinnedFolder self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_frb_pinned_folder(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_i_64(
+    PlatformInt64 self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_64(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_64(self, serializer);
+  }
+
+  @protected
   void sse_encode_f_64(double self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putFloat64(self);
   }
 
   @protected
+  void sse_encode_frb_app_settings(
+    FrbAppSettings self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.sidebarWidth, serializer);
+    sse_encode_bool(self.sidebarCollapsed, serializer);
+    sse_encode_bool(self.darkMode, serializer);
+    sse_encode_opt_String(self.manualTransportOverride, serializer);
+    sse_encode_String(self.aliasTemplate, serializer);
+    sse_encode_list_String(self.scanFolders, serializer);
+  }
+
+  @protected
+  void sse_encode_frb_bulk_rename_preview(
+    FrbBulkRenamePreview self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.mediaId, serializer);
+    sse_encode_String(self.oldFileName, serializer);
+    sse_encode_String(self.newFileName, serializer);
+    sse_encode_bool(self.conflict, serializer);
+  }
+
+  @protected
+  void sse_encode_frb_bulk_rename_result(
+    FrbBulkRenameResult self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.batchId, serializer);
+    sse_encode_u_32(self.renamedCount, serializer);
+  }
+
+  @protected
+  void sse_encode_frb_cover_item(FrbCoverItem self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.mediaId, serializer);
+    sse_encode_String(self.filePath, serializer);
+    sse_encode_String(self.aspect, serializer);
+    sse_encode_u_64(self.frameTimeMs, serializer);
+  }
+
+  @protected
+  void sse_encode_frb_device_item(
+    FrbDeviceItem self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_String(self.deviceType, serializer);
+    sse_encode_list_String(self.transports, serializer);
+    sse_encode_bool(self.isSelf, serializer);
+    sse_encode_bool(self.isOnline, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.pairedAt, serializer);
+  }
+
+  @protected
+  void sse_encode_frb_download_job(
+    FrbDownloadJob self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.url, serializer);
+    sse_encode_opt_String(self.title, serializer);
+    sse_encode_String(self.format, serializer);
+    sse_encode_String(self.quality, serializer);
+    sse_encode_String(self.destinationFolder, serializer);
+    sse_encode_String(self.status, serializer);
+    sse_encode_f_64(self.progress, serializer);
+    sse_encode_opt_String(self.error, serializer);
+  }
+
+  @protected
+  void sse_encode_frb_folder_summary(
+    FrbFolderSummary self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.path, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_String(self.deviceId, serializer);
+    sse_encode_u_64(self.itemCount, serializer);
+    sse_encode_list_String(self.previewCovers, serializer);
+  }
+
+  @protected
   void sse_encode_frb_legacy_import_report(
-      FrbLegacyImportReport self, SseSerializer serializer) {
+    FrbLegacyImportReport self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_64(self.importedDevices, serializer);
     sse_encode_u_64(self.importedMedia, serializer);
@@ -493,9 +2657,106 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_frb_media_item(FrbMediaItem self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.deviceId, serializer);
+    sse_encode_String(self.deviceName, serializer);
+    sse_encode_bool(self.deviceOnline, serializer);
+    sse_encode_String(self.path, serializer);
+    sse_encode_String(self.folderPath, serializer);
+    sse_encode_String(self.fileName, serializer);
+    sse_encode_String(self.mediaType, serializer);
+    sse_encode_u_64(self.size, serializer);
+    sse_encode_i_64(self.createdAt, serializer);
+    sse_encode_u_64(self.durationMs, serializer);
+    sse_encode_u_32(self.width, serializer);
+    sse_encode_u_32(self.height, serializer);
+    sse_encode_String(self.alias, serializer);
+    sse_encode_String(self.autoAlias, serializer);
+    sse_encode_String(self.syncState, serializer);
+    sse_encode_opt_String(self.place, serializer);
+    sse_encode_opt_String(self.artist, serializer);
+    sse_encode_opt_String(self.album, serializer);
+    sse_encode_opt_box_autoadd_frb_cover_item(self.cover, serializer);
+    sse_encode_bool(self.isDuplicate, serializer);
+    sse_encode_bool(self.isTrashed, serializer);
+  }
+
+  @protected
+  void sse_encode_frb_media_page(FrbMediaPage self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_frb_media_item(self.items, serializer);
+    sse_encode_u_64(self.totalCount, serializer);
+    sse_encode_opt_String(self.nextCursor, serializer);
+  }
+
+  @protected
+  void sse_encode_frb_pairing_session(
+    FrbPairingSession self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.pin, serializer);
+    sse_encode_String(self.qrPayload, serializer);
+    sse_encode_i_64(self.expiresAt, serializer);
+  }
+
+  @protected
+  void sse_encode_frb_pinned_folder(
+    FrbPinnedFolder self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.deviceId, serializer);
+    sse_encode_String(self.path, serializer);
+    sse_encode_String(self.label, serializer);
+    sse_encode_String(self.icon, serializer);
+    sse_encode_i_32(self.position, serializer);
+  }
+
+  @protected
+  void sse_encode_frb_storage_stats(
+    FrbStorageStats self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_64(self.totalFiles, serializer);
+    sse_encode_u_64(self.totalBytes, serializer);
+    sse_encode_u_64(self.videoCount, serializer);
+    sse_encode_u_64(self.videoBytes, serializer);
+    sse_encode_u_64(self.imageCount, serializer);
+    sse_encode_u_64(self.imageBytes, serializer);
+    sse_encode_u_64(self.audioCount, serializer);
+    sse_encode_u_64(self.audioBytes, serializer);
+    sse_encode_u_64(self.duplicateGroups, serializer);
+    sse_encode_u_64(self.duplicateExtraBytes, serializer);
+    sse_encode_u_64(self.trashedCount, serializer);
+    sse_encode_u_64(self.trashedBytes, serializer);
+    sse_encode_u_64(self.largeFilesCount, serializer);
+  }
+
+  @protected
+  void sse_encode_frb_thumbnail_entry(
+    FrbThumbnailEntry self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.mediaId, serializer);
+    sse_encode_String(self.filePath, serializer);
+  }
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putInt32(self);
+  }
+
+  @protected
+  void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putPlatformInt64(self);
   }
 
   @protected
@@ -508,11 +2769,107 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_frb_bulk_rename_preview(
+    List<FrbBulkRenamePreview> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_frb_bulk_rename_preview(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_frb_device_item(
+    List<FrbDeviceItem> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_frb_device_item(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_frb_download_job(
+    List<FrbDownloadJob> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_frb_download_job(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_frb_folder_summary(
+    List<FrbFolderSummary> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_frb_folder_summary(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_frb_media_item(
+    List<FrbMediaItem> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_frb_media_item(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_frb_pinned_folder(
+    List<FrbPinnedFolder> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_frb_pinned_folder(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_frb_thumbnail_entry(
+    List<FrbThumbnailEntry> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_frb_thumbnail_entry(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
-      Uint8List self, SseSerializer serializer) {
+    Uint8List self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     serializer.buffer.putUint8List(self);
+  }
+
+  @protected
+  void sse_encode_opt_String(String? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_String(self, serializer);
+    }
   }
 
   @protected
@@ -523,6 +2880,48 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     if (self != null) {
       sse_encode_box_autoadd_f_64(self, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_frb_cover_item(
+    FrbCoverItem? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_frb_cover_item(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_i_64(
+    PlatformInt64? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_i_64(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_u_64(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_u_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putUint32(self);
   }
 
   @protected

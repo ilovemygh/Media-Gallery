@@ -792,6 +792,89 @@ impl MediaIndex {
         Ok(())
     }
 
+    pub fn restore_media_from_trash(&self, media_id: &str) -> Result<(), IndexError> {
+        let conn = self.lock()?;
+        conn.execute(
+            "UPDATE media SET is_trashed = 0, trashed_path = NULL, updated_at = ?1 WHERE id = ?2",
+            params![now_ms(), media_id],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_media_by_id(&self, media_id: &str) -> Result<(), IndexError> {
+        let conn = self.lock()?;
+        conn.execute("DELETE FROM media WHERE id = ?1", params![media_id])?;
+        Ok(())
+    }
+
+    pub fn get_storage_stats(&self) -> Result<crate::models::StorageStats, IndexError> {
+        let conn = self.lock()?;
+        let mut stats = crate::models::StorageStats::default();
+        let mut stmt = conn.prepare(
+            "SELECT type, is_trashed, COUNT(*), COALESCE(SUM(size), 0),
+                    COALESCE(SUM(CASE WHEN size >= 52428800 THEN 1 ELSE 0 END), 0)
+             FROM media
+             GROUP BY type, is_trashed",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, i64>(1)? != 0,
+                r.get::<_, i64>(2)? as u64,
+                r.get::<_, i64>(3)? as u64,
+                r.get::<_, i64>(4)? as u64,
+            ))
+        })?;
+        for row in rows {
+            let (mt_str, is_trashed, count, bytes, large_count) = row?;
+            if is_trashed {
+                stats.trashed_count += count;
+                stats.trashed_bytes += bytes;
+            } else {
+                stats.total_files += count;
+                stats.total_bytes += bytes;
+                stats.large_files_count += large_count;
+                match MediaType::parse(&mt_str) {
+                    MediaType::Video => {
+                        stats.video_count += count;
+                        stats.video_bytes += bytes;
+                    }
+                    MediaType::Image => {
+                        stats.image_count += count;
+                        stats.image_bytes += bytes;
+                    }
+                    MediaType::Audio => {
+                        stats.audio_count += count;
+                        stats.audio_bytes += bytes;
+                    }
+                }
+            }
+        }
+
+        let mut dup_stmt = conn.prepare(
+            "SELECT COUNT(*), COALESCE(SUM(size), 0), MIN(size)
+             FROM media
+             WHERE is_trashed = 0 AND is_duplicate = 1 AND duplicate_group_id IS NOT NULL
+             GROUP BY duplicate_group_id",
+        )?;
+        let dup_rows = dup_stmt.query_map([], |r| {
+            Ok((
+                r.get::<_, i64>(0)? as u64,
+                r.get::<_, i64>(1)? as u64,
+                r.get::<_, i64>(2)? as u64,
+            ))
+        })?;
+        for row in dup_rows {
+            let (cnt, sum_sz, single_sz) = row?;
+            if cnt > 1 {
+                stats.duplicate_groups += 1;
+                stats.duplicate_extra_bytes += sum_sz.saturating_sub(single_sz);
+            }
+        }
+
+        Ok(stats)
+    }
+
     pub fn delete_media_by_device_path(
         &self,
         device_id: &str,
@@ -1412,8 +1495,13 @@ fn build_where_clause(filter: &MediaFilter) -> (String, Vec<Value>, bool) {
         params.push(Value::Text(fts_match));
     }
 
-    if !filter.include_trashed {
+    if filter.trashed_only {
+        clauses.push("m.is_trashed = 1".to_string());
+    } else if !filter.include_trashed {
         clauses.push("m.is_trashed = 0".to_string());
+    }
+    if filter.only_duplicates {
+        clauses.push("m.is_duplicate = 1".to_string());
     }
     if let Some(mt) = filter.media_type {
         clauses.push("m.type = ?".to_string());

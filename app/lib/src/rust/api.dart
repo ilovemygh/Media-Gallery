@@ -6,37 +6,244 @@
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `aspect_to_frb`, `core_slot`, `cover_to_frb`, `get_core`, `media_record_to_frb`, `media_with_cover_to_frb`, `parse_aspect_frb`, `parse_transport_frb`, `transport_to_frb`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `CoreConfig`, `CoreEvent`, `MediaGalleryCore`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`
-// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `apply_bulk_rename`, `apply_real_rename`, `assert_remote_download_allowed`, `cancel_operation`, `create_pairing_session`, `detect_duplicates`, `enqueue_youtube_download`, `ensure_thumbnail`, `forget_device`, `get_google_email`, `get_settings`, `import_legacy_database`, `ingest_android_mediastore_batch`, `init`, `list_devices`, `list_folders`, `list_media`, `list_pinned_folders`, `list_saved_searches`, `list_unified_music`, `move_media_to_folder`, `move_to_trash`, `pair_with_pin`, `pick_video_frame`, `preview_bulk_rename`, `remove_audio_cover`, `reroll_video_thumbnail`, `restore_audio_cover`, `save_search`, `save_settings`, `set_alias`, `set_custom_cover`, `set_google_session`, `shutdown`, `start_scan`, `subscribe_events`, `undo_bulk_rename`, `undo_last_rename`, `update_yt_dlp`, `upsert_pinned_folder`, `with_sidecar`, `with_ytdl_backend`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `apply_bulk_rename`, `apply_real_rename`, `assert_remote_download_allowed`, `cancel_operation`, `create_pairing_session`, `detect_duplicates`, `empty_trash`, `enqueue_youtube_download`, `ensure_thumbnail`, `ensure_thumbnails_batch`, `forget_device`, `get_google_email`, `get_settings`, `get_storage_stats`, `import_legacy_database`, `ingest_android_mediastore_batch`, `init`, `list_devices`, `list_download_jobs`, `list_folders`, `list_media`, `list_pinned_folders`, `list_saved_searches`, `list_unified_music`, `move_media_to_folder`, `move_to_trash`, `pair_with_pin`, `pick_video_frame`, `preview_bulk_rename`, `remove_audio_cover`, `remove_pinned_folder`, `reorder_pinned_folders`, `reroll_video_thumbnail`, `restore_audio_cover`, `restore_from_trash`, `save_search`, `save_settings`, `scan_now`, `set_alias`, `set_custom_cover`, `set_google_session`, `shutdown`, `start_scan`, `subscribe_events`, `undo_bulk_rename`, `undo_last_rename`, `update_cover_aspect`, `update_yt_dlp`, `upsert_pinned_folder`, `with_sidecar`, `with_ytdl_backend`
+
+Future<void> frbInitCore({
+  String? dbPath,
+  required String cacheDir,
+  required String selfDeviceId,
+  required String selfDeviceName,
+  required bool isPhone,
+}) => RustLib.instance.api.crateApiFrbInitCore(
+  dbPath: dbPath,
+  cacheDir: cacheDir,
+  selfDeviceId: selfDeviceId,
+  selfDeviceName: selfDeviceName,
+  isPhone: isPhone,
+);
+
+Future<BigInt> frbScanFolders({
+  required List<String> roots,
+  required List<String> excluded,
+}) => RustLib.instance.api.crateApiFrbScanFolders(
+  roots: roots,
+  excluded: excluded,
+);
+
+Future<int> frbIngestAndroidMediastore({
+  required String deviceId,
+  required String deviceName,
+  required String rowsJson,
+}) => RustLib.instance.api.crateApiFrbIngestAndroidMediastore(
+  deviceId: deviceId,
+  deviceName: deviceName,
+  rowsJson: rowsJson,
+);
+
+Future<FrbMediaPage> frbListMedia({
+  required String query,
+  String? mediaType,
+  String? deviceId,
+  String? folderPath,
+  String? syncState,
+  BigInt? minSize,
+  required bool onlyDuplicates,
+  required bool trashedOnly,
+  required String sortField,
+  required String sortDir,
+  String? cursor,
+  required int limit,
+}) => RustLib.instance.api.crateApiFrbListMedia(
+  query: query,
+  mediaType: mediaType,
+  deviceId: deviceId,
+  folderPath: folderPath,
+  syncState: syncState,
+  minSize: minSize,
+  onlyDuplicates: onlyDuplicates,
+  trashedOnly: trashedOnly,
+  sortField: sortField,
+  sortDir: sortDir,
+  cursor: cursor,
+  limit: limit,
+);
+
+Future<List<FrbFolderSummary>> frbListFolders({
+  String? deviceId,
+  String? mediaType,
+}) => RustLib.instance.api.crateApiFrbListFolders(
+  deviceId: deviceId,
+  mediaType: mediaType,
+);
+
+Future<List<FrbDeviceItem>> frbListDevices() =>
+    RustLib.instance.api.crateApiFrbListDevices();
+
+Future<FrbStorageStats> frbGetStorageStats() =>
+    RustLib.instance.api.crateApiFrbGetStorageStats();
+
+Future<List<FrbThumbnailEntry>> frbEnsureThumbnailsBatch({
+  required List<String> mediaIds,
+}) => RustLib.instance.api.crateApiFrbEnsureThumbnailsBatch(mediaIds: mediaIds);
+
+Future<FrbMediaItem> frbSetAlias({
+  required String mediaId,
+  required String alias,
+}) => RustLib.instance.api.crateApiFrbSetAlias(mediaId: mediaId, alias: alias);
+
+Future<FrbMediaItem> frbApplyRealRename({
+  required String mediaId,
+  required String newName,
+}) => RustLib.instance.api.crateApiFrbApplyRealRename(
+  mediaId: mediaId,
+  newName: newName,
+);
+
+Future<bool> frbUndoLastRename({String? mediaId}) =>
+    RustLib.instance.api.crateApiFrbUndoLastRename(mediaId: mediaId);
+
+Future<List<FrbBulkRenamePreview>> frbPreviewBulkRename({
+  required List<String> mediaIds,
+  required String template,
+}) => RustLib.instance.api.crateApiFrbPreviewBulkRename(
+  mediaIds: mediaIds,
+  template: template,
+);
+
+Future<FrbBulkRenameResult> frbApplyBulkRename({
+  required List<String> mediaIds,
+  required String template,
+}) => RustLib.instance.api.crateApiFrbApplyBulkRename(
+  mediaIds: mediaIds,
+  template: template,
+);
+
+Future<int> frbUndoBulkRename({required String batchId}) =>
+    RustLib.instance.api.crateApiFrbUndoBulkRename(batchId: batchId);
+
+Future<FrbMediaItem> frbMoveMediaToFolder({
+  required String mediaId,
+  required String targetFolder,
+}) => RustLib.instance.api.crateApiFrbMoveMediaToFolder(
+  mediaId: mediaId,
+  targetFolder: targetFolder,
+);
+
+Future<String> frbMoveToTrash({required String mediaId}) =>
+    RustLib.instance.api.crateApiFrbMoveToTrash(mediaId: mediaId);
+
+Future<FrbMediaItem> frbRestoreFromTrash({required String mediaId}) =>
+    RustLib.instance.api.crateApiFrbRestoreFromTrash(mediaId: mediaId);
+
+Future<BigInt> frbEmptyTrash({String? mediaId}) =>
+    RustLib.instance.api.crateApiFrbEmptyTrash(mediaId: mediaId);
+
+Future<FrbCoverItem> frbUpdateCoverAspect({
+  required String mediaId,
+  required String aspect,
+}) => RustLib.instance.api.crateApiFrbUpdateCoverAspect(
+  mediaId: mediaId,
+  aspect: aspect,
+);
+
+Future<FrbCoverItem> frbRerollVideoThumbnail({required String mediaId}) =>
+    RustLib.instance.api.crateApiFrbRerollVideoThumbnail(mediaId: mediaId);
+
+Future<FrbCoverItem> frbPickVideoFrame({
+  required String mediaId,
+  required BigInt frameTimeMs,
+}) => RustLib.instance.api.crateApiFrbPickVideoFrame(
+  mediaId: mediaId,
+  frameTimeMs: frameTimeMs,
+);
+
+Future<FrbCoverItem> frbSetCustomCover({
+  required String mediaId,
+  required String imagePath,
+  required String aspect,
+  required bool confirmedEmbeddedWrite,
+}) => RustLib.instance.api.crateApiFrbSetCustomCover(
+  mediaId: mediaId,
+  imagePath: imagePath,
+  aspect: aspect,
+  confirmedEmbeddedWrite: confirmedEmbeddedWrite,
+);
+
+Future<List<FrbPinnedFolder>> frbListPinnedFolders() =>
+    RustLib.instance.api.crateApiFrbListPinnedFolders();
+
+Future<void> frbUpsertPinnedFolder({required FrbPinnedFolder folder}) =>
+    RustLib.instance.api.crateApiFrbUpsertPinnedFolder(folder: folder);
+
+Future<void> frbRemovePinnedFolder({required String id}) =>
+    RustLib.instance.api.crateApiFrbRemovePinnedFolder(id: id);
+
+Future<void> frbReorderPinnedFolders({required List<String> orderedIds}) =>
+    RustLib.instance.api.crateApiFrbReorderPinnedFolders(
+      orderedIds: orderedIds,
+    );
+
+Future<FrbPairingSession> frbCreatePairingSession() =>
+    RustLib.instance.api.crateApiFrbCreatePairingSession();
+
+Future<void> frbForgetDevice({required String deviceId}) =>
+    RustLib.instance.api.crateApiFrbForgetDevice(deviceId: deviceId);
+
+Future<FrbDownloadJob> frbEnqueueYoutubeDownload({
+  required String url,
+  required String format,
+  required String quality,
+  required String destinationFolder,
+}) => RustLib.instance.api.crateApiFrbEnqueueYoutubeDownload(
+  url: url,
+  format: format,
+  quality: quality,
+  destinationFolder: destinationFolder,
+);
+
+Future<List<FrbDownloadJob>> frbListDownloadJobs() =>
+    RustLib.instance.api.crateApiFrbListDownloadJobs();
+
+Future<FrbAppSettings> frbGetSettings() =>
+    RustLib.instance.api.crateApiFrbGetSettings();
+
+Future<void> frbSaveSettings({required FrbAppSettings settings}) =>
+    RustLib.instance.api.crateApiFrbSaveSettings(settings: settings);
 
 String frbHealthCheck() => RustLib.instance.api.crateApiFrbHealthCheck();
 
 String frbCleanAliasName({required String fileName}) =>
     RustLib.instance.api.crateApiFrbCleanAliasName(fileName: fileName);
 
-BigInt frbSelectFirstThirdFrameMs(
-        {required BigInt durationMs, double? sample}) =>
-    RustLib.instance.api.crateApiFrbSelectFirstThirdFrameMs(
-        durationMs: durationMs, sample: sample);
+BigInt frbSelectFirstThirdFrameMs({
+  required BigInt durationMs,
+  double? sample,
+}) => RustLib.instance.api.crateApiFrbSelectFirstThirdFrameMs(
+  durationMs: durationMs,
+  sample: sample,
+);
 
-Future<bool> frbDetectLegacyDatabase({required String legacyDbPath}) =>
-    RustLib.instance.api
-        .crateApiFrbDetectLegacyDatabase(legacyDbPath: legacyDbPath);
+Future<bool> frbDetectLegacyDatabase({required String legacyDbPath}) => RustLib
+    .instance
+    .api
+    .crateApiFrbDetectLegacyDatabase(legacyDbPath: legacyDbPath);
 
-Future<FrbLegacyImportReport> frbImportLegacyDatabase(
-        {required String targetDbPath, required String legacyDbPath}) =>
-    RustLib.instance.api.crateApiFrbImportLegacyDatabase(
-        targetDbPath: targetDbPath, legacyDbPath: legacyDbPath);
+Future<FrbLegacyImportReport> frbImportLegacyDatabase({
+  required String targetDbPath,
+  required String legacyDbPath,
+}) => RustLib.instance.api.crateApiFrbImportLegacyDatabase(
+  targetDbPath: targetDbPath,
+  legacyDbPath: legacyDbPath,
+);
 
 class ApiError implements FrbException {
   final ApiErrorCode code;
   final String message;
 
-  const ApiError({
-    required this.code,
-    required this.message,
-  });
+  const ApiError({required this.code, required this.message});
 
   @override
   int get hashCode => code.hashCode ^ message.hashCode;
@@ -63,7 +270,261 @@ enum ApiErrorCode {
   confirmationRequired,
   cancelled,
   internal,
-  ;
+}
+
+class FrbAppSettings {
+  final int sidebarWidth;
+  final bool sidebarCollapsed;
+  final bool darkMode;
+  final String? manualTransportOverride;
+  final String aliasTemplate;
+  final List<String> scanFolders;
+
+  const FrbAppSettings({
+    required this.sidebarWidth,
+    required this.sidebarCollapsed,
+    required this.darkMode,
+    this.manualTransportOverride,
+    required this.aliasTemplate,
+    required this.scanFolders,
+  });
+
+  @override
+  int get hashCode =>
+      sidebarWidth.hashCode ^
+      sidebarCollapsed.hashCode ^
+      darkMode.hashCode ^
+      manualTransportOverride.hashCode ^
+      aliasTemplate.hashCode ^
+      scanFolders.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FrbAppSettings &&
+          runtimeType == other.runtimeType &&
+          sidebarWidth == other.sidebarWidth &&
+          sidebarCollapsed == other.sidebarCollapsed &&
+          darkMode == other.darkMode &&
+          manualTransportOverride == other.manualTransportOverride &&
+          aliasTemplate == other.aliasTemplate &&
+          scanFolders == other.scanFolders;
+}
+
+class FrbBulkRenamePreview {
+  final String mediaId;
+  final String oldFileName;
+  final String newFileName;
+  final bool conflict;
+
+  const FrbBulkRenamePreview({
+    required this.mediaId,
+    required this.oldFileName,
+    required this.newFileName,
+    required this.conflict,
+  });
+
+  @override
+  int get hashCode =>
+      mediaId.hashCode ^
+      oldFileName.hashCode ^
+      newFileName.hashCode ^
+      conflict.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FrbBulkRenamePreview &&
+          runtimeType == other.runtimeType &&
+          mediaId == other.mediaId &&
+          oldFileName == other.oldFileName &&
+          newFileName == other.newFileName &&
+          conflict == other.conflict;
+}
+
+class FrbBulkRenameResult {
+  final String batchId;
+  final int renamedCount;
+
+  const FrbBulkRenameResult({
+    required this.batchId,
+    required this.renamedCount,
+  });
+
+  @override
+  int get hashCode => batchId.hashCode ^ renamedCount.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FrbBulkRenameResult &&
+          runtimeType == other.runtimeType &&
+          batchId == other.batchId &&
+          renamedCount == other.renamedCount;
+}
+
+class FrbCoverItem {
+  final String id;
+  final String mediaId;
+  final String filePath;
+  final String aspect;
+  final BigInt frameTimeMs;
+
+  const FrbCoverItem({
+    required this.id,
+    required this.mediaId,
+    required this.filePath,
+    required this.aspect,
+    required this.frameTimeMs,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      mediaId.hashCode ^
+      filePath.hashCode ^
+      aspect.hashCode ^
+      frameTimeMs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FrbCoverItem &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          mediaId == other.mediaId &&
+          filePath == other.filePath &&
+          aspect == other.aspect &&
+          frameTimeMs == other.frameTimeMs;
+}
+
+class FrbDeviceItem {
+  final String id;
+  final String name;
+  final String deviceType;
+  final List<String> transports;
+  final bool isSelf;
+  final bool isOnline;
+  final PlatformInt64? pairedAt;
+
+  const FrbDeviceItem({
+    required this.id,
+    required this.name,
+    required this.deviceType,
+    required this.transports,
+    required this.isSelf,
+    required this.isOnline,
+    this.pairedAt,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      name.hashCode ^
+      deviceType.hashCode ^
+      transports.hashCode ^
+      isSelf.hashCode ^
+      isOnline.hashCode ^
+      pairedAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FrbDeviceItem &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name &&
+          deviceType == other.deviceType &&
+          transports == other.transports &&
+          isSelf == other.isSelf &&
+          isOnline == other.isOnline &&
+          pairedAt == other.pairedAt;
+}
+
+class FrbDownloadJob {
+  final String id;
+  final String url;
+  final String? title;
+  final String format;
+  final String quality;
+  final String destinationFolder;
+  final String status;
+  final double progress;
+  final String? error;
+
+  const FrbDownloadJob({
+    required this.id,
+    required this.url,
+    this.title,
+    required this.format,
+    required this.quality,
+    required this.destinationFolder,
+    required this.status,
+    required this.progress,
+    this.error,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      url.hashCode ^
+      title.hashCode ^
+      format.hashCode ^
+      quality.hashCode ^
+      destinationFolder.hashCode ^
+      status.hashCode ^
+      progress.hashCode ^
+      error.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FrbDownloadJob &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          url == other.url &&
+          title == other.title &&
+          format == other.format &&
+          quality == other.quality &&
+          destinationFolder == other.destinationFolder &&
+          status == other.status &&
+          progress == other.progress &&
+          error == other.error;
+}
+
+class FrbFolderSummary {
+  final String path;
+  final String name;
+  final String deviceId;
+  final BigInt itemCount;
+  final List<String> previewCovers;
+
+  const FrbFolderSummary({
+    required this.path,
+    required this.name,
+    required this.deviceId,
+    required this.itemCount,
+    required this.previewCovers,
+  });
+
+  @override
+  int get hashCode =>
+      path.hashCode ^
+      name.hashCode ^
+      deviceId.hashCode ^
+      itemCount.hashCode ^
+      previewCovers.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FrbFolderSummary &&
+          runtimeType == other.runtimeType &&
+          path == other.path &&
+          name == other.name &&
+          deviceId == other.deviceId &&
+          itemCount == other.itemCount &&
+          previewCovers == other.previewCovers;
 }
 
 /// Summary returned across FFI when importing a read-only v0.1 SQLite database.
@@ -112,4 +573,280 @@ class FrbLegacyImportReport {
           skippedItems == other.skippedItems &&
           authReloginRequired == other.authReloginRequired &&
           errors == other.errors;
+}
+
+class FrbMediaItem {
+  final String id;
+  final String deviceId;
+  final String deviceName;
+  final bool deviceOnline;
+  final String path;
+  final String folderPath;
+  final String fileName;
+  final String mediaType;
+  final BigInt size;
+  final PlatformInt64 createdAt;
+  final BigInt durationMs;
+  final int width;
+  final int height;
+  final String alias;
+  final String autoAlias;
+  final String syncState;
+  final String? place;
+  final String? artist;
+  final String? album;
+  final FrbCoverItem? cover;
+  final bool isDuplicate;
+  final bool isTrashed;
+
+  const FrbMediaItem({
+    required this.id,
+    required this.deviceId,
+    required this.deviceName,
+    required this.deviceOnline,
+    required this.path,
+    required this.folderPath,
+    required this.fileName,
+    required this.mediaType,
+    required this.size,
+    required this.createdAt,
+    required this.durationMs,
+    required this.width,
+    required this.height,
+    required this.alias,
+    required this.autoAlias,
+    required this.syncState,
+    this.place,
+    this.artist,
+    this.album,
+    this.cover,
+    required this.isDuplicate,
+    required this.isTrashed,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      deviceId.hashCode ^
+      deviceName.hashCode ^
+      deviceOnline.hashCode ^
+      path.hashCode ^
+      folderPath.hashCode ^
+      fileName.hashCode ^
+      mediaType.hashCode ^
+      size.hashCode ^
+      createdAt.hashCode ^
+      durationMs.hashCode ^
+      width.hashCode ^
+      height.hashCode ^
+      alias.hashCode ^
+      autoAlias.hashCode ^
+      syncState.hashCode ^
+      place.hashCode ^
+      artist.hashCode ^
+      album.hashCode ^
+      cover.hashCode ^
+      isDuplicate.hashCode ^
+      isTrashed.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FrbMediaItem &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          deviceId == other.deviceId &&
+          deviceName == other.deviceName &&
+          deviceOnline == other.deviceOnline &&
+          path == other.path &&
+          folderPath == other.folderPath &&
+          fileName == other.fileName &&
+          mediaType == other.mediaType &&
+          size == other.size &&
+          createdAt == other.createdAt &&
+          durationMs == other.durationMs &&
+          width == other.width &&
+          height == other.height &&
+          alias == other.alias &&
+          autoAlias == other.autoAlias &&
+          syncState == other.syncState &&
+          place == other.place &&
+          artist == other.artist &&
+          album == other.album &&
+          cover == other.cover &&
+          isDuplicate == other.isDuplicate &&
+          isTrashed == other.isTrashed;
+}
+
+class FrbMediaPage {
+  final List<FrbMediaItem> items;
+  final BigInt totalCount;
+  final String? nextCursor;
+
+  const FrbMediaPage({
+    required this.items,
+    required this.totalCount,
+    this.nextCursor,
+  });
+
+  @override
+  int get hashCode =>
+      items.hashCode ^ totalCount.hashCode ^ nextCursor.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FrbMediaPage &&
+          runtimeType == other.runtimeType &&
+          items == other.items &&
+          totalCount == other.totalCount &&
+          nextCursor == other.nextCursor;
+}
+
+class FrbPairingSession {
+  final String pin;
+  final String qrPayload;
+  final PlatformInt64 expiresAt;
+
+  const FrbPairingSession({
+    required this.pin,
+    required this.qrPayload,
+    required this.expiresAt,
+  });
+
+  @override
+  int get hashCode => pin.hashCode ^ qrPayload.hashCode ^ expiresAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FrbPairingSession &&
+          runtimeType == other.runtimeType &&
+          pin == other.pin &&
+          qrPayload == other.qrPayload &&
+          expiresAt == other.expiresAt;
+}
+
+class FrbPinnedFolder {
+  final String id;
+  final String deviceId;
+  final String path;
+  final String label;
+  final String icon;
+  final int position;
+
+  const FrbPinnedFolder({
+    required this.id,
+    required this.deviceId,
+    required this.path,
+    required this.label,
+    required this.icon,
+    required this.position,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      deviceId.hashCode ^
+      path.hashCode ^
+      label.hashCode ^
+      icon.hashCode ^
+      position.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FrbPinnedFolder &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          deviceId == other.deviceId &&
+          path == other.path &&
+          label == other.label &&
+          icon == other.icon &&
+          position == other.position;
+}
+
+class FrbStorageStats {
+  final BigInt totalFiles;
+  final BigInt totalBytes;
+  final BigInt videoCount;
+  final BigInt videoBytes;
+  final BigInt imageCount;
+  final BigInt imageBytes;
+  final BigInt audioCount;
+  final BigInt audioBytes;
+  final BigInt duplicateGroups;
+  final BigInt duplicateExtraBytes;
+  final BigInt trashedCount;
+  final BigInt trashedBytes;
+  final BigInt largeFilesCount;
+
+  const FrbStorageStats({
+    required this.totalFiles,
+    required this.totalBytes,
+    required this.videoCount,
+    required this.videoBytes,
+    required this.imageCount,
+    required this.imageBytes,
+    required this.audioCount,
+    required this.audioBytes,
+    required this.duplicateGroups,
+    required this.duplicateExtraBytes,
+    required this.trashedCount,
+    required this.trashedBytes,
+    required this.largeFilesCount,
+  });
+
+  @override
+  int get hashCode =>
+      totalFiles.hashCode ^
+      totalBytes.hashCode ^
+      videoCount.hashCode ^
+      videoBytes.hashCode ^
+      imageCount.hashCode ^
+      imageBytes.hashCode ^
+      audioCount.hashCode ^
+      audioBytes.hashCode ^
+      duplicateGroups.hashCode ^
+      duplicateExtraBytes.hashCode ^
+      trashedCount.hashCode ^
+      trashedBytes.hashCode ^
+      largeFilesCount.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FrbStorageStats &&
+          runtimeType == other.runtimeType &&
+          totalFiles == other.totalFiles &&
+          totalBytes == other.totalBytes &&
+          videoCount == other.videoCount &&
+          videoBytes == other.videoBytes &&
+          imageCount == other.imageCount &&
+          imageBytes == other.imageBytes &&
+          audioCount == other.audioCount &&
+          audioBytes == other.audioBytes &&
+          duplicateGroups == other.duplicateGroups &&
+          duplicateExtraBytes == other.duplicateExtraBytes &&
+          trashedCount == other.trashedCount &&
+          trashedBytes == other.trashedBytes &&
+          largeFilesCount == other.largeFilesCount;
+}
+
+class FrbThumbnailEntry {
+  final String mediaId;
+  final String filePath;
+
+  const FrbThumbnailEntry({required this.mediaId, required this.filePath});
+
+  @override
+  int get hashCode => mediaId.hashCode ^ filePath.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FrbThumbnailEntry &&
+          runtimeType == other.runtimeType &&
+          mediaId == other.mediaId &&
+          filePath == other.filePath;
 }

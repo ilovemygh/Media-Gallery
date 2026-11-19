@@ -333,3 +333,64 @@ pub fn move_to_trash(
     index.mark_media_trashed(&item.id, &trashed_str)?;
     Ok(trashed_str)
 }
+
+pub fn restore_from_trash(index: &MediaIndex, media_id: &str) -> Result<MediaRecord, MediaOpError> {
+    let item = index
+        .get_media_by_id(media_id)?
+        .ok_or_else(|| MediaOpError::NotFound(media_id.to_string()))?
+        .media;
+    if let Some(ref trashed) = item.trashed_path {
+        let src = Path::new(trashed);
+        let dst = Path::new(&item.path);
+        if src.exists() {
+            if dst.exists() {
+                return Err(MediaOpError::Conflict(item.path));
+            }
+            if let Some(parent) = dst.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            std::fs::rename(src, dst)?;
+        }
+    }
+    index.restore_media_from_trash(&item.id)?;
+    Ok(index
+        .get_media_by_id(&item.id)?
+        .ok_or_else(|| MediaOpError::NotFound(item.id))?
+        .media)
+}
+
+pub fn empty_trash(index: &MediaIndex, media_id: Option<&str>) -> Result<u64, MediaOpError> {
+    let targets = if let Some(id) = media_id {
+        match index.get_media_by_id(id)? {
+            Some(m) if m.media.is_trashed => vec![m],
+            Some(_) => return Ok(0),
+            None => return Err(MediaOpError::NotFound(id.to_string())),
+        }
+    } else {
+        index
+            .list_media(
+                &core_index::MediaFilter {
+                    trashed_only: true,
+                    include_trashed: true,
+                    ..Default::default()
+                },
+                core_index::SortSpec::default(),
+                None,
+                10_000,
+            )?
+            .items
+    };
+
+    let mut deleted = 0u64;
+    for entry in targets {
+        if let Some(ref trashed) = entry.media.trashed_path {
+            let p = Path::new(trashed);
+            if p.exists() {
+                let _ = std::fs::remove_file(p);
+            }
+        }
+        index.delete_media_by_id(&entry.media.id)?;
+        deleted += 1;
+    }
+    Ok(deleted)
+}

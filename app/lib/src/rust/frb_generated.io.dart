@@ -34,22 +34,117 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double dco_decode_box_autoadd_f_64(dynamic raw);
 
   @protected
+  FrbAppSettings dco_decode_box_autoadd_frb_app_settings(dynamic raw);
+
+  @protected
+  FrbCoverItem dco_decode_box_autoadd_frb_cover_item(dynamic raw);
+
+  @protected
+  FrbPinnedFolder dco_decode_box_autoadd_frb_pinned_folder(dynamic raw);
+
+  @protected
+  PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
+
+  @protected
+  BigInt dco_decode_box_autoadd_u_64(dynamic raw);
+
+  @protected
   double dco_decode_f_64(dynamic raw);
+
+  @protected
+  FrbAppSettings dco_decode_frb_app_settings(dynamic raw);
+
+  @protected
+  FrbBulkRenamePreview dco_decode_frb_bulk_rename_preview(dynamic raw);
+
+  @protected
+  FrbBulkRenameResult dco_decode_frb_bulk_rename_result(dynamic raw);
+
+  @protected
+  FrbCoverItem dco_decode_frb_cover_item(dynamic raw);
+
+  @protected
+  FrbDeviceItem dco_decode_frb_device_item(dynamic raw);
+
+  @protected
+  FrbDownloadJob dco_decode_frb_download_job(dynamic raw);
+
+  @protected
+  FrbFolderSummary dco_decode_frb_folder_summary(dynamic raw);
 
   @protected
   FrbLegacyImportReport dco_decode_frb_legacy_import_report(dynamic raw);
 
   @protected
+  FrbMediaItem dco_decode_frb_media_item(dynamic raw);
+
+  @protected
+  FrbMediaPage dco_decode_frb_media_page(dynamic raw);
+
+  @protected
+  FrbPairingSession dco_decode_frb_pairing_session(dynamic raw);
+
+  @protected
+  FrbPinnedFolder dco_decode_frb_pinned_folder(dynamic raw);
+
+  @protected
+  FrbStorageStats dco_decode_frb_storage_stats(dynamic raw);
+
+  @protected
+  FrbThumbnailEntry dco_decode_frb_thumbnail_entry(dynamic raw);
+
+  @protected
   int dco_decode_i_32(dynamic raw);
+
+  @protected
+  PlatformInt64 dco_decode_i_64(dynamic raw);
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
+  List<FrbBulkRenamePreview> dco_decode_list_frb_bulk_rename_preview(
+    dynamic raw,
+  );
+
+  @protected
+  List<FrbDeviceItem> dco_decode_list_frb_device_item(dynamic raw);
+
+  @protected
+  List<FrbDownloadJob> dco_decode_list_frb_download_job(dynamic raw);
+
+  @protected
+  List<FrbFolderSummary> dco_decode_list_frb_folder_summary(dynamic raw);
+
+  @protected
+  List<FrbMediaItem> dco_decode_list_frb_media_item(dynamic raw);
+
+  @protected
+  List<FrbPinnedFolder> dco_decode_list_frb_pinned_folder(dynamic raw);
+
+  @protected
+  List<FrbThumbnailEntry> dco_decode_list_frb_thumbnail_entry(dynamic raw);
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
+  String? dco_decode_opt_String(dynamic raw);
+
+  @protected
   double? dco_decode_opt_box_autoadd_f_64(dynamic raw);
+
+  @protected
+  FrbCoverItem? dco_decode_opt_box_autoadd_frb_cover_item(dynamic raw);
+
+  @protected
+  PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
+
+  @protected
+  BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw);
+
+  @protected
+  int dco_decode_u_32(dynamic raw);
 
   @protected
   BigInt dco_decode_u_64(dynamic raw);
@@ -76,23 +171,147 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double sse_decode_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
+  FrbAppSettings sse_decode_box_autoadd_frb_app_settings(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  FrbCoverItem sse_decode_box_autoadd_frb_cover_item(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  FrbPinnedFolder sse_decode_box_autoadd_frb_pinned_folder(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
+  BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer);
+
+  @protected
   double sse_decode_f_64(SseDeserializer deserializer);
 
   @protected
+  FrbAppSettings sse_decode_frb_app_settings(SseDeserializer deserializer);
+
+  @protected
+  FrbBulkRenamePreview sse_decode_frb_bulk_rename_preview(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  FrbBulkRenameResult sse_decode_frb_bulk_rename_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  FrbCoverItem sse_decode_frb_cover_item(SseDeserializer deserializer);
+
+  @protected
+  FrbDeviceItem sse_decode_frb_device_item(SseDeserializer deserializer);
+
+  @protected
+  FrbDownloadJob sse_decode_frb_download_job(SseDeserializer deserializer);
+
+  @protected
+  FrbFolderSummary sse_decode_frb_folder_summary(SseDeserializer deserializer);
+
+  @protected
   FrbLegacyImportReport sse_decode_frb_legacy_import_report(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  FrbMediaItem sse_decode_frb_media_item(SseDeserializer deserializer);
+
+  @protected
+  FrbMediaPage sse_decode_frb_media_page(SseDeserializer deserializer);
+
+  @protected
+  FrbPairingSession sse_decode_frb_pairing_session(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  FrbPinnedFolder sse_decode_frb_pinned_folder(SseDeserializer deserializer);
+
+  @protected
+  FrbStorageStats sse_decode_frb_storage_stats(SseDeserializer deserializer);
+
+  @protected
+  FrbThumbnailEntry sse_decode_frb_thumbnail_entry(
+    SseDeserializer deserializer,
+  );
 
   @protected
   int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
+  PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
+
+  @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
+
+  @protected
+  List<FrbBulkRenamePreview> sse_decode_list_frb_bulk_rename_preview(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<FrbDeviceItem> sse_decode_list_frb_device_item(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<FrbDownloadJob> sse_decode_list_frb_download_job(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<FrbFolderSummary> sse_decode_list_frb_folder_summary(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<FrbMediaItem> sse_decode_list_frb_media_item(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<FrbPinnedFolder> sse_decode_list_frb_pinned_folder(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<FrbThumbnailEntry> sse_decode_list_frb_thumbnail_entry(
+    SseDeserializer deserializer,
+  );
 
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
   double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer);
+
+  @protected
+  FrbCoverItem? sse_decode_opt_box_autoadd_frb_cover_item(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
+  BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer);
+
+  @protected
+  int sse_decode_u_32(SseDeserializer deserializer);
 
   @protected
   BigInt sse_decode_u_64(SseDeserializer deserializer);
@@ -119,24 +338,187 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_frb_app_settings(
+    FrbAppSettings self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_frb_cover_item(
+    FrbCoverItem self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_frb_pinned_folder(
+    FrbPinnedFolder self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_i_64(
+    PlatformInt64 self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer);
+
+  @protected
   void sse_encode_f_64(double self, SseSerializer serializer);
 
   @protected
+  void sse_encode_frb_app_settings(
+    FrbAppSettings self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_frb_bulk_rename_preview(
+    FrbBulkRenamePreview self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_frb_bulk_rename_result(
+    FrbBulkRenameResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_frb_cover_item(FrbCoverItem self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_frb_device_item(FrbDeviceItem self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_frb_download_job(
+    FrbDownloadJob self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_frb_folder_summary(
+    FrbFolderSummary self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_frb_legacy_import_report(
-      FrbLegacyImportReport self, SseSerializer serializer);
+    FrbLegacyImportReport self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_frb_media_item(FrbMediaItem self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_frb_media_page(FrbMediaPage self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_frb_pairing_session(
+    FrbPairingSession self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_frb_pinned_folder(
+    FrbPinnedFolder self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_frb_storage_stats(
+    FrbStorageStats self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_frb_thumbnail_entry(
+    FrbThumbnailEntry self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
 
   @protected
+  void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_frb_bulk_rename_preview(
+    List<FrbBulkRenamePreview> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_frb_device_item(
+    List<FrbDeviceItem> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_frb_download_job(
+    List<FrbDownloadJob> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_frb_folder_summary(
+    List<FrbFolderSummary> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_frb_media_item(
+    List<FrbMediaItem> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_frb_pinned_folder(
+    List<FrbPinnedFolder> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_frb_thumbnail_entry(
+    List<FrbThumbnailEntry> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
-      Uint8List self, SseSerializer serializer);
+    Uint8List self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_frb_cover_item(
+    FrbCoverItem? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_i_64(
+    PlatformInt64? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_u_32(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_64(BigInt self, SseSerializer serializer);
@@ -156,9 +538,9 @@ class RustLibWire implements BaseWire {
 
   /// Holds the symbol lookup function.
   final ffi.Pointer<T> Function<T extends ffi.NativeType>(String symbolName)
-      _lookup;
+  _lookup;
 
   /// The symbols are looked up in [dynamicLibrary].
   RustLibWire(ffi.DynamicLibrary dynamicLibrary)
-      : _lookup = dynamicLibrary.lookup;
+    : _lookup = dynamicLibrary.lookup;
 }

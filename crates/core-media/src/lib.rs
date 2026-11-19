@@ -19,9 +19,9 @@ pub use covers::{
 pub use geocoder::lookup_place_offline;
 pub use metadata::extract_metadata_and_alias;
 pub use rename::{
-    apply_bulk_rename, apply_real_rename, move_media_to_folder, move_to_trash, preview_bulk_rename,
-    sanitize_filename_segment, set_alias, undo_bulk_rename, undo_last_rename,
-    BulkRenamePreviewItem, MediaOpError,
+    apply_bulk_rename, apply_real_rename, empty_trash, move_media_to_folder, move_to_trash,
+    preview_bulk_rename, restore_from_trash, sanitize_filename_segment, set_alias,
+    undo_bulk_rename, undo_last_rename, BulkRenamePreviewItem, MediaOpError,
 };
 pub use thumbnails::{
     enforce_lru_cache_limit, select_random_first_third_frame_ms, ThumbnailManager,

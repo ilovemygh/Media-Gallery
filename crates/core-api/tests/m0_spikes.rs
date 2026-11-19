@@ -135,3 +135,110 @@ async fn spike_bcd_frb_streams_sidecar_thumbnail_and_mediastore_ingest() {
     core.shutdown();
     let _ = std::fs::remove_dir_all(dir);
 }
+
+#[test]
+fn frb_live_core_scan_thumbnails_stats_and_trash_cycle_work() {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    rt.block_on(async {
+        let dir = std::env::temp_dir().join("mg-frb-live-test");
+        let _ = std::fs::remove_dir_all(&dir);
+        let media_dir = dir.join("Photos");
+        std::fs::create_dir_all(&media_dir).unwrap();
+        let p1 = media_dir.join("IMG_001.jpg");
+        let p2 = media_dir.join("IMG_002_copy.jpg");
+        let img_bytes = b"fake-jpeg-data-for-duplicate-check";
+        std::fs::write(&p1, img_bytes).unwrap();
+        std::fs::write(&p2, img_bytes).unwrap();
+
+        let db_path = dir.join("gallery.db");
+        let cache_dir = dir.join("cache");
+        core_api::api::frb_init_core(
+            Some(db_path.to_string_lossy().to_string()),
+            cache_dir.to_string_lossy().to_string(),
+            "test-pc".to_string(),
+            "Test PC".to_string(),
+            false,
+        )
+        .unwrap();
+
+        let scanned = core_api::api::frb_scan_folders(
+            vec![media_dir.to_string_lossy().to_string()],
+            Vec::new(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(scanned, 2);
+
+        let stats = core_api::api::frb_get_storage_stats().await.unwrap();
+        assert_eq!(stats.total_files, 2);
+        assert_eq!(stats.image_count, 2);
+        assert_eq!(stats.duplicate_groups, 1);
+
+        let page = core_api::api::frb_list_media(
+            String::new(),
+            None,
+            None,
+            None,
+            None,
+            None,
+            false,
+            false,
+            "date".to_string(),
+            "desc".to_string(),
+            None,
+            50,
+        )
+        .await
+        .unwrap();
+        assert_eq!(page.total_count, 2);
+
+        let ids: Vec<String> = page.items.iter().map(|i| i.id.clone()).collect();
+        let thumbs = core_api::api::frb_ensure_thumbnails_batch(ids.clone())
+            .await
+            .unwrap();
+        assert_eq!(thumbs.len(), 2);
+        for t in &thumbs {
+            assert!(std::path::Path::new(&t.file_path).exists());
+        }
+
+        let target_id = &ids[0];
+        core_api::api::frb_move_to_trash(target_id.clone())
+            .await
+            .unwrap();
+        let trashed_page = core_api::api::frb_list_media(
+            String::new(),
+            None,
+            None,
+            None,
+            None,
+            None,
+            false,
+            true,
+            "date".to_string(),
+            "desc".to_string(),
+            None,
+            50,
+        )
+        .await
+        .unwrap();
+        assert_eq!(trashed_page.total_count, 1);
+
+        core_api::api::frb_restore_from_trash(target_id.clone())
+            .await
+            .unwrap();
+        let stats_restored = core_api::api::frb_get_storage_stats().await.unwrap();
+        assert_eq!(stats_restored.trashed_count, 0);
+        assert_eq!(stats_restored.total_files, 2);
+
+        core_api::api::frb_move_to_trash(target_id.clone())
+            .await
+            .unwrap();
+        let emptied = core_api::api::frb_empty_trash(None).await.unwrap();
+        assert_eq!(emptied, 1);
+        let stats_final = core_api::api::frb_get_storage_stats().await.unwrap();
+        assert_eq!(stats_final.trashed_count, 0);
+        assert_eq!(stats_final.total_files, 1);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    });
+}

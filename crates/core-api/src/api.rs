@@ -1,21 +1,22 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 
 use core_index::{
     import_legacy_sqlite, ingest_android_mediastore_batch, now_ms, scan_folders, AppSettings,
-    AspectPreset, CoverRecord, CropRect, DeviceRecord, DeviceType, DownloadJobRecord,
-    DuplicateGroup, FolderSummary, IndexError, LegacyImportReport, MediaFilter, MediaIndex,
-    MediaPage, MediaRecord, MediaTags, MediaType, PinnedFolderRecord, RenameLogRecord,
-    SavedSearchRecord, ScanProgress, ScanRequest, SortSpec, TransferRecord, TransportKind,
+    AspectPreset, CoverRecord, CropRect, DeviceRecord, DeviceType, DownloadFormat,
+    DownloadJobRecord, DuplicateGroup, FolderSummary, IndexError, LegacyImportReport, MediaFilter,
+    MediaIndex, MediaPage, MediaRecord, MediaTags, MediaType, MediaWithCover, PinnedFolderRecord,
+    RenameLogRecord, SavedSearchRecord, ScanProgress, ScanRequest, SortDir, SortField, SortSpec,
+    StorageStats, SyncState, TransferRecord, TransportKind,
 };
 use core_media::{
-    apply_bulk_rename, apply_real_rename, extract_metadata_and_alias, generate_auto_alias,
-    move_media_to_folder, move_to_trash, pick_video_frame, preview_bulk_rename, remove_audio_cover,
-    replace_audio_cover, reroll_video_thumbnail, restore_audio_cover, set_alias, set_custom_cover,
-    undo_bulk_rename, undo_last_rename, AutoAliasInput, BulkRenamePreviewItem, MediaOpError,
-    ThumbnailManager,
+    apply_bulk_rename, apply_real_rename, empty_trash, extract_metadata_and_alias,
+    generate_auto_alias, move_media_to_folder, move_to_trash, pick_video_frame,
+    preview_bulk_rename, remove_audio_cover, replace_audio_cover, reroll_video_thumbnail,
+    restore_audio_cover, restore_from_trash, set_alias, set_custom_cover, undo_bulk_rename,
+    undo_last_rename, AutoAliasInput, BulkRenamePreviewItem, MediaOpError, ThumbnailManager,
 };
 use core_net::{NetError, PairingManager, PairingSession};
 use core_platform::{
@@ -661,6 +662,113 @@ impl MediaGalleryCore {
         Ok(self.index.upsert_pinned_folder(pf)?)
     }
 
+    pub fn remove_pinned_folder(&self, id: &str) -> Result<(), ApiError> {
+        Ok(self.index.remove_pinned_folder(id)?)
+    }
+
+    pub fn reorder_pinned_folders(&self, ordered_ids: &[String]) -> Result<(), ApiError> {
+        Ok(self.index.reorder_pinned_folders(ordered_ids)?)
+    }
+
+    pub fn list_download_jobs(&self) -> Result<Vec<DownloadJobRecord>, ApiError> {
+        Ok(self.index.list_download_jobs()?)
+    }
+
+    pub fn get_storage_stats(&self) -> Result<StorageStats, ApiError> {
+        let _ = self.index.detect_and_flag_duplicates(None);
+        Ok(self.index.get_storage_stats()?)
+    }
+
+    pub fn restore_from_trash(&self, media_id: &str) -> Result<MediaRecord, ApiError> {
+        Ok(restore_from_trash(&self.index, media_id)?)
+    }
+
+    pub fn empty_trash(&self, media_id: Option<&str>) -> Result<u64, ApiError> {
+        Ok(empty_trash(&self.index, media_id)?)
+    }
+
+    pub fn update_cover_aspect(
+        &self,
+        media_id: &str,
+        aspect: AspectPreset,
+    ) -> Result<CoverRecord, ApiError> {
+        let mut cover = self.ensure_thumbnail(media_id)?;
+        cover.aspect = aspect;
+        cover.updated_at = now_ms();
+        self.index.upsert_cover(&cover)?;
+        Ok(cover)
+    }
+
+    /// Generates missing thumbnails for a batch of media IDs using bounded worker threads.
+    pub fn ensure_thumbnails_batch(&self, media_ids: &[String]) -> Vec<(String, String)> {
+        if media_ids.is_empty() {
+            return Vec::new();
+        }
+        let max_workers = 4usize.min(media_ids.len());
+        let chunk_size = media_ids.len().div_ceil(max_workers);
+        let results = Mutex::new(Vec::with_capacity(media_ids.len()));
+
+        std::thread::scope(|s| {
+            for chunk in media_ids.chunks(chunk_size) {
+                let results_ref = &results;
+                s.spawn(move || {
+                    for id in chunk {
+                        if let Ok(cov) = self.ensure_thumbnail(id) {
+                            if !cov.file_path.is_empty() {
+                                if let Ok(mut guard) = results_ref.lock() {
+                                    guard.push((id.clone(), cov.file_path));
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        });
+
+        results.into_inner().unwrap_or_default()
+    }
+
+    pub fn scan_now(
+        &self,
+        roots: Vec<PathBuf>,
+        excluded_folders: Vec<PathBuf>,
+    ) -> Result<u64, ApiError> {
+        let template = self.index.get_app_settings()?.alias_template;
+        let _watch_res = self.watcher.watch_roots(&roots, |_paths| {});
+        let req = ScanRequest {
+            operation_id: Uuid::new_v4().to_string(),
+            device_id: self.self_device_id.clone(),
+            device_name: self.self_device_name.clone(),
+            roots,
+            excluded_folders,
+            compute_hashes: true,
+            batch_size: 200,
+            cancel: None,
+        };
+        let mut last_total = 0u64;
+        scan_folders(
+            &self.index,
+            &req,
+            &|path, mt, fs_created, mod_at, dev_name| {
+                extract_metadata_and_alias(
+                    path,
+                    mt,
+                    fs_created,
+                    mod_at,
+                    dev_name,
+                    Some(&template),
+                    Some(self.sidecar.as_ref()),
+                )
+            },
+            |prog| {
+                last_total = prog.scanned_files;
+                let _ = self.events_tx.send(CoreEvent::ScanProgress(prog.clone()));
+            },
+        )?;
+        let _ = self.index.detect_and_flag_duplicates(None);
+        Ok(last_total)
+    }
+
     pub fn save_search(&self, saved: &SavedSearchRecord) -> Result<(), ApiError> {
         Ok(self.index.save_search(saved)?)
     }
@@ -704,6 +812,914 @@ pub struct FrbLegacyImportReport {
     pub skipped_items: u64,
     pub auth_relogin_required: bool,
     pub errors: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrbCoverItem {
+    pub id: String,
+    pub media_id: String,
+    pub file_path: String,
+    pub aspect: String,
+    pub frame_time_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrbMediaItem {
+    pub id: String,
+    pub device_id: String,
+    pub device_name: String,
+    pub device_online: bool,
+    pub path: String,
+    pub folder_path: String,
+    pub file_name: String,
+    pub media_type: String,
+    pub size: u64,
+    pub created_at: i64,
+    pub duration_ms: u64,
+    pub width: u32,
+    pub height: u32,
+    pub alias: String,
+    pub auto_alias: String,
+    pub sync_state: String,
+    pub place: Option<String>,
+    pub artist: Option<String>,
+    pub album: Option<String>,
+    pub cover: Option<FrbCoverItem>,
+    pub is_duplicate: bool,
+    pub is_trashed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrbMediaPage {
+    pub items: Vec<FrbMediaItem>,
+    pub total_count: u64,
+    pub next_cursor: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrbFolderSummary {
+    pub path: String,
+    pub name: String,
+    pub device_id: String,
+    pub item_count: u64,
+    pub preview_covers: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrbDeviceItem {
+    pub id: String,
+    pub name: String,
+    pub device_type: String,
+    pub transports: Vec<String>,
+    pub is_self: bool,
+    pub is_online: bool,
+    pub paired_at: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrbPinnedFolder {
+    pub id: String,
+    pub device_id: String,
+    pub path: String,
+    pub label: String,
+    pub icon: String,
+    pub position: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrbAppSettings {
+    pub sidebar_width: u32,
+    pub sidebar_collapsed: bool,
+    pub dark_mode: bool,
+    pub manual_transport_override: Option<String>,
+    pub alias_template: String,
+    pub scan_folders: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrbStorageStats {
+    pub total_files: u64,
+    pub total_bytes: u64,
+    pub video_count: u64,
+    pub video_bytes: u64,
+    pub image_count: u64,
+    pub image_bytes: u64,
+    pub audio_count: u64,
+    pub audio_bytes: u64,
+    pub duplicate_groups: u64,
+    pub duplicate_extra_bytes: u64,
+    pub trashed_count: u64,
+    pub trashed_bytes: u64,
+    pub large_files_count: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrbBulkRenamePreview {
+    pub media_id: String,
+    pub old_file_name: String,
+    pub new_file_name: String,
+    pub conflict: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrbBulkRenameResult {
+    pub batch_id: String,
+    pub renamed_count: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrbThumbnailEntry {
+    pub media_id: String,
+    pub file_path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrbDownloadJob {
+    pub id: String,
+    pub url: String,
+    pub title: Option<String>,
+    pub format: String,
+    pub quality: String,
+    pub destination_folder: String,
+    pub status: String,
+    pub progress: f64,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrbPairingSession {
+    pub pin: String,
+    pub qr_payload: String,
+    pub expires_at: i64,
+}
+
+static CORE_INSTANCE: OnceLock<Mutex<Option<Arc<MediaGalleryCore>>>> = OnceLock::new();
+
+fn core_slot() -> &'static Mutex<Option<Arc<MediaGalleryCore>>> {
+    CORE_INSTANCE.get_or_init(|| Mutex::new(None))
+}
+
+fn get_core() -> Result<Arc<MediaGalleryCore>, ApiError> {
+    let guard = core_slot().lock().map_err(|_| ApiError {
+        code: ApiErrorCode::Internal,
+        message: "core lock poisoned".to_string(),
+    })?;
+    guard.clone().ok_or_else(|| ApiError {
+        code: ApiErrorCode::InvalidInput,
+        message: "MediaGalleryCore not initialized; call frb_init_core first".to_string(),
+    })
+}
+
+fn aspect_to_frb(a: AspectPreset) -> String {
+    match a {
+        AspectPreset::Ratio4x3 => "ratio4x3".to_string(),
+        AspectPreset::Ratio9x16 => "ratio9x16".to_string(),
+        AspectPreset::Ratio16x9 => "ratio16x9".to_string(),
+        AspectPreset::Ratio1x1 => "ratio1x1".to_string(),
+        AspectPreset::Custom => "custom".to_string(),
+    }
+}
+
+fn parse_aspect_frb(raw: &str) -> AspectPreset {
+    match raw {
+        "ratio4x3" | "4:3" => AspectPreset::Ratio4x3,
+        "ratio9x16" | "9:16" => AspectPreset::Ratio9x16,
+        "ratio1x1" | "1:1" => AspectPreset::Ratio1x1,
+        "custom" => AspectPreset::Custom,
+        _ => AspectPreset::Ratio16x9,
+    }
+}
+
+fn cover_to_frb(c: CoverRecord) -> FrbCoverItem {
+    FrbCoverItem {
+        id: c.id,
+        media_id: c.media_id,
+        file_path: c.file_path,
+        aspect: aspect_to_frb(c.aspect),
+        frame_time_ms: c.frame_time_ms,
+    }
+}
+
+fn media_with_cover_to_frb(item: MediaWithCover) -> FrbMediaItem {
+    let m = item.media;
+    FrbMediaItem {
+        id: m.id,
+        device_id: m.device_id,
+        device_name: item.device_name.unwrap_or_default(),
+        device_online: item.device_online,
+        path: m.path,
+        folder_path: m.folder_path,
+        file_name: m.file_name,
+        media_type: m.media_type.as_str().to_string(),
+        size: m.size,
+        created_at: m.created_at,
+        duration_ms: m.duration_ms,
+        width: m.width,
+        height: m.height,
+        alias: m.alias,
+        auto_alias: m.auto_alias,
+        sync_state: m.sync_state.as_str().to_ascii_lowercase(),
+        place: m.place,
+        artist: m.tags.artist,
+        album: m.tags.album,
+        cover: item.cover.map(cover_to_frb),
+        is_duplicate: m.is_duplicate,
+        is_trashed: m.is_trashed,
+    }
+}
+
+fn media_record_to_frb(index: &MediaIndex, m: MediaRecord) -> FrbMediaItem {
+    if let Ok(Some(full)) = index.get_media_by_id(&m.id) {
+        return media_with_cover_to_frb(full);
+    }
+    FrbMediaItem {
+        id: m.id,
+        device_id: m.device_id,
+        device_name: String::new(),
+        device_online: true,
+        path: m.path,
+        folder_path: m.folder_path,
+        file_name: m.file_name,
+        media_type: m.media_type.as_str().to_string(),
+        size: m.size,
+        created_at: m.created_at,
+        duration_ms: m.duration_ms,
+        width: m.width,
+        height: m.height,
+        alias: m.alias,
+        auto_alias: m.auto_alias,
+        sync_state: m.sync_state.as_str().to_ascii_lowercase(),
+        place: m.place,
+        artist: m.tags.artist,
+        album: m.tags.album,
+        cover: None,
+        is_duplicate: m.is_duplicate,
+        is_trashed: m.is_trashed,
+    }
+}
+
+fn transport_to_frb(t: TransportKind) -> String {
+    match t {
+        TransportKind::Wired => "wired".to_string(),
+        TransportKind::WifiLan => "wifiLan".to_string(),
+        TransportKind::HolePunched => "holePunched".to_string(),
+        TransportKind::Relay => "relay".to_string(),
+        TransportKind::Bluetooth => "bluetooth".to_string(),
+    }
+}
+
+fn parse_transport_frb(raw: &str) -> Option<TransportKind> {
+    match raw {
+        "wired" => Some(TransportKind::Wired),
+        "wifiLan" | "wifi_lan" => Some(TransportKind::WifiLan),
+        "holePunched" | "hole_punched" => Some(TransportKind::HolePunched),
+        "relay" => Some(TransportKind::Relay),
+        "bluetooth" => Some(TransportKind::Bluetooth),
+        _ => None,
+    }
+}
+
+pub fn frb_init_core(
+    db_path: Option<String>,
+    cache_dir: String,
+    self_device_id: String,
+    self_device_name: String,
+    is_phone: bool,
+) -> Result<(), ApiError> {
+    let core = MediaGalleryCore::init(CoreConfig {
+        db_path: db_path.map(PathBuf::from),
+        cache_dir: PathBuf::from(cache_dir),
+        self_device_id,
+        self_device_name,
+        self_device_type: if is_phone {
+            DeviceType::Phone
+        } else {
+            DeviceType::Pc
+        },
+        max_thumb_cache_bytes: Some(512 * 1024 * 1024),
+    })?;
+    let mut guard = core_slot().lock().map_err(|_| ApiError {
+        code: ApiErrorCode::Internal,
+        message: "core lock poisoned".to_string(),
+    })?;
+    *guard = Some(Arc::new(core));
+    Ok(())
+}
+
+pub async fn frb_scan_folders(roots: Vec<String>, excluded: Vec<String>) -> Result<u64, ApiError> {
+    let core = get_core()?;
+    let root_paths: Vec<PathBuf> = roots.into_iter().map(PathBuf::from).collect();
+    let excl_paths: Vec<PathBuf> = excluded.into_iter().map(PathBuf::from).collect();
+    tokio::task::spawn_blocking(move || core.scan_now(root_paths, excl_paths))
+        .await
+        .map_err(|e| ApiError {
+            code: ApiErrorCode::Internal,
+            message: e.to_string(),
+        })?
+}
+
+pub async fn frb_ingest_android_mediastore(
+    device_id: String,
+    device_name: String,
+    rows_json: String,
+) -> Result<u32, ApiError> {
+    let core = get_core()?;
+    let rows: Vec<AndroidMediaStoreRow> =
+        serde_json::from_str(&rows_json).map_err(|e| ApiError {
+            code: ApiErrorCode::InvalidInput,
+            message: format!("invalid mediastore json: {e}"),
+        })?;
+    tokio::task::spawn_blocking(move || {
+        core.ingest_android_mediastore_batch(&device_id, &device_name, &rows)
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn frb_list_media(
+    query: String,
+    media_type: Option<String>,
+    device_id: Option<String>,
+    folder_path: Option<String>,
+    sync_state: Option<String>,
+    min_size: Option<u64>,
+    only_duplicates: bool,
+    trashed_only: bool,
+    sort_field: String,
+    sort_dir: String,
+    cursor: Option<String>,
+    limit: u32,
+) -> Result<FrbMediaPage, ApiError> {
+    let core = get_core()?;
+    let filter = MediaFilter {
+        query,
+        media_type: media_type.as_deref().map(MediaType::parse),
+        device_id,
+        sync_state: sync_state.as_deref().map(SyncState::parse),
+        folder_path,
+        min_size,
+        only_duplicates,
+        trashed_only,
+        include_trashed: trashed_only,
+        ..Default::default()
+    };
+    let field = match sort_field.as_str() {
+        "name" => SortField::Name,
+        "size" => SortField::Size,
+        "duration" => SortField::Duration,
+        "type" => SortField::Type,
+        _ => SortField::Date,
+    };
+    let dir = if sort_dir == "asc" {
+        SortDir::Asc
+    } else {
+        SortDir::Desc
+    };
+    tokio::task::spawn_blocking(move || {
+        let page = core.list_media(&filter, SortSpec { field, dir }, cursor.as_deref(), limit)?;
+        Ok(FrbMediaPage {
+            items: page
+                .items
+                .into_iter()
+                .map(media_with_cover_to_frb)
+                .collect(),
+            total_count: page.total_count,
+            next_cursor: page.next_cursor,
+        })
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_list_folders(
+    device_id: Option<String>,
+    media_type: Option<String>,
+) -> Result<Vec<FrbFolderSummary>, ApiError> {
+    let core = get_core()?;
+    let mt = media_type.as_deref().map(MediaType::parse);
+    tokio::task::spawn_blocking(move || {
+        let folders = core.list_folders(device_id.as_deref(), mt)?;
+        Ok(folders
+            .into_iter()
+            .map(|f| FrbFolderSummary {
+                path: f.path,
+                name: f.name,
+                device_id: f.device_id,
+                item_count: f.item_count,
+                preview_covers: f.preview_covers,
+            })
+            .collect())
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_list_devices() -> Result<Vec<FrbDeviceItem>, ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || {
+        let devs = core.list_devices()?;
+        Ok(devs
+            .into_iter()
+            .map(|d| FrbDeviceItem {
+                id: d.id,
+                name: d.name,
+                device_type: d.device_type.as_str().to_string(),
+                transports: d.transports.into_iter().map(transport_to_frb).collect(),
+                is_self: d.is_self,
+                is_online: d.is_online,
+                paired_at: d.paired_at,
+            })
+            .collect())
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_get_storage_stats() -> Result<FrbStorageStats, ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || {
+        let s = core.get_storage_stats()?;
+        Ok(FrbStorageStats {
+            total_files: s.total_files,
+            total_bytes: s.total_bytes,
+            video_count: s.video_count,
+            video_bytes: s.video_bytes,
+            image_count: s.image_count,
+            image_bytes: s.image_bytes,
+            audio_count: s.audio_count,
+            audio_bytes: s.audio_bytes,
+            duplicate_groups: s.duplicate_groups,
+            duplicate_extra_bytes: s.duplicate_extra_bytes,
+            trashed_count: s.trashed_count,
+            trashed_bytes: s.trashed_bytes,
+            large_files_count: s.large_files_count,
+        })
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_ensure_thumbnails_batch(
+    media_ids: Vec<String>,
+) -> Result<Vec<FrbThumbnailEntry>, ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || {
+        let entries = core.ensure_thumbnails_batch(&media_ids);
+        Ok(entries
+            .into_iter()
+            .map(|(media_id, file_path)| FrbThumbnailEntry {
+                media_id,
+                file_path,
+            })
+            .collect())
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_set_alias(media_id: String, alias: String) -> Result<FrbMediaItem, ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || {
+        let rec = core.set_alias(&media_id, &alias)?;
+        Ok(media_record_to_frb(&core.index, rec))
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_apply_real_rename(
+    media_id: String,
+    new_name: String,
+) -> Result<FrbMediaItem, ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || {
+        let rec = core.apply_real_rename(&media_id, &new_name)?;
+        Ok(media_record_to_frb(&core.index, rec))
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_undo_last_rename(media_id: Option<String>) -> Result<bool, ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || Ok(core.undo_last_rename(media_id.as_deref())?.is_some()))
+        .await
+        .map_err(|e| ApiError {
+            code: ApiErrorCode::Internal,
+            message: e.to_string(),
+        })?
+}
+
+pub async fn frb_preview_bulk_rename(
+    media_ids: Vec<String>,
+    template: String,
+) -> Result<Vec<FrbBulkRenamePreview>, ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || {
+        let list = core.preview_bulk_rename(&media_ids, &template)?;
+        Ok(list
+            .into_iter()
+            .map(|item| {
+                let conflict = item.old_path != item.new_path && Path::new(&item.new_path).exists();
+                FrbBulkRenamePreview {
+                    media_id: item.media_id,
+                    old_file_name: item.old_name,
+                    new_file_name: item.new_name,
+                    conflict,
+                }
+            })
+            .collect())
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_apply_bulk_rename(
+    media_ids: Vec<String>,
+    template: String,
+) -> Result<FrbBulkRenameResult, ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || {
+        let (batch_id, logs) = core.apply_bulk_rename(&media_ids, &template)?;
+        Ok(FrbBulkRenameResult {
+            batch_id,
+            renamed_count: logs.len() as u32,
+        })
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_undo_bulk_rename(batch_id: String) -> Result<u32, ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || core.undo_bulk_rename(&batch_id))
+        .await
+        .map_err(|e| ApiError {
+            code: ApiErrorCode::Internal,
+            message: e.to_string(),
+        })?
+}
+
+pub async fn frb_move_media_to_folder(
+    media_id: String,
+    target_folder: String,
+) -> Result<FrbMediaItem, ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || {
+        let rec = core.move_media_to_folder(&media_id, Path::new(&target_folder))?;
+        Ok(media_record_to_frb(&core.index, rec))
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_move_to_trash(media_id: String) -> Result<String, ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || core.move_to_trash(&media_id))
+        .await
+        .map_err(|e| ApiError {
+            code: ApiErrorCode::Internal,
+            message: e.to_string(),
+        })?
+}
+
+pub async fn frb_restore_from_trash(media_id: String) -> Result<FrbMediaItem, ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || {
+        let rec = core.restore_from_trash(&media_id)?;
+        Ok(media_record_to_frb(&core.index, rec))
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_empty_trash(media_id: Option<String>) -> Result<u64, ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || core.empty_trash(media_id.as_deref()))
+        .await
+        .map_err(|e| ApiError {
+            code: ApiErrorCode::Internal,
+            message: e.to_string(),
+        })?
+}
+
+pub async fn frb_update_cover_aspect(
+    media_id: String,
+    aspect: String,
+) -> Result<FrbCoverItem, ApiError> {
+    let core = get_core()?;
+    let preset = parse_aspect_frb(&aspect);
+    tokio::task::spawn_blocking(move || {
+        let cov = core.update_cover_aspect(&media_id, preset)?;
+        Ok(cover_to_frb(cov))
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_reroll_video_thumbnail(media_id: String) -> Result<FrbCoverItem, ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || {
+        let cov = core.reroll_video_thumbnail(&media_id)?;
+        Ok(cover_to_frb(cov))
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_pick_video_frame(
+    media_id: String,
+    frame_time_ms: u64,
+) -> Result<FrbCoverItem, ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || {
+        let cov = core.pick_video_frame(&media_id, frame_time_ms)?;
+        Ok(cover_to_frb(cov))
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_set_custom_cover(
+    media_id: String,
+    image_path: String,
+    aspect: String,
+    confirmed_embedded_write: bool,
+) -> Result<FrbCoverItem, ApiError> {
+    let core = get_core()?;
+    let preset = parse_aspect_frb(&aspect);
+    tokio::task::spawn_blocking(move || {
+        let cov = core.set_custom_cover(
+            &media_id,
+            Path::new(&image_path),
+            preset,
+            None,
+            confirmed_embedded_write,
+        )?;
+        Ok(cover_to_frb(cov))
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_list_pinned_folders() -> Result<Vec<FrbPinnedFolder>, ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || {
+        let list = core.list_pinned_folders()?;
+        Ok(list
+            .into_iter()
+            .map(|p| FrbPinnedFolder {
+                id: p.id,
+                device_id: p.device_id,
+                path: p.path,
+                label: p.label,
+                icon: p.icon,
+                position: p.position,
+            })
+            .collect())
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_upsert_pinned_folder(folder: FrbPinnedFolder) -> Result<(), ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || {
+        core.upsert_pinned_folder(&PinnedFolderRecord {
+            id: folder.id,
+            device_id: folder.device_id,
+            path: folder.path,
+            label: folder.label,
+            icon: folder.icon,
+            position: folder.position,
+        })
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_remove_pinned_folder(id: String) -> Result<(), ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || core.remove_pinned_folder(&id))
+        .await
+        .map_err(|e| ApiError {
+            code: ApiErrorCode::Internal,
+            message: e.to_string(),
+        })?
+}
+
+pub async fn frb_reorder_pinned_folders(ordered_ids: Vec<String>) -> Result<(), ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || core.reorder_pinned_folders(&ordered_ids))
+        .await
+        .map_err(|e| ApiError {
+            code: ApiErrorCode::Internal,
+            message: e.to_string(),
+        })?
+}
+
+pub async fn frb_create_pairing_session() -> Result<FrbPairingSession, ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || {
+        let s = core.create_pairing_session()?;
+        Ok(FrbPairingSession {
+            pin: s.pin,
+            qr_payload: s.qr_payload,
+            expires_at: s.expires_at,
+        })
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_forget_device(device_id: String) -> Result<(), ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || core.forget_device(&device_id))
+        .await
+        .map_err(|e| ApiError {
+            code: ApiErrorCode::Internal,
+            message: e.to_string(),
+        })?
+}
+
+pub async fn frb_enqueue_youtube_download(
+    url: String,
+    format: String,
+    quality: String,
+    destination_folder: String,
+) -> Result<FrbDownloadJob, ApiError> {
+    let core = get_core()?;
+    let fmt = if format.eq_ignore_ascii_case("mp3") {
+        DownloadFormat::Mp3
+    } else {
+        DownloadFormat::Mp4
+    };
+    tokio::task::spawn_blocking(move || {
+        let req = YoutubeDownloadRequest {
+            url,
+            format: fmt,
+            quality,
+            destination_device_id: core.self_device_id.clone(),
+            destination_folder,
+            allow_playlist: false,
+            ffmpeg_bin: None,
+        };
+        let job = core.enqueue_youtube_download(&req)?;
+        Ok(FrbDownloadJob {
+            id: job.id,
+            url: job.url,
+            title: job.title,
+            format: if job.format == DownloadFormat::Mp3 {
+                "mp3".to_string()
+            } else {
+                "mp4".to_string()
+            },
+            quality: job.quality,
+            destination_folder: job.destination_folder,
+            status: format!("{:?}", job.status).to_ascii_lowercase(),
+            progress: f64::from(job.progress),
+            error: job.error,
+        })
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_list_download_jobs() -> Result<Vec<FrbDownloadJob>, ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || {
+        let jobs = core.list_download_jobs()?;
+        Ok(jobs
+            .into_iter()
+            .map(|job| FrbDownloadJob {
+                id: job.id,
+                url: job.url,
+                title: job.title,
+                format: if job.format == DownloadFormat::Mp3 {
+                    "mp3".to_string()
+                } else {
+                    "mp4".to_string()
+                },
+                quality: job.quality,
+                destination_folder: job.destination_folder,
+                status: format!("{:?}", job.status).to_ascii_lowercase(),
+                progress: f64::from(job.progress),
+                error: job.error,
+            })
+            .collect())
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_get_settings() -> Result<FrbAppSettings, ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || {
+        let s = core.get_settings()?;
+        Ok(FrbAppSettings {
+            sidebar_width: s.sidebar_width,
+            sidebar_collapsed: s.sidebar_collapsed,
+            dark_mode: s.theme != "light",
+            manual_transport_override: s.manual_transport_override.map(transport_to_frb),
+            alias_template: s.alias_template,
+            scan_folders: s.scan_folders,
+        })
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_save_settings(settings: FrbAppSettings) -> Result<(), ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || {
+        let mut current = core.get_settings()?;
+        current.sidebar_width = settings.sidebar_width;
+        current.sidebar_collapsed = settings.sidebar_collapsed;
+        current.theme = if settings.dark_mode {
+            "dark".to_string()
+        } else {
+            "light".to_string()
+        };
+        current.manual_transport_override = settings
+            .manual_transport_override
+            .as_deref()
+            .and_then(parse_transport_frb);
+        current.alias_template = settings.alias_template;
+        current.scan_folders = settings.scan_folders;
+        core.save_settings(&current)
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
 }
 
 #[flutter_rust_bridge::frb(sync)]

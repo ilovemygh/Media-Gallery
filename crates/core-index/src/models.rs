@@ -442,6 +442,25 @@ pub struct MediaFilter {
     pub min_duration_ms: Option<u64>,
     pub min_width: Option<u32>,
     pub include_trashed: bool,
+    pub only_duplicates: bool,
+    pub trashed_only: bool,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct StorageStats {
+    pub total_files: u64,
+    pub total_bytes: u64,
+    pub video_count: u64,
+    pub video_bytes: u64,
+    pub image_count: u64,
+    pub image_bytes: u64,
+    pub audio_count: u64,
+    pub audio_bytes: u64,
+    pub duplicate_groups: u64,
+    pub duplicate_extra_bytes: u64,
+    pub trashed_count: u64,
+    pub trashed_bytes: u64,
+    pub large_files_count: u64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
