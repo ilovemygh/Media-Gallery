@@ -274,6 +274,7 @@ class AppSettings {
     this.manualTransportOverride,
     this.aliasTemplate = '{date} {place} {name}',
     this.scanFolders = const [],
+    this.excludedFolders = const [],
   });
 
   final double sidebarWidth;
@@ -282,6 +283,7 @@ class AppSettings {
   final TransportKind? manualTransportOverride;
   final String aliasTemplate;
   final List<String> scanFolders;
+  final List<String> excludedFolders;
 
   AppSettings copyWith({
     double? sidebarWidth,
@@ -291,6 +293,7 @@ class AppSettings {
     bool clearTransportOverride = false,
     String? aliasTemplate,
     List<String>? scanFolders,
+    List<String>? excludedFolders,
   }) =>
       AppSettings(
         sidebarWidth: sidebarWidth ?? this.sidebarWidth,
@@ -301,6 +304,7 @@ class AppSettings {
             : (manualTransportOverride ?? this.manualTransportOverride),
         aliasTemplate: aliasTemplate ?? this.aliasTemplate,
         scanFolders: scanFolders ?? this.scanFolders,
+        excludedFolders: excludedFolders ?? this.excludedFolders,
       );
 }
 
@@ -399,6 +403,129 @@ class PairingSessionInfo {
   final String pin;
   final String qrPayload;
   final int expiresAt;
+}
+
+@immutable
+class DuplicateGroupItem {
+  const DuplicateGroupItem({
+    required this.groupId,
+    required this.size,
+    required this.reclaimableBytes,
+    required this.items,
+  });
+
+  final String groupId;
+  final int size;
+  final int reclaimableBytes;
+  final List<MediaItem> items;
+}
+
+@immutable
+class CleanupReport {
+  const CleanupReport({
+    required this.cleanedCount,
+    required this.freedBytes,
+  });
+
+  final int cleanedCount;
+  final int freedBytes;
+}
+
+@immutable
+class UnifiedTrackItem {
+  const UnifiedTrackItem({
+    required this.canonicalKey,
+    required this.title,
+    required this.artist,
+    required this.album,
+    required this.durationMs,
+    required this.primary,
+    required this.sourceDevices,
+  });
+
+  final String canonicalKey;
+  final String title;
+  final String artist;
+  final String album;
+  final int durationMs;
+  final MediaItem primary;
+  final List<String> sourceDevices;
+}
+
+@immutable
+class MusicGroupItem {
+  const MusicGroupItem({
+    required this.groupName,
+    required this.tracks,
+  });
+
+  final String groupName;
+  final List<UnifiedTrackItem> tracks;
+}
+
+@immutable
+class TransferItem {
+  const TransferItem({
+    required this.id,
+    required this.mediaId,
+    required this.fileName,
+    required this.fromDevice,
+    required this.toDevice,
+    required this.status,
+    required this.bytesDone,
+    required this.bytesTotal,
+    required this.pathKind,
+    required this.speedBps,
+    this.error,
+  });
+
+  final String id;
+  final String mediaId;
+  final String fileName;
+  final String fromDevice;
+  final String toDevice;
+  final String status;
+  final int bytesDone;
+  final int bytesTotal;
+  final String pathKind;
+  final int speedBps;
+  final String? error;
+
+  double get progress => bytesTotal <= 0 ? 0.0 : (bytesDone / bytesTotal).clamp(0.0, 1.0);
+}
+
+@immutable
+class AutoSyncRuleItem {
+  const AutoSyncRuleItem({
+    required this.id,
+    required this.name,
+    required this.sourceDeviceId,
+    required this.targetDeviceId,
+    required this.folderPattern,
+    required this.enabled,
+  });
+
+  final String id;
+  final String name;
+  final String sourceDeviceId;
+  final String targetDeviceId;
+  final String folderPattern;
+  final bool enabled;
+}
+
+@immutable
+class SavedSearchItem {
+  const SavedSearchItem({
+    required this.id,
+    required this.name,
+    required this.query,
+    this.mediaType,
+  });
+
+  final String id;
+  final String name;
+  final String query;
+  final MediaType? mediaType;
 }
 
 @immutable

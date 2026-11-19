@@ -1,9 +1,12 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/models/media_models.dart';
+import '../../core/services/media_playback_service.dart';
 import '../../core/state/gallery_providers.dart';
 
 String formatBytes(int bytes) {
@@ -234,41 +237,86 @@ Future<void> showMediaViewerDialog(
   WidgetRef ref,
   MediaItem item,
 ) async {
+  if (item.type == MediaType.video || item.type == MediaType.audio) {
+    await ref.read(galleryControllerProvider.notifier).playTrack(item);
+  }
+  if (!context.mounted) return;
   await showDialog<void>(
     context: context,
     builder: (ctx) => _MediaViewerDialog(initialItem: item),
   );
 }
 
-class _MediaViewerDialog extends ConsumerWidget {
+class _MediaViewerDialog extends ConsumerStatefulWidget {
   const _MediaViewerDialog({required this.initialItem});
 
   final MediaItem initialItem;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_MediaViewerDialog> createState() => _MediaViewerDialogState();
+}
+
+class _MediaViewerDialogState extends ConsumerState<_MediaViewerDialog> {
+  late String _currentId;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentId = widget.initialItem.id;
+  }
+
+  Future<void> _step(int delta, List<MediaItem> list) async {
+    if (list.isEmpty) return;
+    final idx = list.indexWhere((e) => e.id == _currentId);
+    final nextIdx = idx < 0 ? 0 : (idx + delta) % list.length;
+    final next = list[nextIdx < 0 ? list.length - 1 : nextIdx];
+    setState(() => _currentId = next.id);
+    if (next.type == MediaType.video || next.type == MediaType.audio) {
+      await ref.read(galleryControllerProvider.notifier).playTrack(next);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final ui = ref.watch(galleryControllerProvider);
     final ctrl = ref.read(galleryControllerProvider.notifier);
-    final item = ui.items.firstWhere((e) => e.id == initialItem.id, orElse: () => initialItem);
+    final item = ui.items.firstWhere(
+      (e) => e.id == _currentId,
+      orElse: () => widget.initialItem,
+    );
     final coverPath = item.cover?.filePath ?? '';
     final diskImage = item.type == MediaType.image && File(item.path).existsSync()
         ? item.path
         : (coverPath.isNotEmpty && File(coverPath).existsSync() ? coverPath : null);
+    final playback = MediaPlaybackService.instance;
+    final showVideoSurface = item.type == MediaType.video &&
+        playback.isNativeReady &&
+        playback.videoController != null;
 
     return Dialog(
       insetPadding: const EdgeInsets.all(24),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 920, maxHeight: 680),
+        constraints: const BoxConstraints(maxWidth: 960, maxHeight: 700),
         child: Column(
           children: [
             AppBar(
               title: Text(item.alias, overflow: TextOverflow.ellipsis),
               automaticallyImplyLeading: false,
               actions: [
+                IconButton(
+                  tooltip: 'Previous',
+                  icon: const Icon(Icons.chevron_left),
+                  onPressed: () => _step(-1, ui.items),
+                ),
+                IconButton(
+                  tooltip: 'Next',
+                  icon: const Icon(Icons.chevron_right),
+                  onPressed: () => _step(1, ui.items),
+                ),
                 if (item.type == MediaType.audio || item.type == MediaType.video)
                   IconButton(
-                    tooltip: 'Play in Mini Player',
-                    icon: const Icon(Icons.play_circle_fill),
+                    tooltip: ui.isPlaying ? 'Pause' : 'Play',
+                    icon: Icon(ui.isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill),
                     onPressed: () => ctrl.playTrack(item),
                   ),
                 IconButton(
@@ -290,43 +338,45 @@ class _MediaViewerDialog extends ConsumerWidget {
               child: Container(
                 width: double.infinity,
                 color: Colors.black,
-                child: diskImage != null
-                    ? InteractiveViewer(
-                        minScale: 0.5,
-                        maxScale: 4.0,
-                        child: Center(
-                          child: Image.file(File(diskImage), fit: BoxFit.contain),
-                        ),
-                      )
-                    : Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              item.type == MediaType.video
-                                  ? Icons.movie
-                                  : item.type == MediaType.audio
-                                      ? Icons.music_note
-                                      : Icons.image,
-                              size: 72,
-                              color: Colors.white70,
+                child: showVideoSurface
+                    ? Video(controller: playback.videoController!)
+                    : (diskImage != null
+                        ? InteractiveViewer(
+                            minScale: 0.5,
+                            maxScale: 4.0,
+                            child: Center(
+                              child: Image.file(File(diskImage), fit: BoxFit.contain),
                             ),
-                            const SizedBox(height: 12),
-                            Text(
-                              item.fileName,
-                              style: const TextStyle(color: Colors.white),
+                          )
+                        : Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  item.type == MediaType.video
+                                      ? Icons.movie
+                                      : item.type == MediaType.audio
+                                          ? Icons.music_note
+                                          : Icons.image,
+                                  size: 72,
+                                  color: Colors.white70,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  item.fileName,
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                                if (item.type != MediaType.image) ...[
+                                  const SizedBox(height: 12),
+                                  FilledButton.icon(
+                                    onPressed: () => ctrl.playTrack(item),
+                                    icon: const Icon(Icons.play_arrow),
+                                    label: const Text('Play Track / Media'),
+                                  ),
+                                ],
+                              ],
                             ),
-                            if (item.type != MediaType.image) ...[
-                              const SizedBox(height: 12),
-                              FilledButton.icon(
-                                onPressed: () => ctrl.playTrack(item),
-                                icon: const Icon(Icons.play_arrow),
-                                label: const Text('Play Track / Media'),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
+                          )),
               ),
             ),
             Padding(
@@ -567,16 +617,32 @@ class CleanerDashboardView extends ConsumerWidget {
               ),
             ],
           ),
-          if (ui.trashedOnly && ui.items.isNotEmpty) ...[
+          if (ui.onlyDuplicates && !ui.trashedOnly && stats.duplicateGroups > 0) ...[
             const SizedBox(height: 12),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 FilledButton.icon(
-                  onPressed: () => ctrl.emptyTrash(),
-                  icon: const Icon(Icons.delete_forever),
-                  label: const Text('Empty Recycle Bin Permanently'),
+                  onPressed: () => ctrl.cleanAllDuplicates(keepNewest: true),
+                  icon: const Icon(Icons.auto_fix_high),
+                  label: Text(
+                    'Auto-Clean Duplicates (Keep Newest · Save ${formatBytes(stats.duplicateExtraBytes)})',
+                  ),
+                ),
+                OutlinedButton(
+                  onPressed: () => ctrl.cleanAllDuplicates(keepNewest: false),
+                  child: const Text('Keep Oldest'),
                 ),
               ],
+            ),
+          ],
+          if (ui.trashedOnly && ui.items.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: () => ctrl.emptyTrash(),
+              icon: const Icon(Icons.delete_forever),
+              label: const Text('Empty Recycle Bin Permanently'),
             ),
           ],
         ],
@@ -653,6 +719,15 @@ class DevicesBackupView extends ConsumerStatefulWidget {
 
 class _DevicesBackupViewState extends ConsumerState<DevicesBackupView> {
   PairingSessionInfo? _session;
+  final TextEditingController _pairCodeCtrl = TextEditingController();
+  final TextEditingController _pairNameCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _pairCodeCtrl.dispose();
+    _pairNameCtrl.dispose();
+    super.dispose();
+  }
 
   Future<void> _generateQr() async {
     final session = await ref.read(bridgeProvider).createPairingSession();
@@ -707,14 +782,67 @@ class _DevicesBackupViewState extends ConsumerState<DevicesBackupView> {
                             size: 130,
                           ),
                         ),
-                        Chip(
-                          avatar: const Icon(Icons.pin, size: 16),
-                          label: Text(
-                            'PIN: ${_session!.pin}',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Chip(
+                              avatar: const Icon(Icons.pin, size: 16),
+                              label: Text(
+                                'PIN: ${_session!.pin}',
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            TextButton.icon(
+                              onPressed: () {
+                                Clipboard.setData(ClipboardData(text: _session!.qrPayload));
+                              },
+                              icon: const Icon(Icons.copy, size: 15),
+                              label: const Text('Copy Pairing Payload'),
+                            ),
+                          ],
                         ),
                       ],
+                    ],
+                  ),
+                  const Divider(height: 24),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 220,
+                        child: TextField(
+                          controller: _pairCodeCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Enter 6-digit PIN or QR payload',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 170,
+                        child: TextField(
+                          controller: _pairNameCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Device name (optional)',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                        ),
+                      ),
+                      FilledButton.tonalIcon(
+                        onPressed: () async {
+                          final code = _pairCodeCtrl.text.trim();
+                          if (code.isEmpty) return;
+                          await ctrl.pairWithDevice(code, peerName: _pairNameCtrl.text);
+                          _pairCodeCtrl.clear();
+                          _pairNameCtrl.clear();
+                        },
+                        icon: const Icon(Icons.link),
+                        label: const Text('Pair Device'),
+                      ),
                     ],
                   ),
                 ],
@@ -731,7 +859,7 @@ class _DevicesBackupViewState extends ConsumerState<DevicesBackupView> {
                   Text('Connected Devices & Quick Backup',
                       style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 10),
-                  for (final dev in ui.devices)
+                  for (final dev in ui.devices) ...[
                     ListTile(
                       leading: Icon(
                         dev.type == DeviceType.phone ? Icons.smartphone : Icons.computer,
@@ -746,9 +874,9 @@ class _DevicesBackupViewState extends ConsumerState<DevicesBackupView> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
-                                  tooltip: 'Backup Now',
+                                  tooltip: 'Backup Local Photos & Videos Now',
                                   icon: const Icon(Icons.backup),
-                                  onPressed: () => ctrl.refresh(),
+                                  onPressed: () => ctrl.backupToDevice(dev.id),
                                 ),
                                 IconButton(
                                   tooltip: 'Forget device',
@@ -761,10 +889,69 @@ class _DevicesBackupViewState extends ConsumerState<DevicesBackupView> {
                               ],
                             ),
                     ),
+                    if (!dev.isSelf)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 16, right: 8, bottom: 6),
+                        child: SwitchListTile(
+                          dense: true,
+                          title: Text('Auto-backup Camera & Pictures to ${dev.name}'),
+                          value: ui.autoSyncRules
+                              .any((r) => r.targetDeviceId == dev.id && r.enabled),
+                          onChanged: (enabled) => ctrl.toggleAutoSyncRule(dev.id, enabled),
+                        ),
+                      ),
+                  ],
                 ],
               ),
             ),
           ),
+          if (ui.transfers.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Transfers (${ui.transfers.length})',
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 8),
+                    for (final tr in ui.transfers)
+                      ListTile(
+                        dense: true,
+                        leading: const Icon(Icons.swap_horiz),
+                        title: Text(tr.fileName, overflow: TextOverflow.ellipsis),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${tr.status} · ${tr.pathKind} · ${formatBytes(tr.bytesDone)} / ${formatBytes(tr.bytesTotal)}',
+                            ),
+                            LinearProgressIndicator(value: tr.progress),
+                          ],
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (tr.status == 'transferring' || tr.status == 'queued')
+                              IconButton(
+                                tooltip: 'Pause',
+                                icon: const Icon(Icons.pause),
+                                onPressed: () => ctrl.pauseTransfer(tr.id),
+                              ),
+                            IconButton(
+                              tooltip: 'Cancel',
+                              icon: const Icon(Icons.close),
+                              onPressed: () => ctrl.cancelTransfer(tr.id),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -906,6 +1093,185 @@ class _YouTubeDownloadViewState extends ConsumerState<YouTubeDownloadView> {
   }
 }
 
+class SettingsView extends ConsumerStatefulWidget {
+  const SettingsView({super.key});
+
+  @override
+  ConsumerState<SettingsView> createState() => _SettingsViewState();
+}
+
+class _SettingsViewState extends ConsumerState<SettingsView> {
+  final TextEditingController _aliasTplCtrl = TextEditingController();
+  bool _syncedInit = false;
+
+  @override
+  void dispose() {
+    _aliasTplCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ui = ref.watch(galleryControllerProvider);
+    final ctrl = ref.read(galleryControllerProvider.notifier);
+    if (!_syncedInit) {
+      _aliasTplCtrl.text = ui.settings.aliasTemplate;
+      _syncedInit = true;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Library Folders & Exclusions',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      FilledButton.tonalIcon(
+                        onPressed: () => pickAndScanFolder(context, ref),
+                        icon: const Icon(Icons.create_new_folder),
+                        label: const Text('Add Scan Folder'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          final dir = await FilePicker.platform
+                              .getDirectoryPath(dialogTitle: 'Select folder to exclude');
+                          if (dir != null && dir.isNotEmpty) {
+                            await ctrl.updateSettings(
+                              ui.settings.copyWith(
+                                excludedFolders: {...ui.settings.excludedFolders, dir}.toList(),
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.block),
+                        label: const Text('Exclude Folder'),
+                      ),
+                    ],
+                  ),
+                  if (ui.settings.scanFolders.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    const Text('Included Folders:', style: TextStyle(fontWeight: FontWeight.w600)),
+                    Wrap(
+                      spacing: 6,
+                      children: [
+                        for (final f in ui.settings.scanFolders)
+                          InputChip(
+                            label: Text(f),
+                            onDeleted: () => ctrl.updateSettings(
+                              ui.settings.copyWith(
+                                scanFolders:
+                                    ui.settings.scanFolders.where((e) => e != f).toList(),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                  if (ui.settings.excludedFolders.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    const Text('Excluded Folders:', style: TextStyle(fontWeight: FontWeight.w600)),
+                    Wrap(
+                      spacing: 6,
+                      children: [
+                        for (final f in ui.settings.excludedFolders)
+                          InputChip(
+                            label: Text(f),
+                            onDeleted: () => ctrl.updateSettings(
+                              ui.settings.copyWith(
+                                excludedFolders:
+                                    ui.settings.excludedFolders.where((e) => e != f).toList(),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Alias, Theme & Network Transport',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _aliasTplCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Default Auto-Alias Template',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        onPressed: () => ctrl.updateSettings(
+                          ui.settings.copyWith(aliasTemplate: _aliasTplCtrl.text.trim()),
+                        ),
+                        child: const Text('Save'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  SwitchListTile(
+                    title: const Text('Dark Theme'),
+                    value: ui.settings.darkMode,
+                    onChanged: (_) => ctrl.toggleTheme(),
+                  ),
+                  DropdownButtonFormField<TransportKind?>(
+                    initialValue: ui.settings.manualTransportOverride,
+                    decoration: const InputDecoration(
+                      labelText: 'Transfer Path Preference',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    items: [
+                      const DropdownMenuItem<TransportKind?>(
+                        value: null,
+                        child: Text('Auto (LAN / Wired > Hole-Punch > Relay)'),
+                      ),
+                      for (final kind in TransportKind.values)
+                        DropdownMenuItem<TransportKind?>(
+                          value: kind,
+                          child: Text(kind.name),
+                        ),
+                    ],
+                    onChanged: (val) => ctrl.updateSettings(
+                      val == null
+                          ? ui.settings.copyWith(clearTransportOverride: true)
+                          : ui.settings.copyWith(manualTransportOverride: val),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class MiniPlayerBar extends ConsumerWidget {
   const MiniPlayerBar({super.key});
 
@@ -916,9 +1282,11 @@ class MiniPlayerBar extends ConsumerWidget {
     final track = ui.playingTrack;
     if (track == null) return const SizedBox.shrink();
 
+    final playback = MediaPlaybackService.instance;
+
     return Container(
-      height: 58,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
+      height: 68,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.secondaryContainer,
         border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
@@ -926,8 +1294,8 @@ class MiniPlayerBar extends ConsumerWidget {
       child: Row(
         children: [
           SizedBox(
-            width: 40,
-            height: 40,
+            width: 42,
+            height: 42,
             child: MediaThumbnailWidget(item: track, cacheWidth: 120, borderRadius: 6),
           ),
           const SizedBox(width: 10),
@@ -940,20 +1308,53 @@ class MiniPlayerBar extends ConsumerWidget {
                   track.alias,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                 ),
-                Text(
-                  '${track.artist ?? track.deviceName} · ${track.deviceName}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 11),
+                ValueListenableBuilder<Duration>(
+                  valueListenable: playback.position,
+                  builder: (_, pos, __) {
+                    final totalMs = playback.duration.value.inMilliseconds > 0
+                        ? playback.duration.value.inMilliseconds
+                        : track.durationMs;
+                    final curMs = pos.inMilliseconds.clamp(0, totalMs > 0 ? totalMs : 1);
+                    return Row(
+                      children: [
+                        Text(
+                          formatDuration(curMs).isEmpty ? '0:00' : formatDuration(curMs),
+                          style: const TextStyle(fontSize: 10),
+                        ),
+                        Expanded(
+                          child: SliderTheme(
+                            data: SliderTheme.of(context).copyWith(
+                              trackHeight: 2,
+                              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+                            ),
+                            child: Slider(
+                              value: curMs.toDouble(),
+                              max: (totalMs > 0 ? totalMs : 1).toDouble(),
+                              onChanged: (v) =>
+                                  playback.seek(Duration(milliseconds: v.round())),
+                            ),
+                          ),
+                        ),
+                        Text(
+                          formatDuration(totalMs),
+                          style: const TextStyle(fontSize: 10),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),
           ),
           IconButton(
             tooltip: 'Shuffle',
-            icon: Icon(Icons.shuffle, color: ui.shuffle ? Theme.of(context).colorScheme.primary : null),
+            icon: Icon(
+              Icons.shuffle,
+              size: 18,
+              color: ui.shuffle ? Theme.of(context).colorScheme.primary : null,
+            ),
             onPressed: ctrl.toggleShuffle,
           ),
           IconButton(
@@ -963,7 +1364,10 @@ class MiniPlayerBar extends ConsumerWidget {
           ),
           IconButton(
             tooltip: ui.isPlaying ? 'Pause' : 'Play',
-            icon: Icon(ui.isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled, size: 32),
+            icon: Icon(
+              ui.isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
+              size: 32,
+            ),
             onPressed: ctrl.togglePlayback,
           ),
           IconButton(
@@ -973,7 +1377,11 @@ class MiniPlayerBar extends ConsumerWidget {
           ),
           IconButton(
             tooltip: 'Repeat one',
-            icon: Icon(Icons.repeat_one, color: ui.repeatOne ? Theme.of(context).colorScheme.primary : null),
+            icon: Icon(
+              Icons.repeat_one,
+              size: 18,
+              color: ui.repeatOne ? Theme.of(context).colorScheme.primary : null,
+            ),
             onPressed: ctrl.toggleRepeat,
           ),
           IconButton(

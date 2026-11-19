@@ -186,6 +186,32 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                                   selected: ui.section == NavSection.devices,
                                   onTap: () => ctrl.selectSection(NavSection.devices),
                                 ),
+                                _SidebarNavTile(
+                                  icon: Icons.settings,
+                                  label: 'Settings',
+                                  collapsed: ui.settings.sidebarCollapsed,
+                                  selected: ui.section == NavSection.settings,
+                                  onTap: () => ctrl.selectSection(NavSection.settings),
+                                ),
+                                if (ui.savedSearches.isNotEmpty) ...[
+                                  const Divider(),
+                                  if (!ui.settings.sidebarCollapsed)
+                                    const Padding(
+                                      padding: EdgeInsets.fromLTRB(10, 4, 10, 4),
+                                      child: Text('SAVED SEARCHES', style: TextStyle(fontSize: 11)),
+                                    ),
+                                  for (final s in ui.savedSearches)
+                                    _SidebarNavTile(
+                                      icon: Icons.bookmark_outline,
+                                      label: s.name,
+                                      collapsed: ui.settings.sidebarCollapsed,
+                                      selected: false,
+                                      onTap: () {
+                                        _searchCtrl.text = s.query;
+                                        ctrl.applySavedSearch(s);
+                                      },
+                                    ),
+                                ],
                                 if (ui.pinnedFolders.isNotEmpty) ...[
                                   const Divider(),
                                   for (final folder in ui.pinnedFolders)
@@ -257,30 +283,42 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                                 onPressed: () => ctrl.selectSection(NavSection.devices),
                               ),
                               const SizedBox(width: 10),
-                              Expanded(
-                                child: TextField(
-                                  key: const Key('top_search_field'),
-                                  controller: _searchCtrl,
-                                  decoration: InputDecoration(
-                                    prefixIcon: const Icon(Icons.search, size: 18),
-                                    suffixIcon: ui.searchQuery.isNotEmpty
-                                        ? IconButton(
-                                            icon: const Icon(Icons.clear, size: 16),
-                                            onPressed: () {
-                                              _searchCtrl.clear();
-                                              ctrl.setSearchQuery('');
-                                            },
-                                          )
-                                        : null,
-                                    hintText: 'Search ("2026 beach", date, folder, device)...',
-                                    isDense: true,
-                                    border: const OutlineInputBorder(
-                                      borderRadius: BorderRadius.all(Radius.circular(24)),
+                                Expanded(
+                                  child: TextField(
+                                    key: const Key('top_search_field'),
+                                    controller: _searchCtrl,
+                                    decoration: InputDecoration(
+                                      prefixIcon: const Icon(Icons.search, size: 18),
+                                      suffixIcon: ui.searchQuery.isNotEmpty
+                                          ? Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                IconButton(
+                                                  tooltip: 'Save smart search',
+                                                  icon: const Icon(Icons.bookmark_add_outlined,
+                                                      size: 16),
+                                                  onPressed: () =>
+                                                      ctrl.saveCurrentSearch(ui.searchQuery),
+                                                ),
+                                                IconButton(
+                                                  icon: const Icon(Icons.clear, size: 16),
+                                                  onPressed: () {
+                                                    _searchCtrl.clear();
+                                                    ctrl.setSearchQuery('');
+                                                  },
+                                                ),
+                                              ],
+                                            )
+                                          : null,
+                                      hintText: 'Search ("2026 beach", date, folder, device)...',
+                                      isDense: true,
+                                      border: const OutlineInputBorder(
+                                        borderRadius: BorderRadius.all(Radius.circular(24)),
+                                      ),
                                     ),
+                                    onChanged: ctrl.setSearchQuery,
                                   ),
-                                  onChanged: ctrl.setSearchQuery,
                                 ),
-                              ),
                               const SizedBox(width: 8),
                               FilledButton.tonalIcon(
                                 onPressed: ui.isScanning
@@ -364,6 +402,31 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                                       const SliverToBoxAdapter(child: YouTubeDownloadView()),
                                     if (ui.section == NavSection.clean)
                                       const SliverToBoxAdapter(child: CleanerDashboardView()),
+                                    if (ui.section == NavSection.settings)
+                                      const SliverToBoxAdapter(child: SettingsView()),
+
+                                    // Unified Music Library Grouping Chips
+                                    if (ui.section == NavSection.audio)
+                                      SliverToBoxAdapter(
+                                        child: Padding(
+                                          padding: const EdgeInsets.fromLTRB(14, 10, 14, 2),
+                                          child: Wrap(
+                                            spacing: 8,
+                                            runSpacing: 6,
+                                            crossAxisAlignment: WrapCrossAlignment.center,
+                                            children: [
+                                              const Text('Group Music:',
+                                                  style: TextStyle(fontWeight: FontWeight.w600)),
+                                              for (final gb in MusicGroupBy.values)
+                                                ChoiceChip(
+                                                  label: Text(gb.name.toUpperCase()),
+                                                  selected: ui.musicGroupBy == gb,
+                                                  onSelected: (_) => ctrl.setMusicGroupBy(gb),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
 
                                     // Home Overview: Recent strip + Quick Cleanup summary
                                     if (ui.section == NavSection.home &&
@@ -375,7 +438,8 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
 
                                     // Explorer Toolbar (Header, Density S/M/L/List, Sort, Multi-select)
                                     if (ui.section != NavSection.devices &&
-                                        ui.section != NavSection.youtube)
+                                        ui.section != NavSection.youtube &&
+                                        ui.section != NavSection.settings)
                                       SliverToBoxAdapter(
                                         child: Padding(
                                           padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
@@ -469,6 +533,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                                     if (ui.section != NavSection.devices &&
                                         ui.section != NavSection.youtube &&
                                         ui.section != NavSection.clean &&
+                                        ui.section != NavSection.settings &&
                                         ui.activeFolder == null &&
                                         ui.folders.isNotEmpty)
                                       SliverPadding(
@@ -530,7 +595,8 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
 
                                     // Main Media Grid or List
                                     if (ui.section != NavSection.devices &&
-                                        ui.section != NavSection.youtube)
+                                        ui.section != NavSection.youtube &&
+                                        ui.section != NavSection.settings)
                                       if (ui.gridDensity == GridDensity.list)
                                         SliverList(
                                           delegate: SliverChildBuilderDelegate(
@@ -824,6 +890,34 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                                         icon: const Icon(Icons.open_in_full, size: 16),
                                         label: const Text('Open Viewer / Player'),
                                       ),
+                                      if (ui.devices.any((d) => !d.isSelf)) ...[
+                                        const SizedBox(height: 8),
+                                        PopupMenuButton<String>(
+                                          tooltip: 'Send directly to paired device',
+                                          onSelected: (devId) =>
+                                              ctrl.sendToDevice(selected.id, devId),
+                                          itemBuilder: (_) => [
+                                            for (final d in ui.devices.where((d) => !d.isSelf))
+                                              PopupMenuItem(
+                                                value: d.id,
+                                                child: Text('Send to ${d.name}'),
+                                              ),
+                                          ],
+                                          child: const IgnorePointer(
+                                            child: OutlinedButton(
+                                              onPressed: null,
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(Icons.send, size: 16),
+                                                  SizedBox(width: 6),
+                                                  Text('Send to Device'),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                       const SizedBox(height: 8),
                                       OutlinedButton.icon(
                                         onPressed: () => ctrl.moveToTrash(selected.id),
@@ -870,12 +964,31 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                           _cancelSpringOpen();
                           ctrl.moveToFolder(d.data, pin.path);
                         },
-                        builder: (context, _, __) => InputChip(
-                          avatar: const Icon(Icons.folder, size: 16),
-                          label: Text(pin.label),
-                          selected: ui.activeFolder == pin.path,
-                          onPressed: () => ctrl.openFolder(pin.path),
-                          onDeleted: () => ctrl.removePinnedFolder(pin.id),
+                        builder: (context, _, __) => Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            InputChip(
+                              avatar: const Icon(Icons.folder, size: 16),
+                              label: Text(pin.label),
+                              selected: ui.activeFolder == pin.path,
+                              onPressed: () => ctrl.openFolder(pin.path),
+                              onDeleted: () => ctrl.removePinnedFolder(pin.id),
+                            ),
+                            PopupMenuButton<String>(
+                              tooltip: 'Manage shortcut',
+                              icon: const Icon(Icons.more_vert, size: 14),
+                              onSelected: (act) {
+                                if (act == 'left') ctrl.movePinnedFolder(pin.id, -1);
+                                if (act == 'right') ctrl.movePinnedFolder(pin.id, 1);
+                                if (act == 'rename') _showRenamePinDialog(context, pin);
+                              },
+                              itemBuilder: (_) => const [
+                                PopupMenuItem(value: 'rename', child: Text('Rename')),
+                                PopupMenuItem(value: 'left', child: Text('Move Left')),
+                                PopupMenuItem(value: 'right', child: Text('Move Right')),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -960,6 +1073,35 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showRenamePinDialog(BuildContext context, PinnedFolderItem pin) {
+    final nameCtrl = TextEditingController(text: pin.label);
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Rename Shortcut'),
+        content: TextField(
+          controller: nameCtrl,
+          decoration: const InputDecoration(labelText: 'Shortcut Label'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              await ref
+                  .read(galleryControllerProvider.notifier)
+                  .renamePinnedFolder(pin.id, nameCtrl.text);
+              if (ctx.mounted) Navigator.of(ctx).pop();
+            },
+            child: const Text('Save'),
+          ),
+        ],
       ),
     );
   }

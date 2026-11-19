@@ -51,9 +51,29 @@ abstract class CoreBridge {
 
   Future<void> downloadRemoteMedia(String mediaId);
   Future<void> sendMediaToDevice(String mediaId, String targetDeviceId);
+  Future<int> backupLocalMediaToDevice(String targetDeviceId);
+  Future<List<TransferItem>> listTransfers();
+  Future<void> pauseTransfer(String transferId);
+  Future<void> cancelTransfer(String transferId);
+  Future<List<AutoSyncRuleItem>> listAutoSyncRules();
+  Future<void> upsertAutoSyncRule({
+    required String id,
+    required String name,
+    required String targetDeviceId,
+    required String folderPattern,
+    required bool enabled,
+  });
+
   Future<String> createPairingPin();
   Future<PairingSessionInfo> createPairingSession();
+  Future<DeviceItem> pairWithDevice(String payloadOrPin, {String? peerName});
   Future<void> forgetDevice(String deviceId);
+
+  Future<List<DuplicateGroupItem>> listDuplicateGroups();
+  Future<CleanupReport> cleanDuplicates({bool keepNewest = true});
+  Future<List<MusicGroupItem>> listUnifiedMusic(MusicGroupBy groupBy);
+  Future<List<SavedSearchItem>> listSavedSearches();
+  Future<void> saveSearch(String name, String query, {MediaType? mediaType});
   Future<void> enqueueYoutubeDownload({
     required String url,
     required String format,

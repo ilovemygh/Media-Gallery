@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/bridge/core_bridge.dart';
 import 'core/bridge/live_core_bridge.dart';
 import 'core/bridge/mock_core_bridge.dart';
+import 'core/services/media_playback_service.dart';
 import 'core/state/gallery_providers.dart';
 import 'features/android/android_shell.dart';
 import 'features/migration/import_wizard_dialog.dart';
@@ -11,6 +12,7 @@ import 'features/shell/desktop_shell.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  MediaPlaybackService.instance.ensureInitialized();
   CoreBridge bridge;
   try {
     bridge = await LiveCoreBridge.initialize();

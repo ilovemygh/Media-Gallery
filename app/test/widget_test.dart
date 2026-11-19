@@ -76,6 +76,23 @@ void main() {
     await tester.tap(find.text('Show Pairing QR & 6-Digit PIN'));
     await tester.pumpAndSettle();
     expect(find.text('PIN: 482910'), findsOneWidget);
+
+    // Open Settings view
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+    expect(find.text('Library Folders & Exclusions'), findsOneWidget);
+
+    // Open Audio view with Unified Music grouping chips & MiniPlayerBar
+    await tester.tap(find.text('Audio'));
+    await tester.pumpAndSettle();
+    expect(find.text('Group Music:'), findsOneWidget);
+    await tester.tap(find.text('Nova Drift - Midnight Echoes').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open Viewer / Player'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Close').last);
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Shuffle'), findsOneWidget);
   });
 
   testWidgets('AndroidShell renders Home, Clean, and Devices tabs cleanly',

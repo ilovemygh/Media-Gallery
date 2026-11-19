@@ -213,6 +213,7 @@ class LiveCoreBridge implements CoreBridge {
           s.manualTransportOverride != null ? _parseTransport(s.manualTransportOverride!) : null,
       aliasTemplate: s.aliasTemplate,
       scanFolders: s.scanFolders,
+      excludedFolders: s.excludedFolders,
     );
   }
 
@@ -226,6 +227,7 @@ class LiveCoreBridge implements CoreBridge {
         manualTransportOverride: settings.manualTransportOverride?.name,
         aliasTemplate: settings.aliasTemplate,
         scanFolders: settings.scanFolders,
+        excludedFolders: settings.excludedFolders,
       ),
     );
   }
@@ -382,10 +384,85 @@ class LiveCoreBridge implements CoreBridge {
   }
 
   @override
-  Future<void> downloadRemoteMedia(String mediaId) async {}
+  Future<void> downloadRemoteMedia(String mediaId) async {
+    await rust.frbDownloadRemoteMedia(mediaId: mediaId);
+  }
 
   @override
-  Future<void> sendMediaToDevice(String mediaId, String targetDeviceId) async {}
+  Future<void> sendMediaToDevice(String mediaId, String targetDeviceId) async {
+    await rust.frbSendMediaToDevice(mediaId: mediaId, targetDeviceId: targetDeviceId);
+  }
+
+  @override
+  Future<int> backupLocalMediaToDevice(String targetDeviceId) async {
+    return rust.frbBackupLocalMediaToDevice(targetDeviceId: targetDeviceId);
+  }
+
+  @override
+  Future<List<TransferItem>> listTransfers() async {
+    final list = await rust.frbListTransfers();
+    return list
+        .map(
+          (t) => TransferItem(
+            id: t.id,
+            mediaId: t.mediaId,
+            fileName: t.fileName,
+            fromDevice: t.fromDevice,
+            toDevice: t.toDevice,
+            status: t.status,
+            bytesDone: t.bytesDone.toInt(),
+            bytesTotal: t.bytesTotal.toInt(),
+            pathKind: t.pathKind,
+            speedBps: t.speedBps.toInt(),
+            error: t.error,
+          ),
+        )
+        .toList();
+  }
+
+  @override
+  Future<void> pauseTransfer(String transferId) async {
+    await rust.frbPauseTransfer(transferId: transferId);
+  }
+
+  @override
+  Future<void> cancelTransfer(String transferId) async {
+    await rust.frbCancelTransfer(transferId: transferId);
+  }
+
+  @override
+  Future<List<AutoSyncRuleItem>> listAutoSyncRules() async {
+    final list = await rust.frbListAutoSyncRules();
+    return list
+        .map(
+          (r) => AutoSyncRuleItem(
+            id: r.id,
+            name: r.name,
+            sourceDeviceId: r.sourceDeviceId,
+            targetDeviceId: r.targetDeviceId,
+            folderPattern: r.folderPattern,
+            enabled: r.enabled,
+          ),
+        )
+        .toList();
+  }
+
+  @override
+  Future<void> upsertAutoSyncRule({
+    required String id,
+    required String name,
+    required String targetDeviceId,
+    required String folderPattern,
+    required bool enabled,
+  }) async {
+    await rust.frbUpsertAutoSyncRule(
+      id: id,
+      name: name,
+      targetDeviceId: targetDeviceId,
+      folderPattern: folderPattern,
+      enabled: enabled,
+    );
+  }
 
   @override
   Future<String> createPairingPin() async {
@@ -404,8 +481,91 @@ class LiveCoreBridge implements CoreBridge {
   }
 
   @override
+  Future<DeviceItem> pairWithDevice(String payloadOrPin, {String? peerName}) async {
+    final d = await rust.frbPairWithDevice(payloadOrPin: payloadOrPin, peerName: peerName);
+    return DeviceItem(
+      id: d.id,
+      name: d.name,
+      type: d.deviceType == 'phone' ? DeviceType.phone : DeviceType.pc,
+      transports: d.transports.map(_parseTransport).whereType<TransportKind>().toList(),
+      isSelf: d.isSelf,
+      isOnline: d.isOnline,
+      pairedAt: d.pairedAt?.toInt(),
+    );
+  }
+
+  @override
   Future<void> forgetDevice(String deviceId) async {
     await rust.frbForgetDevice(deviceId: deviceId);
+  }
+
+  @override
+  Future<List<DuplicateGroupItem>> listDuplicateGroups() async {
+    final list = await rust.frbListDuplicateGroups();
+    return list
+        .map(
+          (g) => DuplicateGroupItem(
+            groupId: g.groupId,
+            size: g.size.toInt(),
+            reclaimableBytes: g.reclaimableBytes.toInt(),
+            items: g.items.map(_mapMedia).toList(),
+          ),
+        )
+        .toList();
+  }
+
+  @override
+  Future<CleanupReport> cleanDuplicates({bool keepNewest = true}) async {
+    final r = await rust.frbCleanDuplicates(keepNewest: keepNewest);
+    return CleanupReport(
+      cleanedCount: r.cleanedCount.toInt(),
+      freedBytes: r.freedBytes.toInt(),
+    );
+  }
+
+  @override
+  Future<List<MusicGroupItem>> listUnifiedMusic(MusicGroupBy groupBy) async {
+    final list = await rust.frbListUnifiedMusic(groupBy: groupBy.name);
+    return list
+        .map(
+          (g) => MusicGroupItem(
+            groupName: g.groupName,
+            tracks: g.tracks
+                .map(
+                  (t) => UnifiedTrackItem(
+                    canonicalKey: t.canonicalKey,
+                    title: t.title,
+                    artist: t.artist,
+                    album: t.album,
+                    durationMs: t.durationMs.toInt(),
+                    primary: _mapMedia(t.primary),
+                    sourceDevices: t.sourceDevices,
+                  ),
+                )
+                .toList(),
+          ),
+        )
+        .toList();
+  }
+
+  @override
+  Future<List<SavedSearchItem>> listSavedSearches() async {
+    final list = await rust.frbListSavedSearches();
+    return list
+        .map(
+          (s) => SavedSearchItem(
+            id: s.id,
+            name: s.name,
+            query: s.query,
+            mediaType: s.mediaType != null ? _parseMediaType(s.mediaType!) : null,
+          ),
+        )
+        .toList();
+  }
+
+  @override
+  Future<void> saveSearch(String name, String query, {MediaType? mediaType}) async {
+    await rust.frbSaveSearch(name: name, query: query, mediaType: mediaType?.name);
   }
 
   @override

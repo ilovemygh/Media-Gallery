@@ -4,6 +4,7 @@ import '../bridge/core_bridge.dart';
 import '../bridge/live_core_bridge.dart';
 import '../bridge/mock_core_bridge.dart';
 import '../models/media_models.dart';
+import '../services/media_playback_service.dart';
 
 enum NavSection {
   home,
@@ -33,6 +34,7 @@ class GalleryUiState {
     this.minSizeBytes,
     this.trashedOnly = false,
     this.syncFilter,
+    this.musicGroupBy = MusicGroupBy.all,
     this.selectedMediaId,
     this.selectedIds = const {},
     this.selectionMode = false,
@@ -45,6 +47,11 @@ class GalleryUiState {
     this.devices = const [],
     this.pinnedFolders = const [],
     this.downloadJobs = const [],
+    this.duplicateGroups = const [],
+    this.musicGroups = const [],
+    this.transfers = const [],
+    this.autoSyncRules = const [],
+    this.savedSearches = const [],
     this.googleEmail,
     this.playingTrack,
     this.isPlaying = false,
@@ -65,6 +72,7 @@ class GalleryUiState {
   final int? minSizeBytes;
   final bool trashedOnly;
   final SyncState? syncFilter;
+  final MusicGroupBy musicGroupBy;
   final String? selectedMediaId;
   final Set<String> selectedIds;
   final bool selectionMode;
@@ -77,6 +85,11 @@ class GalleryUiState {
   final List<DeviceItem> devices;
   final List<PinnedFolderItem> pinnedFolders;
   final List<DownloadJobItem> downloadJobs;
+  final List<DuplicateGroupItem> duplicateGroups;
+  final List<MusicGroupItem> musicGroups;
+  final List<TransferItem> transfers;
+  final List<AutoSyncRuleItem> autoSyncRules;
+  final List<SavedSearchItem> savedSearches;
   final String? googleEmail;
   final MediaItem? playingTrack;
   final bool isPlaying;
@@ -111,6 +124,7 @@ class GalleryUiState {
     bool? trashedOnly,
     SyncState? syncFilter,
     bool clearSyncFilter = false,
+    MusicGroupBy? musicGroupBy,
     String? selectedMediaId,
     bool clearSelection = false,
     Set<String>? selectedIds,
@@ -124,6 +138,11 @@ class GalleryUiState {
     List<DeviceItem>? devices,
     List<PinnedFolderItem>? pinnedFolders,
     List<DownloadJobItem>? downloadJobs,
+    List<DuplicateGroupItem>? duplicateGroups,
+    List<MusicGroupItem>? musicGroups,
+    List<TransferItem>? transfers,
+    List<AutoSyncRuleItem>? autoSyncRules,
+    List<SavedSearchItem>? savedSearches,
     String? googleEmail,
     bool clearGoogle = false,
     MediaItem? playingTrack,
@@ -148,6 +167,7 @@ class GalleryUiState {
         minSizeBytes: clearMinSize ? null : (minSizeBytes ?? this.minSizeBytes),
         trashedOnly: trashedOnly ?? this.trashedOnly,
         syncFilter: clearSyncFilter ? null : (syncFilter ?? this.syncFilter),
+        musicGroupBy: musicGroupBy ?? this.musicGroupBy,
         selectedMediaId:
             clearSelection ? null : (selectedMediaId ?? this.selectedMediaId),
         selectedIds: selectedIds ?? this.selectedIds,
@@ -162,6 +182,11 @@ class GalleryUiState {
         devices: devices ?? this.devices,
         pinnedFolders: pinnedFolders ?? this.pinnedFolders,
         downloadJobs: downloadJobs ?? this.downloadJobs,
+        duplicateGroups: duplicateGroups ?? this.duplicateGroups,
+        musicGroups: musicGroups ?? this.musicGroups,
+        transfers: transfers ?? this.transfers,
+        autoSyncRules: autoSyncRules ?? this.autoSyncRules,
+        savedSearches: savedSearches ?? this.savedSearches,
         googleEmail: clearGoogle ? null : (googleEmail ?? this.googleEmail),
         playingTrack: clearPlaying ? null : (playingTrack ?? this.playingTrack),
         isPlaying: isPlaying ?? this.isPlaying,
@@ -175,10 +200,20 @@ class GalleryUiState {
 
 class GalleryController extends StateNotifier<GalleryUiState> {
   GalleryController(this._bridge) : super(const GalleryUiState()) {
+    MediaPlaybackService.instance.onTrackCompleted = _handleTrackCompleted;
     _bootstrap();
   }
 
   final CoreBridge _bridge;
+
+  void _handleTrackCompleted() {
+    if (!mounted || state.playingTrack == null) return;
+    if (state.repeatOne) {
+      playTrack(state.playingTrack!);
+    } else {
+      skipTrack(1);
+    }
+  }
 
   Future<void> _bootstrap() async {
     await refresh();
@@ -209,7 +244,10 @@ class GalleryController extends StateNotifier<GalleryUiState> {
       final merged = {...state.settings.scanFolders, ...roots}.toList();
       final nextSettings = state.settings.copyWith(scanFolders: merged);
       await _bridge.saveSettings(nextSettings);
-      final count = await _bridge.scanFolders(roots);
+      final count = await _bridge.scanFolders(
+        roots,
+        excluded: nextSettings.excludedFolders,
+      );
       await refresh();
       state = state.copyWith(
         isScanning: false,
@@ -261,6 +299,13 @@ class GalleryController extends StateNotifier<GalleryUiState> {
     final settings = await _bridge.getSettings();
     final stats = await _bridge.getStorageStats();
     final jobs = await _bridge.listDownloadJobs();
+    final dupGroups = await _bridge.listDuplicateGroups();
+    final musicGroups = state.section == NavSection.audio
+        ? await _bridge.listUnifiedMusic(state.musicGroupBy)
+        : state.musicGroups;
+    final transfers = await _bridge.listTransfers();
+    final syncRules = await _bridge.listAutoSyncRules();
+    final savedSearches = await _bridge.listSavedSearches();
 
     state = state.copyWith(
       items: page.items,
@@ -271,6 +316,11 @@ class GalleryController extends StateNotifier<GalleryUiState> {
       settings: settings,
       stats: stats,
       downloadJobs: jobs,
+      duplicateGroups: dupGroups,
+      musicGroups: musicGroups,
+      transfers: transfers,
+      autoSyncRules: syncRules,
+      savedSearches: savedSearches,
     );
 
     // Lazily populate missing thumbnails in background batches so grids load fast.
@@ -344,6 +394,16 @@ class GalleryController extends StateNotifier<GalleryUiState> {
     await refresh();
   }
 
+  Future<void> cleanAllDuplicates({bool keepNewest = true}) async {
+    final report = await _bridge.cleanDuplicates(keepNewest: keepNewest);
+    await refresh();
+    state = state.copyWith(
+      statusBanner: report.cleanedCount > 0
+          ? 'Moved ${report.cleanedCount} duplicate(s) to Recycle Bin'
+          : 'No redundant duplicates to clean',
+    );
+  }
+
   Future<void> openFolder(String? folderPath) async {
     state = state.copyWith(
       section: NavSection.home,
@@ -358,8 +418,39 @@ class GalleryController extends StateNotifier<GalleryUiState> {
     await refresh();
   }
 
+  Future<void> saveCurrentSearch(String name) async {
+    await _bridge.saveSearch(
+      name,
+      state.searchQuery,
+      mediaType: _sectionMediaType(state.section),
+    );
+    await refresh();
+    state = state.copyWith(statusBanner: 'Saved smart search "$name"');
+  }
+
+  Future<void> applySavedSearch(SavedSearchItem saved) async {
+    final targetSection = saved.mediaType == MediaType.video
+        ? NavSection.videos
+        : saved.mediaType == MediaType.image
+            ? NavSection.images
+            : saved.mediaType == MediaType.audio
+                ? NavSection.audio
+                : NavSection.home;
+    state = state.copyWith(
+      section: targetSection,
+      searchQuery: saved.query,
+      clearFolder: true,
+    );
+    await refresh();
+  }
+
   Future<void> setSort(SortField field, SortDir dir) async {
     state = state.copyWith(sortField: field, sortDir: dir);
+    await refresh();
+  }
+
+  Future<void> setMusicGroupBy(MusicGroupBy groupBy) async {
+    state = state.copyWith(musicGroupBy: groupBy);
     await refresh();
   }
 
@@ -431,6 +522,11 @@ class GalleryController extends StateNotifier<GalleryUiState> {
     final next = state.settings.copyWith(darkMode: !state.settings.darkMode);
     await _bridge.saveSettings(next);
     state = state.copyWith(settings: next);
+  }
+
+  Future<void> updateSettings(AppSettings next) async {
+    await _bridge.saveSettings(next);
+    state = state.copyWith(settings: next, statusBanner: 'Settings saved');
   }
 
   void selectMedia(String mediaId) {
@@ -524,11 +620,46 @@ class GalleryController extends StateNotifier<GalleryUiState> {
   Future<void> downloadRemote(String mediaId) async {
     await _bridge.downloadRemoteMedia(mediaId);
     await refresh();
+    state = state.copyWith(statusBanner: 'Download queued');
   }
 
   Future<void> sendToDevice(String mediaId, String targetDeviceId) async {
     await _bridge.sendMediaToDevice(mediaId, targetDeviceId);
-    state = state.copyWith(statusBanner: 'Queued transfer to device');
+    await refresh();
+    state = state.copyWith(statusBanner: 'Transfer queued');
+  }
+
+  Future<void> backupToDevice(String targetDeviceId) async {
+    final count = await _bridge.backupLocalMediaToDevice(targetDeviceId);
+    await refresh();
+    state = state.copyWith(statusBanner: 'Queued $count file(s) for backup');
+  }
+
+  Future<void> pairWithDevice(String payloadOrPin, {String? peerName}) async {
+    final dev = await _bridge.pairWithDevice(payloadOrPin, peerName: peerName);
+    await refresh();
+    state = state.copyWith(statusBanner: 'Paired with ${dev.name}');
+  }
+
+  Future<void> pauseTransfer(String transferId) async {
+    await _bridge.pauseTransfer(transferId);
+    await refresh();
+  }
+
+  Future<void> cancelTransfer(String transferId) async {
+    await _bridge.cancelTransfer(transferId);
+    await refresh();
+  }
+
+  Future<void> toggleAutoSyncRule(String targetDeviceId, bool enabled) async {
+    await _bridge.upsertAutoSyncRule(
+      id: 'rule-backup-$targetDeviceId',
+      name: 'Auto-backup Photos & Videos',
+      targetDeviceId: targetDeviceId,
+      folderPattern: 'Camera|DCIM|Pictures|Videos',
+      enabled: enabled,
+    );
+    await refresh();
   }
 
   Future<void> moveToTrash(String mediaId) async {
@@ -582,6 +713,24 @@ class GalleryController extends StateNotifier<GalleryUiState> {
     await refresh();
   }
 
+  Future<void> renamePinnedFolder(String id, String newLabel) async {
+    final existing = state.pinnedFolders.where((p) => p.id == id).firstOrNull;
+    if (existing == null || newLabel.trim().isEmpty) return;
+    await _bridge.upsertPinnedFolder(existing.copyWith(label: newLabel.trim()));
+    await refresh();
+  }
+
+  Future<void> movePinnedFolder(String id, int delta) async {
+    final list = [...state.pinnedFolders];
+    final idx = list.indexWhere((p) => p.id == id);
+    final nextIdx = idx + delta;
+    if (idx < 0 || nextIdx < 0 || nextIdx >= list.length) return;
+    final item = list.removeAt(idx);
+    list.insert(nextIdx, item);
+    await _bridge.reorderPinnedFolders(list.map((e) => e.id).toList());
+    await refresh();
+  }
+
   Future<void> removePinnedFolder(String id) async {
     await _bridge.removePinnedFolder(id);
     await refresh();
@@ -595,17 +744,19 @@ class GalleryController extends StateNotifier<GalleryUiState> {
     }
   }
 
-  void playTrack(MediaItem track) {
+  Future<void> playTrack(MediaItem track) async {
     state = state.copyWith(playingTrack: track, isPlaying: true);
+    await MediaPlaybackService.instance.openAndPlay(track);
   }
 
-  void togglePlayback() {
-    if (state.playingTrack != null) {
-      state = state.copyWith(isPlaying: !state.isPlaying);
-    }
+  Future<void> togglePlayback() async {
+    if (state.playingTrack == null) return;
+    await MediaPlaybackService.instance.togglePlayPause();
+    state = state.copyWith(isPlaying: !state.isPlaying);
   }
 
-  void stopPlayback() {
+  Future<void> stopPlayback() async {
+    await MediaPlaybackService.instance.stop();
     state = state.copyWith(clearPlaying: true, isPlaying: false);
   }
 
@@ -617,14 +768,13 @@ class GalleryController extends StateNotifier<GalleryUiState> {
     state = state.copyWith(repeatOne: !state.repeatOne);
   }
 
-  void skipTrack(int delta) {
+  Future<void> skipTrack(int delta) async {
     final audioItems = state.items.where((m) => m.type == MediaType.audio).toList();
     if (audioItems.isEmpty || state.playingTrack == null) return;
     final idx = audioItems.indexWhere((m) => m.id == state.playingTrack!.id);
-    final nextIdx = idx < 0
-        ? 0
-        : (idx + delta) % audioItems.length;
-    state = state.copyWith(playingTrack: audioItems[nextIdx < 0 ? audioItems.length - 1 : nextIdx], isPlaying: true);
+    final nextIdx = idx < 0 ? 0 : (idx + delta) % audioItems.length;
+    final target = audioItems[nextIdx < 0 ? audioItems.length - 1 : nextIdx];
+    await playTrack(target);
   }
 
   void clearStatusBanner() {

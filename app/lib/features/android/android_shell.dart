@@ -52,6 +52,11 @@ class _AndroidShellState extends ConsumerState<AndroidShell> {
             },
           ),
           IconButton(
+            tooltip: 'Settings',
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => ctrl.selectSection(NavSection.settings),
+          ),
+          IconButton(
             tooltip: 'Google Account',
             icon: Icon(
               Icons.account_circle,
@@ -106,6 +111,9 @@ class _AndroidShellState extends ConsumerState<AndroidShell> {
   }
 
   Widget _buildBody(BuildContext context, GalleryUiState ui, GalleryController ctrl) {
+    if (ui.section == NavSection.settings) {
+      return const SingleChildScrollView(child: SettingsView());
+    }
     if (ui.section == NavSection.youtube) {
       return const SingleChildScrollView(child: YouTubeDownloadView());
     }

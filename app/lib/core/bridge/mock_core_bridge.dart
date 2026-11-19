@@ -16,6 +16,9 @@ class MockCoreBridge implements CoreBridge {
   final List<MediaItem> _media = [];
   final List<PinnedFolderItem> _pinned = [];
   final List<DownloadJobItem> _downloadJobs = [];
+  final List<TransferItem> _transfers = [];
+  final List<AutoSyncRuleItem> _syncRules = [];
+  final List<SavedSearchItem> _savedSearches = [];
   final List<({String mediaId, String oldName, String oldFolder, String oldPath})> _renameUndo = [];
   final Map<String, List<({String mediaId, String oldName, String oldPath})>> _bulkUndo = {};
 
@@ -579,7 +582,69 @@ class MockCoreBridge implements CoreBridge {
   }
 
   @override
-  Future<void> sendMediaToDevice(String mediaId, String targetDeviceId) async {}
+  Future<void> sendMediaToDevice(String mediaId, String targetDeviceId) async {
+    final item = _media.firstWhere((m) => m.id == mediaId);
+    _transfers.insert(
+      0,
+      TransferItem(
+        id: 'tr-${DateTime.now().millisecondsSinceEpoch}',
+        mediaId: mediaId,
+        fileName: item.fileName,
+        fromDevice: 'pc-local',
+        toDevice: targetDeviceId,
+        status: 'completed',
+        bytesDone: item.size,
+        bytesTotal: item.size,
+        pathKind: 'WifiLan',
+        speedBps: 45000000,
+      ),
+    );
+  }
+
+  @override
+  Future<int> backupLocalMediaToDevice(String targetDeviceId) async {
+    var count = 0;
+    for (final m in _media.where((e) => !e.isTrashed && e.syncState == SyncState.local)) {
+      await sendMediaToDevice(m.id, targetDeviceId);
+      count++;
+    }
+    return count;
+  }
+
+  @override
+  Future<List<TransferItem>> listTransfers() async => List.unmodifiable(_transfers);
+
+  @override
+  Future<void> pauseTransfer(String transferId) async {}
+
+  @override
+  Future<void> cancelTransfer(String transferId) async {
+    _transfers.removeWhere((t) => t.id == transferId);
+  }
+
+  @override
+  Future<List<AutoSyncRuleItem>> listAutoSyncRules() async => List.unmodifiable(_syncRules);
+
+  @override
+  Future<void> upsertAutoSyncRule({
+    required String id,
+    required String name,
+    required String targetDeviceId,
+    required String folderPattern,
+    required bool enabled,
+  }) async {
+    _syncRules.removeWhere((r) => r.id == id);
+    _syncRules.add(
+      AutoSyncRuleItem(
+        id: id,
+        name: name,
+        sourceDeviceId: 'pc-local',
+        targetDeviceId: targetDeviceId,
+        folderPattern: folderPattern,
+        enabled: enabled,
+      ),
+    );
+  }
 
   @override
   Future<String> createPairingPin() async => '482910';
@@ -592,8 +657,90 @@ class MockCoreBridge implements CoreBridge {
       );
 
   @override
+  Future<DeviceItem> pairWithDevice(String payloadOrPin, {String? peerName}) async {
+    final dev = DeviceItem(
+      id: 'peer-${payloadOrPin.trim()}',
+      name: (peerName != null && peerName.trim().isNotEmpty)
+          ? peerName.trim()
+          : 'Paired Phone (${payloadOrPin.trim()})',
+      type: DeviceType.phone,
+      transports: const [TransportKind.wifiLan, TransportKind.relay],
+      isSelf: false,
+      isOnline: true,
+      pairedAt: DateTime.now().millisecondsSinceEpoch,
+    );
+    _devices.removeWhere((d) => d.id == dev.id);
+    _devices.add(dev);
+    return dev;
+  }
+
+  @override
   Future<void> forgetDevice(String deviceId) async {
     _devices.removeWhere((d) => d.id == deviceId && !d.isSelf);
+  }
+
+  @override
+  Future<List<DuplicateGroupItem>> listDuplicateGroups() async {
+    final dups = _media.where((m) => m.isDuplicate && !m.isTrashed).toList();
+    if (dups.isEmpty) return const [];
+    return [
+      DuplicateGroupItem(
+        groupId: 'dup-mock',
+        size: dups.first.size,
+        reclaimableBytes: dups.skip(1).fold(0, (a, b) => a + b.size),
+        items: dups,
+      ),
+    ];
+  }
+
+  @override
+  Future<CleanupReport> cleanDuplicates({bool keepNewest = true}) async {
+    final groups = await listDuplicateGroups();
+    var count = 0;
+    var freed = 0;
+    for (final g in groups) {
+      for (final m in g.items.skip(1)) {
+        await moveToTrash(m.id);
+        count++;
+        freed += m.size;
+      }
+    }
+    return CleanupReport(cleanedCount: count, freedBytes: freed);
+  }
+
+  @override
+  Future<List<MusicGroupItem>> listUnifiedMusic(MusicGroupBy groupBy) async {
+    final tracks = _media
+        .where((m) => m.type == MediaType.audio && !m.isTrashed)
+        .map(
+          (m) => UnifiedTrackItem(
+            canonicalKey: m.id,
+            title: m.alias,
+            artist: m.artist ?? 'Unknown Artist',
+            album: m.album ?? 'Singles & Downloads',
+            durationMs: m.durationMs,
+            primary: m,
+            sourceDevices: [m.deviceName],
+          ),
+        )
+        .toList();
+    if (tracks.isEmpty) return const [];
+    return [MusicGroupItem(groupName: 'All Tracks', tracks: tracks)];
+  }
+
+  @override
+  Future<List<SavedSearchItem>> listSavedSearches() async => List.unmodifiable(_savedSearches);
+
+  @override
+  Future<void> saveSearch(String name, String query, {MediaType? mediaType}) async {
+    _savedSearches.add(
+      SavedSearchItem(
+        id: 'search-${DateTime.now().millisecondsSinceEpoch}',
+        name: name,
+        query: query,
+        mediaType: mediaType,
+      ),
+    );
   }
 
   @override
