@@ -807,6 +807,13 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                                         '${selected.type.name.toUpperCase()} · ${formatBytes(selected.size)} · ${selected.deviceName}',
                                         style: const TextStyle(fontSize: 12),
                                       ),
+                                      const SizedBox(height: 8),
+                                      FilledButton.tonalIcon(
+                                        onPressed: () => showMediaViewerDialog(
+                                            context, ref, selected),
+                                        icon: const Icon(Icons.open_in_full, size: 16),
+                                        label: const Text('Open Viewer / Player'),
+                                      ),
                                       const SizedBox(height: 10),
                                       TextField(
                                         controller: _aliasCtrl,
@@ -883,13 +890,6 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                                           ),
                                         ],
                                       ],
-                                      const SizedBox(height: 8),
-                                      FilledButton.tonalIcon(
-                                        onPressed: () => showMediaViewerDialog(
-                                            context, ref, selected),
-                                        icon: const Icon(Icons.open_in_full, size: 16),
-                                        label: const Text('Open Viewer / Player'),
-                                      ),
                                       if (ui.devices.any((d) => !d.isSelf)) ...[
                                         const SizedBox(height: 8),
                                         PopupMenuButton<String>(
