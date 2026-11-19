@@ -1,8 +1,9 @@
-import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:media_gallery/core/bridge/mock_core_bridge.dart';
 import 'package:media_gallery/core/state/gallery_providers.dart';
+import 'package:media_gallery/features/android/android_shell.dart';
 import 'package:media_gallery/features/migration/import_wizard_dialog.dart';
 import 'package:media_gallery/features/shell/desktop_shell.dart';
 
@@ -23,6 +24,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    // Home shows Recent Media strip initially
+    expect(find.text('Recent Media'), findsOneWidget);
+
     // Left sidebar shows labels initially and collapses on toggle
     expect(find.text('Videos'), findsOneWidget);
     await tester.tap(find.byKey(const Key('sidebar_collapse_toggle')));
@@ -39,6 +43,66 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('DETAILS'), findsOneWidget);
     expect(find.text('Crop aspect presets'), findsOneWidget);
+  });
+
+  testWidgets('DesktopShell navigates Clean & Storage, Devices QR Pairing, and Bulk Rename',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          bridgeProvider.overrideWithValue(MockCoreBridge()),
+        ],
+        child: const MaterialApp(home: DesktopShell()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Open Clean & Storage
+    await tester.tap(find.text('Clean & Storage'));
+    await tester.pumpAndSettle();
+    expect(find.text('Storage & Smart Cleanup'), findsOneWidget);
+    expect(find.text('Duplicates'), findsOneWidget);
+    expect(find.text('Large Files (>50 MB)'), findsOneWidget);
+    expect(find.text('Recycle Bin'), findsOneWidget);
+
+    // Open Devices & Backup and generate QR + PIN
+    await tester.tap(find.text('Devices & Backup'));
+    await tester.pumpAndSettle();
+    expect(find.text('Pair Phone & PC (Serverless P2P)'), findsOneWidget);
+    await tester.tap(find.text('Show Pairing QR & 6-Digit PIN'));
+    await tester.pumpAndSettle();
+    expect(find.text('PIN: 482910'), findsOneWidget);
+  });
+
+  testWidgets('AndroidShell renders Home, Clean, and Devices tabs cleanly',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(420, 840);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          bridgeProvider.overrideWithValue(MockCoreBridge()),
+        ],
+        child: const MaterialApp(home: AndroidShell()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Recent Media'), findsOneWidget);
+
+    await tester.tap(find.text('Clean'));
+    await tester.pumpAndSettle();
+    expect(find.text('Storage & Smart Cleanup'), findsOneWidget);
+
+    await tester.tap(find.text('Devices'));
+    await tester.pumpAndSettle();
+    expect(find.text('Pair Phone & PC (Serverless P2P)'), findsOneWidget);
   });
 
   testWidgets('ImportWizardDialog imports legacy data and displays re-login notice',

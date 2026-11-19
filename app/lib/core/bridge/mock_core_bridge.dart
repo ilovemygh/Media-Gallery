@@ -15,7 +15,26 @@ class MockCoreBridge implements CoreBridge {
   final List<DeviceItem> _devices = [];
   final List<MediaItem> _media = [];
   final List<PinnedFolderItem> _pinned = [];
+  final List<DownloadJobItem> _downloadJobs = [];
   final List<({String mediaId, String oldName, String oldFolder, String oldPath})> _renameUndo = [];
+  final Map<String, List<({String mediaId, String oldName, String oldPath})>> _bulkUndo = {};
+
+  @override
+  bool get isLiveCore => false;
+
+  @override
+  Future<int> scanFolders(List<String> roots, {List<String> excluded = const []}) async {
+    return _media.length;
+  }
+
+  @override
+  Future<int> ingestAndroidMediaStore(
+    String deviceId,
+    String deviceName,
+    String rowsJson,
+  ) async {
+    return 0;
+  }
 
   void _seed() {
     _devices.addAll(const [
@@ -188,7 +207,13 @@ class MockCoreBridge implements CoreBridge {
         .toList();
 
     final filtered = _media.where((item) {
-      if (item.isTrashed) return false;
+      if (filter.trashedOnly) {
+        if (!item.isTrashed) return false;
+      } else if (item.isTrashed) {
+        return false;
+      }
+      if (filter.onlyDuplicates && !item.isDuplicate) return false;
+      if (filter.minSize != null && item.size < filter.minSize!) return false;
       if (filter.type != null && item.type != filter.type) return false;
       if (filter.deviceId != null && item.deviceId != filter.deviceId) return false;
       if (filter.folderPath != null && item.folderPath != filter.folderPath) return false;
@@ -331,6 +356,151 @@ class MockCoreBridge implements CoreBridge {
   }
 
   @override
+  Future<MediaItem> restoreFromTrash(String mediaId) async {
+    final idx = _media.indexWhere((m) => m.id == mediaId);
+    if (idx >= 0) {
+      _media[idx] = _media[idx].copyWith(isTrashed: false);
+      return _media[idx];
+    }
+    throw StateError('Media not found: $mediaId');
+  }
+
+  @override
+  Future<int> emptyTrash({String? mediaId}) async {
+    final before = _media.length;
+    if (mediaId != null) {
+      _media.removeWhere((m) => m.id == mediaId && m.isTrashed);
+    } else {
+      _media.removeWhere((m) => m.isTrashed);
+    }
+    return before - _media.length;
+  }
+
+  @override
+  Future<StorageStats> getStorageStats() async {
+    var totalFiles = 0;
+    var totalBytes = 0;
+    var videoCount = 0;
+    var videoBytes = 0;
+    var imageCount = 0;
+    var imageBytes = 0;
+    var audioCount = 0;
+    var audioBytes = 0;
+    var trashedCount = 0;
+    var trashedBytes = 0;
+    var largeFilesCount = 0;
+    var dupCount = 0;
+    var dupExtraBytes = 0;
+
+    for (final m in _media) {
+      if (m.isTrashed) {
+        trashedCount++;
+        trashedBytes += m.size;
+      } else {
+        totalFiles++;
+        totalBytes += m.size;
+        if (m.size >= 52428800) largeFilesCount++;
+        if (m.isDuplicate) {
+          dupCount++;
+          dupExtraBytes += m.size;
+        }
+        switch (m.type) {
+          case MediaType.video:
+            videoCount++;
+            videoBytes += m.size;
+          case MediaType.image:
+            imageCount++;
+            imageBytes += m.size;
+          case MediaType.audio:
+            audioCount++;
+            audioBytes += m.size;
+        }
+      }
+    }
+    return StorageStats(
+      totalFiles: totalFiles,
+      totalBytes: totalBytes,
+      videoCount: videoCount,
+      videoBytes: videoBytes,
+      imageCount: imageCount,
+      imageBytes: imageBytes,
+      audioCount: audioCount,
+      audioBytes: audioBytes,
+      duplicateGroups: dupCount > 0 ? 1 : 0,
+      duplicateExtraBytes: dupExtraBytes,
+      trashedCount: trashedCount,
+      trashedBytes: trashedBytes,
+      largeFilesCount: largeFilesCount,
+    );
+  }
+
+  @override
+  Future<Map<String, String>> ensureThumbnailsBatch(List<String> mediaIds) async => {};
+
+  @override
+  Future<List<BulkRenamePreview>> previewBulkRename(List<String> mediaIds, String template) async {
+    final result = <BulkRenamePreview>[];
+    for (var i = 0; i < mediaIds.length; i++) {
+      final idx = _media.indexWhere((m) => m.id == mediaIds[i]);
+      if (idx < 0) continue;
+      final item = _media[idx];
+      final dot = item.fileName.lastIndexOf('.');
+      final ext = dot >= 0 ? item.fileName.substring(dot) : '';
+      final stem = dot >= 0 ? item.fileName.substring(0, dot) : item.fileName;
+      final replaced = template
+          .replaceAll('{date}', '2026-03-14')
+          .replaceAll('{place}', item.place ?? 'Local')
+          .replaceAll('{name}', stem)
+          .replaceAll('{index}', '${i + 1}')
+          .trim()
+          .replaceAll(RegExp(r'\s+'), ' ');
+      final newFile = '$replaced$ext';
+      result.add(
+        BulkRenamePreview(
+          mediaId: item.id,
+          oldFileName: item.fileName,
+          newFileName: newFile,
+          conflict: false,
+        ),
+      );
+    }
+    return result;
+  }
+
+  @override
+  Future<BulkRenameResult> applyBulkRename(List<String> mediaIds, String template) async {
+    final previews = await previewBulkRename(mediaIds, template);
+    final batchId = 'batch-${DateTime.now().millisecondsSinceEpoch}';
+    final undoList = <({String mediaId, String oldName, String oldPath})>[];
+    for (final p in previews) {
+      final idx = _media.indexWhere((m) => m.id == p.mediaId);
+      if (idx < 0) continue;
+      final old = _media[idx];
+      undoList.add((mediaId: old.id, oldName: old.fileName, oldPath: old.path));
+      _media[idx] = old.copyWith(
+        fileName: p.newFileName,
+        path: '${old.folderPath}/${p.newFileName}',
+        alias: p.newFileName,
+      );
+    }
+    _bulkUndo[batchId] = undoList;
+    return BulkRenameResult(batchId: batchId, renamedCount: undoList.length);
+  }
+
+  @override
+  Future<int> undoBulkRename(String batchId) async {
+    final entries = _bulkUndo.remove(batchId);
+    if (entries == null) return 0;
+    for (final e in entries) {
+      final idx = _media.indexWhere((m) => m.id == e.mediaId);
+      if (idx >= 0) {
+        _media[idx] = _media[idx].copyWith(fileName: e.oldName, path: e.oldPath);
+      }
+    }
+    return entries.length;
+  }
+
+  @override
   Future<CoverItem> updateCoverAspect(String mediaId, AspectPreset preset) async {
     final idx = _media.indexWhere((m) => m.id == mediaId);
     final cur = _media[idx].cover!;
@@ -345,6 +515,36 @@ class MockCoreBridge implements CoreBridge {
     final cur = _media[idx].cover!;
     final third = (_media[idx].durationMs ~/ 3).clamp(1, 1 << 30);
     final updated = cur.copyWith(frameTimeMs: (cur.frameTimeMs + 3500) % third);
+    _media[idx] = _media[idx].copyWith(cover: updated);
+    return updated;
+  }
+
+  @override
+  Future<CoverItem> pickVideoFrame(String mediaId, int frameTimeMs) async {
+    final idx = _media.indexWhere((m) => m.id == mediaId);
+    final cur = _media[idx].cover!;
+    final updated = cur.copyWith(frameTimeMs: frameTimeMs);
+    _media[idx] = _media[idx].copyWith(cover: updated);
+    return updated;
+  }
+
+  @override
+  Future<CoverItem> setCustomCover(
+    String mediaId,
+    String imagePath,
+    AspectPreset preset, {
+    bool confirmedEmbeddedWrite = true,
+  }) async {
+    final idx = _media.indexWhere((m) => m.id == mediaId);
+    final cur = _media[idx].cover ??
+        CoverItem(
+          id: 'cov-$mediaId',
+          mediaId: mediaId,
+          filePath: imagePath,
+          aspect: preset,
+          frameTimeMs: 0,
+        );
+    final updated = cur.copyWith(filePath: imagePath, aspect: preset);
     _media[idx] = _media[idx].copyWith(cover: updated);
     return updated;
   }
@@ -385,6 +585,18 @@ class MockCoreBridge implements CoreBridge {
   Future<String> createPairingPin() async => '482910';
 
   @override
+  Future<PairingSessionInfo> createPairingSession() async => PairingSessionInfo(
+        pin: '482910',
+        qrPayload: 'mg://pair?pin=482910&device=pc-local',
+        expiresAt: DateTime.now().millisecondsSinceEpoch + 300000,
+      );
+
+  @override
+  Future<void> forgetDevice(String deviceId) async {
+    _devices.removeWhere((d) => d.id == deviceId && !d.isSelf);
+  }
+
+  @override
   Future<void> enqueueYoutubeDownload({
     required String url,
     required String format,
@@ -393,6 +605,19 @@ class MockCoreBridge implements CoreBridge {
   }) async {
     final isMp3 = format == 'mp3';
     final id = 'yt-${DateTime.now().millisecondsSinceEpoch}';
+    _downloadJobs.insert(
+      0,
+      DownloadJobItem(
+        id: id,
+        url: url,
+        title: 'YouTube Download ($quality)',
+        format: format,
+        quality: quality,
+        destinationFolder: destinationFolder,
+        status: 'completed',
+        progress: 1.0,
+      ),
+    );
     _media.insert(
       0,
       MediaItem(
@@ -416,6 +641,9 @@ class MockCoreBridge implements CoreBridge {
       ),
     );
   }
+
+  @override
+  Future<List<DownloadJobItem>> listDownloadJobs() async => List.unmodifiable(_downloadJobs);
 
   @override
   Future<bool> detectLegacyDatabase() async => _legacyAvailable && !_legacyImported;

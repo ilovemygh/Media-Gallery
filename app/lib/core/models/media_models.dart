@@ -211,6 +211,9 @@ class MediaFilter {
     this.deviceId,
     this.folderPath,
     this.syncState,
+    this.minSize,
+    this.onlyDuplicates = false,
+    this.trashedOnly = false,
   });
 
   final String query;
@@ -218,6 +221,35 @@ class MediaFilter {
   final String? deviceId;
   final String? folderPath;
   final SyncState? syncState;
+  final int? minSize;
+  final bool onlyDuplicates;
+  final bool trashedOnly;
+
+  MediaFilter copyWith({
+    String? query,
+    MediaType? type,
+    bool clearType = false,
+    String? deviceId,
+    bool clearDevice = false,
+    String? folderPath,
+    bool clearFolder = false,
+    SyncState? syncState,
+    bool clearSyncState = false,
+    int? minSize,
+    bool clearMinSize = false,
+    bool? onlyDuplicates,
+    bool? trashedOnly,
+  }) =>
+      MediaFilter(
+        query: query ?? this.query,
+        type: clearType ? null : (type ?? this.type),
+        deviceId: clearDevice ? null : (deviceId ?? this.deviceId),
+        folderPath: clearFolder ? null : (folderPath ?? this.folderPath),
+        syncState: clearSyncState ? null : (syncState ?? this.syncState),
+        minSize: clearMinSize ? null : (minSize ?? this.minSize),
+        onlyDuplicates: onlyDuplicates ?? this.onlyDuplicates,
+        trashedOnly: trashedOnly ?? this.trashedOnly,
+      );
 }
 
 @immutable
@@ -241,6 +273,7 @@ class AppSettings {
     this.darkMode = true,
     this.manualTransportOverride,
     this.aliasTemplate = '{date} {place} {name}',
+    this.scanFolders = const [],
   });
 
   final double sidebarWidth;
@@ -248,6 +281,7 @@ class AppSettings {
   final bool darkMode;
   final TransportKind? manualTransportOverride;
   final String aliasTemplate;
+  final List<String> scanFolders;
 
   AppSettings copyWith({
     double? sidebarWidth,
@@ -256,6 +290,7 @@ class AppSettings {
     TransportKind? manualTransportOverride,
     bool clearTransportOverride = false,
     String? aliasTemplate,
+    List<String>? scanFolders,
   }) =>
       AppSettings(
         sidebarWidth: sidebarWidth ?? this.sidebarWidth,
@@ -265,7 +300,105 @@ class AppSettings {
             ? null
             : (manualTransportOverride ?? this.manualTransportOverride),
         aliasTemplate: aliasTemplate ?? this.aliasTemplate,
+        scanFolders: scanFolders ?? this.scanFolders,
       );
+}
+
+@immutable
+class StorageStats {
+  const StorageStats({
+    this.totalFiles = 0,
+    this.totalBytes = 0,
+    this.videoCount = 0,
+    this.videoBytes = 0,
+    this.imageCount = 0,
+    this.imageBytes = 0,
+    this.audioCount = 0,
+    this.audioBytes = 0,
+    this.duplicateGroups = 0,
+    this.duplicateExtraBytes = 0,
+    this.trashedCount = 0,
+    this.trashedBytes = 0,
+    this.largeFilesCount = 0,
+  });
+
+  final int totalFiles;
+  final int totalBytes;
+  final int videoCount;
+  final int videoBytes;
+  final int imageCount;
+  final int imageBytes;
+  final int audioCount;
+  final int audioBytes;
+  final int duplicateGroups;
+  final int duplicateExtraBytes;
+  final int trashedCount;
+  final int trashedBytes;
+  final int largeFilesCount;
+}
+
+@immutable
+class BulkRenamePreview {
+  const BulkRenamePreview({
+    required this.mediaId,
+    required this.oldFileName,
+    required this.newFileName,
+    required this.conflict,
+  });
+
+  final String mediaId;
+  final String oldFileName;
+  final String newFileName;
+  final bool conflict;
+}
+
+@immutable
+class BulkRenameResult {
+  const BulkRenameResult({
+    required this.batchId,
+    required this.renamedCount,
+  });
+
+  final String batchId;
+  final int renamedCount;
+}
+
+@immutable
+class DownloadJobItem {
+  const DownloadJobItem({
+    required this.id,
+    required this.url,
+    this.title,
+    required this.format,
+    required this.quality,
+    required this.destinationFolder,
+    required this.status,
+    required this.progress,
+    this.error,
+  });
+
+  final String id;
+  final String url;
+  final String? title;
+  final String format;
+  final String quality;
+  final String destinationFolder;
+  final String status;
+  final double progress;
+  final String? error;
+}
+
+@immutable
+class PairingSessionInfo {
+  const PairingSessionInfo({
+    required this.pin,
+    required this.qrPayload,
+    required this.expiresAt,
+  });
+
+  final String pin;
+  final String qrPayload;
+  final int expiresAt;
 }
 
 @immutable

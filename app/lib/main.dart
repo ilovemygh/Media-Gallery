@@ -1,13 +1,28 @@
 import 'dart:io';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'core/bridge/core_bridge.dart';
+import 'core/bridge/live_core_bridge.dart';
+import 'core/bridge/mock_core_bridge.dart';
 import 'core/state/gallery_providers.dart';
 import 'features/android/android_shell.dart';
 import 'features/migration/import_wizard_dialog.dart';
 import 'features/shell/desktop_shell.dart';
 
-void main() {
-  runApp(const ProviderScope(child: MediaGalleryApp()));
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  CoreBridge bridge;
+  try {
+    bridge = await LiveCoreBridge.initialize();
+  } catch (_) {
+    bridge = MockCoreBridge(simulateLegacyPresent: false);
+  }
+  runApp(
+    ProviderScope(
+      overrides: [bridgeProvider.overrideWithValue(bridge)],
+      child: const MediaGalleryApp(),
+    ),
+  );
 }
 
 class MediaGalleryApp extends ConsumerStatefulWidget {
