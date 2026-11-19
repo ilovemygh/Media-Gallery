@@ -88,6 +88,8 @@ void main() {
     expect(find.text('Group Music:'), findsOneWidget);
     await tester.tap(find.text('Nova Drift - Midnight Echoes').first);
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Open Viewer / Player'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Open Viewer / Player'));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Close').last);
