@@ -5,11 +5,12 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use core_index::{
     import_legacy_sqlite, ingest_android_mediastore_batch, now_ms, scan_folders, AppSettings,
-    AspectPreset, CoverRecord, CropRect, DeviceRecord, DeviceType, DownloadFormat,
-    DownloadJobRecord, DuplicateGroup, FolderSummary, IndexError, LegacyImportReport, MediaFilter,
-    MediaIndex, MediaPage, MediaRecord, MediaTags, MediaType, MediaWithCover, PinnedFolderRecord,
-    RenameLogRecord, SavedSearchRecord, ScanProgress, ScanRequest, SortDir, SortField, SortSpec,
-    StorageStats, SyncState, TransferRecord, TransportKind,
+    AspectPreset, AutoSyncRuleRecord, CoverRecord, CropRect, DeviceRecord, DeviceType,
+    DownloadFormat, DownloadJobRecord, DuplicateGroup, FolderSummary, IndexError,
+    LegacyImportReport, MediaFilter, MediaIndex, MediaPage, MediaRecord, MediaTags, MediaType,
+    MediaWithCover, PinnedFolderRecord, RenameLogRecord, SavedSearchRecord, ScanProgress,
+    ScanRequest, SortDir, SortField, SortSpec, StorageStats, SyncState, TransferRecord,
+    TransferStatus, TransportKind,
 };
 use core_media::{
     apply_bulk_rename, apply_real_rename, empty_trash, extract_metadata_and_alias,
@@ -18,7 +19,10 @@ use core_media::{
     restore_audio_cover, restore_from_trash, set_alias, set_custom_cover, undo_bulk_rename,
     undo_last_rename, AutoAliasInput, BulkRenamePreviewItem, MediaOpError, ThumbnailManager,
 };
-use core_net::{NetError, PairingManager, PairingSession};
+use core_net::{
+    EndpointAddr, IrohQuicNode, IrohQuicTransport, NetError, PairingManager, PairingSession,
+    QrPairingData, TransferEngine, TransferReceiver,
+};
 use core_platform::{
     resolve_sidecar_bin, AndroidMediaStoreRow, DesktopFfmpegSidecar, DesktopFileWatcher,
     DesktopYtDlpBackend, EncryptedMemoryStore, ManagedTrashBackend, PlatformError, SecureStore,
@@ -188,6 +192,7 @@ pub struct MediaGalleryCore {
     watcher: DesktopFileWatcher,
     pairing: Arc<PairingManager>,
     cloud_sync: GoogleCloudSyncClient,
+    iroh_node: tokio::sync::Mutex<Option<(Arc<IrohQuicNode>, Arc<IrohQuicTransport>)>>,
     events_tx: broadcast::Sender<CoreEvent>,
     cancel_flags: Mutex<HashMap<String, Arc<AtomicBool>>>,
 }
@@ -249,9 +254,52 @@ impl MediaGalleryCore {
             watcher: DesktopFileWatcher::new(),
             pairing,
             cloud_sync,
+            iroh_node: tokio::sync::Mutex::new(None),
             events_tx,
             cancel_flags: Mutex::new(HashMap::new()),
         })
+    }
+
+    /// Lazily binds the real `iroh` QUIC P2P endpoint and background receive loops.
+    pub async fn ensure_iroh_node(
+        &self,
+    ) -> Result<(Arc<IrohQuicNode>, Arc<IrohQuicTransport>), ApiError> {
+        let mut guard = self.iroh_node.lock().await;
+        if let Some((ref node, ref transport)) = *guard {
+            return Ok((Arc::clone(node), Arc::clone(transport)));
+        }
+
+        let custom_relay = self
+            .index
+            .get_app_settings()
+            .ok()
+            .and_then(|s| s.custom_relay_url);
+        let recv_dir = self.cache_dir.join("received");
+        let _ = std::fs::create_dir_all(&recv_dir);
+        let receiver = Arc::new(TransferReceiver::new(&recv_dir));
+        let idx_for_delta = self.index.clone();
+        let cache_for_delta = self.cache_dir.clone();
+
+        let node = IrohQuicNode::bind(
+            true,
+            custom_relay.as_deref(),
+            Arc::new(move |frame| receiver.handle_chunk(&frame).map(|_| ())),
+            Arc::new(move |delta| {
+                let source_id = delta.device.id.clone();
+                let mgr = IndexSyncManager::new(&idx_for_delta);
+                mgr.import_remote_delta(delta, &source_id, &cache_for_delta)
+                    .map(|_| ())
+                    .map_err(|e| NetError::Pairing(e.to_string()))
+            }),
+        )
+        .await?;
+        let node = Arc::new(node);
+        let transport = Arc::new(IrohQuicTransport::new(
+            TransportKind::WifiLan,
+            Arc::clone(&node),
+        ));
+        *guard = Some((Arc::clone(&node), Arc::clone(&transport)));
+        Ok((node, transport))
     }
 
     pub fn with_sidecar(mut self, sidecar: Arc<dyn ThumbnailSidecar>) -> Self {
@@ -894,6 +942,71 @@ pub struct FrbAppSettings {
     pub manual_transport_override: Option<String>,
     pub alias_template: String,
     pub scan_folders: Vec<String>,
+    pub excluded_folders: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrbDuplicateGroup {
+    pub group_id: String,
+    pub size: u64,
+    pub reclaimable_bytes: u64,
+    pub items: Vec<FrbMediaItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrbCleanupReport {
+    pub cleaned_count: u64,
+    pub freed_bytes: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrbUnifiedTrack {
+    pub canonical_key: String,
+    pub title: String,
+    pub artist: String,
+    pub album: String,
+    pub duration_ms: u64,
+    pub primary: FrbMediaItem,
+    pub source_devices: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrbMusicGroup {
+    pub group_name: String,
+    pub tracks: Vec<FrbUnifiedTrack>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrbTransferItem {
+    pub id: String,
+    pub media_id: String,
+    pub file_name: String,
+    pub from_device: String,
+    pub to_device: String,
+    pub status: String,
+    pub bytes_done: u64,
+    pub bytes_total: u64,
+    pub path_kind: String,
+    pub speed_bps: u64,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrbAutoSyncRule {
+    pub id: String,
+    pub name: String,
+    pub source_device_id: String,
+    pub target_device_id: String,
+    pub folder_pattern: String,
+    pub enabled: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrbSavedSearch {
+    pub id: String,
+    pub name: String,
+    pub query: String,
+    pub media_type: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1575,13 +1688,486 @@ pub async fn frb_reorder_pinned_folders(ordered_ids: Vec<String>) -> Result<(), 
 
 pub async fn frb_create_pairing_session() -> Result<FrbPairingSession, ApiError> {
     let core = get_core()?;
+    let addr_json = match core.ensure_iroh_node().await {
+        Ok((node, _)) => node.addr_json().unwrap_or_else(|_| "{}".to_string()),
+        Err(_) => "{}".to_string(),
+    };
     tokio::task::spawn_blocking(move || {
-        let s = core.create_pairing_session()?;
+        let self_dev = core
+            .index
+            .get_device(&core.self_device_id)?
+            .ok_or_else(|| ApiError {
+                code: ApiErrorCode::NotFound,
+                message: "self device missing".into(),
+            })?;
+        let s = core
+            .pairing
+            .create_session(&self_dev, &addr_json, 300_000)?;
         Ok(FrbPairingSession {
             pin: s.pin,
             qr_payload: s.qr_payload,
             expires_at: s.expires_at,
         })
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+fn device_to_frb(d: DeviceRecord) -> FrbDeviceItem {
+    FrbDeviceItem {
+        id: d.id,
+        name: d.name,
+        device_type: d.device_type.as_str().to_string(),
+        transports: d.transports.into_iter().map(transport_to_frb).collect(),
+        is_self: d.is_self,
+        is_online: d.is_online,
+        paired_at: d.paired_at,
+    }
+}
+
+fn transfer_to_frb(t: TransferRecord) -> FrbTransferItem {
+    FrbTransferItem {
+        id: t.id,
+        media_id: t.media_id,
+        file_name: t.file_name,
+        from_device: t.from_device,
+        to_device: t.to_device,
+        status: t.status.as_str().to_string(),
+        bytes_done: t.bytes_done,
+        bytes_total: t.bytes_total,
+        path_kind: t.path_kind,
+        speed_bps: t.speed_bps,
+        error: t.error,
+    }
+}
+
+pub async fn frb_pair_with_device(
+    payload_or_pin: String,
+    peer_name: Option<String>,
+) -> Result<FrbDeviceItem, ApiError> {
+    let core = get_core()?;
+    let trimmed = payload_or_pin.trim().to_string();
+    if trimmed.starts_with('{') {
+        let qr: QrPairingData = serde_json::from_str(&trimmed).map_err(|e| ApiError {
+            code: ApiErrorCode::InvalidInput,
+            message: format!("invalid pairing QR payload: {e}"),
+        })?;
+        if let Ok(addr) = serde_json::from_str::<EndpointAddr>(&qr.endpoint_addr_json) {
+            if let Ok((_, transport)) = core.ensure_iroh_node().await {
+                transport.register_peer_addr(&qr.device_id, addr).await;
+            }
+        }
+        let core_clone = Arc::clone(&core);
+        let dev = tokio::task::spawn_blocking(move || {
+            let mut override_dev = None;
+            if let Some(name) = peer_name.filter(|s| !s.trim().is_empty()) {
+                override_dev = Some(DeviceRecord {
+                    id: qr.device_id.clone(),
+                    name: name.trim().to_string(),
+                    device_type: qr.device_type,
+                    public_key: qr.public_key.clone(),
+                    last_seen: now_ms(),
+                    transports: vec![TransportKind::WifiLan, TransportKind::Relay],
+                    host: qr.host.clone(),
+                    port: qr.port,
+                    is_self: false,
+                    is_online: true,
+                    paired_at: Some(now_ms()),
+                });
+            }
+            Ok::<DeviceRecord, ApiError>(core_clone.pairing.pair_with_qr(&trimmed, override_dev)?)
+        })
+        .await
+        .map_err(|e| ApiError {
+            code: ApiErrorCode::Internal,
+            message: e.to_string(),
+        })??;
+        return Ok(device_to_frb(dev));
+    }
+
+    let remote = DeviceRecord {
+        id: format!("peer-{}", trimmed),
+        name: peer_name
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or_else(|| format!("Paired Device ({trimmed})")),
+        device_type: DeviceType::Phone,
+        public_key: format!("pin:{trimmed}"),
+        last_seen: now_ms(),
+        transports: vec![
+            TransportKind::WifiLan,
+            TransportKind::HolePunched,
+            TransportKind::Relay,
+        ],
+        host: None,
+        port: None,
+        is_self: false,
+        is_online: true,
+        paired_at: Some(now_ms()),
+    };
+    let dev = tokio::task::spawn_blocking(move || core.pair_with_pin(&trimmed, remote))
+        .await
+        .map_err(|e| ApiError {
+            code: ApiErrorCode::Internal,
+            message: e.to_string(),
+        })??;
+    Ok(device_to_frb(dev))
+}
+
+pub async fn frb_list_duplicate_groups() -> Result<Vec<FrbDuplicateGroup>, ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || {
+        let groups = core.detect_duplicates(None)?;
+        Ok(groups
+            .into_iter()
+            .map(|g| {
+                let reclaimable_bytes = g
+                    .size
+                    .saturating_mul((g.items.len() as u64).saturating_sub(1));
+                FrbDuplicateGroup {
+                    group_id: g.group_id,
+                    size: g.size,
+                    reclaimable_bytes,
+                    items: g.items.into_iter().map(media_with_cover_to_frb).collect(),
+                }
+            })
+            .collect())
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_clean_duplicates(keep_newest: bool) -> Result<FrbCleanupReport, ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || {
+        let groups = core.detect_duplicates(None)?;
+        let mut cleaned_count = 0u64;
+        let mut freed_bytes = 0u64;
+        for group in groups {
+            if group.items.len() <= 1 {
+                continue;
+            }
+            let mut sorted = group.items;
+            sorted.sort_by_key(|m| m.media.created_at);
+            if keep_newest {
+                sorted.reverse();
+            }
+            for redundant in sorted.into_iter().skip(1) {
+                if core.move_to_trash(&redundant.media.id).is_ok() {
+                    cleaned_count += 1;
+                    freed_bytes += redundant.media.size;
+                }
+            }
+        }
+        let _ = core.detect_duplicates(None);
+        Ok(FrbCleanupReport {
+            cleaned_count,
+            freed_bytes,
+        })
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_list_unified_music(group_by: String) -> Result<Vec<FrbMusicGroup>, ApiError> {
+    let core = get_core()?;
+    let gb = match group_by.as_str() {
+        "artist" => MusicGroupBy::Artist,
+        "album" => MusicGroupBy::Album,
+        "folder" => MusicGroupBy::Folder,
+        "device" => MusicGroupBy::Device,
+        _ => MusicGroupBy::All,
+    };
+    tokio::task::spawn_blocking(move || {
+        let groups = core.list_unified_music(gb)?;
+        Ok(groups
+            .into_iter()
+            .map(|(group_name, tracks)| FrbMusicGroup {
+                group_name,
+                tracks: tracks
+                    .into_iter()
+                    .map(|t| FrbUnifiedTrack {
+                        canonical_key: t.canonical_key,
+                        title: t.title,
+                        artist: t.artist,
+                        album: t.album,
+                        duration_ms: t.duration_ms,
+                        primary: media_with_cover_to_frb(t.primary),
+                        source_devices: t.sources.into_iter().map(|s| s.device_name).collect(),
+                    })
+                    .collect(),
+            })
+            .collect())
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_send_media_to_device(
+    media_id: String,
+    target_device_id: String,
+) -> Result<FrbTransferItem, ApiError> {
+    let core = get_core()?;
+    let item = core
+        .index
+        .get_media_by_id(&media_id)?
+        .ok_or_else(|| ApiError {
+            code: ApiErrorCode::NotFound,
+            message: format!("media not found: {media_id}"),
+        })?
+        .media;
+    let target = core
+        .index
+        .get_device(&target_device_id)?
+        .ok_or_else(|| ApiError {
+            code: ApiErrorCode::NotFound,
+            message: format!("target device not found: {target_device_id}"),
+        })?;
+    if !target.is_online {
+        return Err(ApiError {
+            code: ApiErrorCode::PeerOffline,
+            message: format!("{} is currently offline", target.name),
+        });
+    }
+
+    let tr = TransferRecord {
+        id: Uuid::new_v4().to_string(),
+        media_id: item.id.clone(),
+        file_name: item.file_name.clone(),
+        from_device: core.self_device_id.clone(),
+        to_device: target.id.clone(),
+        status: TransferStatus::Queued,
+        bytes_done: 0,
+        bytes_total: item.size,
+        last_chunk_index: 0,
+        chunk_size: 262_144,
+        path_kind: "WifiLan".to_string(),
+        speed_bps: 0,
+        expected_blake3: item.blake3.clone(),
+        error: None,
+        updated_at: now_ms(),
+    };
+    core.index.upsert_transfer(&tr)?;
+
+    if let Ok((_, transport)) = core.ensure_iroh_node().await {
+        let engine = TransferEngine::new(core.index.clone(), Some(Arc::clone(&core.pairing)));
+        let core_bg = Arc::clone(&core);
+        let item_bg = item.clone();
+        let target_bg = target.clone();
+        let tr_id = tr.id.clone();
+        tokio::spawn(async move {
+            let res = engine
+                .send_file(
+                    &item_bg,
+                    &core_bg.self_device_id,
+                    &target_bg,
+                    transport.as_ref(),
+                    None,
+                    None,
+                    |prog| {
+                        let _ = core_bg
+                            .events_tx
+                            .send(CoreEvent::TransferProgress(prog.clone()));
+                    },
+                )
+                .await;
+            if let Err(err) = res {
+                if let Ok(Some(mut rec)) = core_bg.index.get_transfer(&tr_id) {
+                    rec.status = TransferStatus::Error;
+                    rec.error = Some(err.to_string());
+                    rec.updated_at = now_ms();
+                    let _ = core_bg.index.upsert_transfer(&rec);
+                }
+            }
+        });
+    }
+
+    Ok(transfer_to_frb(tr))
+}
+
+pub async fn frb_download_remote_media(media_id: String) -> Result<FrbTransferItem, ApiError> {
+    let core = get_core()?;
+    let owner = core.assert_remote_download_allowed(&media_id)?;
+    let item = core
+        .index
+        .get_media_by_id(&media_id)?
+        .ok_or_else(|| ApiError {
+            code: ApiErrorCode::NotFound,
+            message: format!("media not found: {media_id}"),
+        })?
+        .media;
+    let tr = TransferRecord {
+        id: Uuid::new_v4().to_string(),
+        media_id: item.id,
+        file_name: item.file_name,
+        from_device: owner.id,
+        to_device: core.self_device_id.clone(),
+        status: TransferStatus::Queued,
+        bytes_done: 0,
+        bytes_total: item.size,
+        last_chunk_index: 0,
+        chunk_size: 262_144,
+        path_kind: "WifiLan".to_string(),
+        speed_bps: 0,
+        expected_blake3: item.blake3,
+        error: None,
+        updated_at: now_ms(),
+    };
+    core.index.upsert_transfer(&tr)?;
+    Ok(transfer_to_frb(tr))
+}
+
+pub async fn frb_backup_local_media_to_device(target_device_id: String) -> Result<u32, ApiError> {
+    let core = get_core()?;
+    let page = core.index.list_media(
+        &MediaFilter {
+            device_id: Some(core.self_device_id.clone()),
+            sync_state: Some(SyncState::Local),
+            ..Default::default()
+        },
+        SortSpec::default(),
+        None,
+        500,
+    )?;
+    let mut queued = 0u32;
+    for entry in page.items {
+        if frb_send_media_to_device(entry.media.id, target_device_id.clone())
+            .await
+            .is_ok()
+        {
+            queued += 1;
+        }
+    }
+    Ok(queued)
+}
+
+pub async fn frb_list_transfers() -> Result<Vec<FrbTransferItem>, ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || {
+        let list = core.index.list_transfers()?;
+        Ok(list.into_iter().map(transfer_to_frb).collect())
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_pause_transfer(transfer_id: String) -> Result<(), ApiError> {
+    let core = get_core()?;
+    let engine = TransferEngine::new(core.index.clone(), Some(Arc::clone(&core.pairing)));
+    Ok(engine.pause_transfer(&transfer_id)?)
+}
+
+pub async fn frb_cancel_transfer(transfer_id: String) -> Result<(), ApiError> {
+    let core = get_core()?;
+    let engine = TransferEngine::new(core.index.clone(), Some(Arc::clone(&core.pairing)));
+    Ok(engine.cancel_transfer(&transfer_id)?)
+}
+
+pub async fn frb_list_auto_sync_rules() -> Result<Vec<FrbAutoSyncRule>, ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || {
+        let rules = core.index.list_auto_sync_rules()?;
+        Ok(rules
+            .into_iter()
+            .map(|r| FrbAutoSyncRule {
+                id: r.id,
+                name: r.name,
+                source_device_id: r.source_device_id,
+                target_device_id: r.target_device_id,
+                folder_pattern: r.folder_pattern,
+                enabled: r.enabled,
+            })
+            .collect())
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_upsert_auto_sync_rule(
+    id: String,
+    name: String,
+    target_device_id: String,
+    folder_pattern: String,
+    enabled: bool,
+) -> Result<(), ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || {
+        let rule = AutoSyncRuleRecord {
+            id,
+            name,
+            source_device_id: core.self_device_id.clone(),
+            target_device_id,
+            folder_pattern,
+            media_types: vec![MediaType::Image, MediaType::Video],
+            enabled,
+            created_at: now_ms(),
+        };
+        Ok(core.index.upsert_auto_sync_rule(&rule)?)
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_list_saved_searches() -> Result<Vec<FrbSavedSearch>, ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || {
+        let list = core.list_saved_searches()?;
+        Ok(list
+            .into_iter()
+            .map(|s| FrbSavedSearch {
+                id: s.id,
+                name: s.name,
+                query: s.query,
+                media_type: s.filter.media_type.map(|m| m.as_str().to_string()),
+            })
+            .collect())
+    })
+    .await
+    .map_err(|e| ApiError {
+        code: ApiErrorCode::Internal,
+        message: e.to_string(),
+    })?
+}
+
+pub async fn frb_save_search(
+    name: String,
+    query: String,
+    media_type: Option<String>,
+) -> Result<(), ApiError> {
+    let core = get_core()?;
+    tokio::task::spawn_blocking(move || {
+        let saved = SavedSearchRecord {
+            id: Uuid::new_v4().to_string(),
+            name,
+            query: query.clone(),
+            filter: MediaFilter {
+                query,
+                media_type: media_type.as_deref().map(MediaType::parse),
+                ..Default::default()
+            },
+            created_at: now_ms(),
+        };
+        core.save_search(&saved)
     })
     .await
     .map_err(|e| ApiError {
@@ -1687,6 +2273,7 @@ pub async fn frb_get_settings() -> Result<FrbAppSettings, ApiError> {
             manual_transport_override: s.manual_transport_override.map(transport_to_frb),
             alias_template: s.alias_template,
             scan_folders: s.scan_folders,
+            excluded_folders: s.excluded_folders,
         })
     })
     .await
@@ -1713,6 +2300,7 @@ pub async fn frb_save_settings(settings: FrbAppSettings) -> Result<(), ApiError>
             .and_then(parse_transport_frb);
         current.alias_template = settings.alias_template;
         current.scan_folders = settings.scan_folders;
+        current.excluded_folders = settings.excluded_folders;
         core.save_settings(&current)
     })
     .await

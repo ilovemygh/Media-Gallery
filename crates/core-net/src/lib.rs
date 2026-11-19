@@ -10,6 +10,7 @@ pub use alpn::{
     CtrlMessage, CtrlResponse, FileChunkAck, FileChunkFrame, NetError, ALPN_CTRL, ALPN_FILES,
     ALPN_INDEX,
 };
+pub use iroh::EndpointAddr;
 pub use pairing::{PairingManager, PairingSession, QrPairingData};
 pub use transfer::{TransferEngine, TransferReceiver, DEFAULT_CHUNK_SIZE};
 pub use transport::{

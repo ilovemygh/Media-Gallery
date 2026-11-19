@@ -6,10 +6,10 @@
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `aspect_to_frb`, `core_slot`, `cover_to_frb`, `get_core`, `media_record_to_frb`, `media_with_cover_to_frb`, `parse_aspect_frb`, `parse_transport_frb`, `transport_to_frb`
+// These functions are ignored because they are not marked as `pub`: `aspect_to_frb`, `core_slot`, `cover_to_frb`, `device_to_frb`, `get_core`, `media_record_to_frb`, `media_with_cover_to_frb`, `parse_aspect_frb`, `parse_transport_frb`, `transfer_to_frb`, `transport_to_frb`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `CoreConfig`, `CoreEvent`, `MediaGalleryCore`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`
-// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `apply_bulk_rename`, `apply_real_rename`, `assert_remote_download_allowed`, `cancel_operation`, `create_pairing_session`, `detect_duplicates`, `empty_trash`, `enqueue_youtube_download`, `ensure_thumbnail`, `ensure_thumbnails_batch`, `forget_device`, `get_google_email`, `get_settings`, `get_storage_stats`, `import_legacy_database`, `ingest_android_mediastore_batch`, `init`, `list_devices`, `list_download_jobs`, `list_folders`, `list_media`, `list_pinned_folders`, `list_saved_searches`, `list_unified_music`, `move_media_to_folder`, `move_to_trash`, `pair_with_pin`, `pick_video_frame`, `preview_bulk_rename`, `remove_audio_cover`, `remove_pinned_folder`, `reorder_pinned_folders`, `reroll_video_thumbnail`, `restore_audio_cover`, `restore_from_trash`, `save_search`, `save_settings`, `scan_now`, `set_alias`, `set_custom_cover`, `set_google_session`, `shutdown`, `start_scan`, `subscribe_events`, `undo_bulk_rename`, `undo_last_rename`, `update_cover_aspect`, `update_yt_dlp`, `upsert_pinned_folder`, `with_sidecar`, `with_ytdl_backend`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `apply_bulk_rename`, `apply_real_rename`, `assert_remote_download_allowed`, `cancel_operation`, `create_pairing_session`, `detect_duplicates`, `empty_trash`, `enqueue_youtube_download`, `ensure_iroh_node`, `ensure_thumbnail`, `ensure_thumbnails_batch`, `forget_device`, `get_google_email`, `get_settings`, `get_storage_stats`, `import_legacy_database`, `ingest_android_mediastore_batch`, `init`, `list_devices`, `list_download_jobs`, `list_folders`, `list_media`, `list_pinned_folders`, `list_saved_searches`, `list_unified_music`, `move_media_to_folder`, `move_to_trash`, `pair_with_pin`, `pick_video_frame`, `preview_bulk_rename`, `remove_audio_cover`, `remove_pinned_folder`, `reorder_pinned_folders`, `reroll_video_thumbnail`, `restore_audio_cover`, `restore_from_trash`, `save_search`, `save_settings`, `scan_now`, `set_alias`, `set_custom_cover`, `set_google_session`, `shutdown`, `start_scan`, `subscribe_events`, `undo_bulk_rename`, `undo_last_rename`, `update_cover_aspect`, `update_yt_dlp`, `upsert_pinned_folder`, `with_sidecar`, `with_ytdl_backend`
 
 Future<void> frbInitCore(
         {String? dbPath,
@@ -157,6 +157,65 @@ Future<void> frbReorderPinnedFolders({required List<String> orderedIds}) =>
 Future<FrbPairingSession> frbCreatePairingSession() =>
     RustLib.instance.api.crateApiFrbCreatePairingSession();
 
+Future<FrbDeviceItem> frbPairWithDevice(
+        {required String payloadOrPin, String? peerName}) =>
+    RustLib.instance.api.crateApiFrbPairWithDevice(
+        payloadOrPin: payloadOrPin, peerName: peerName);
+
+Future<List<FrbDuplicateGroup>> frbListDuplicateGroups() =>
+    RustLib.instance.api.crateApiFrbListDuplicateGroups();
+
+Future<FrbCleanupReport> frbCleanDuplicates({required bool keepNewest}) =>
+    RustLib.instance.api.crateApiFrbCleanDuplicates(keepNewest: keepNewest);
+
+Future<List<FrbMusicGroup>> frbListUnifiedMusic({required String groupBy}) =>
+    RustLib.instance.api.crateApiFrbListUnifiedMusic(groupBy: groupBy);
+
+Future<FrbTransferItem> frbSendMediaToDevice(
+        {required String mediaId, required String targetDeviceId}) =>
+    RustLib.instance.api.crateApiFrbSendMediaToDevice(
+        mediaId: mediaId, targetDeviceId: targetDeviceId);
+
+Future<FrbTransferItem> frbDownloadRemoteMedia({required String mediaId}) =>
+    RustLib.instance.api.crateApiFrbDownloadRemoteMedia(mediaId: mediaId);
+
+Future<int> frbBackupLocalMediaToDevice({required String targetDeviceId}) =>
+    RustLib.instance.api
+        .crateApiFrbBackupLocalMediaToDevice(targetDeviceId: targetDeviceId);
+
+Future<List<FrbTransferItem>> frbListTransfers() =>
+    RustLib.instance.api.crateApiFrbListTransfers();
+
+Future<void> frbPauseTransfer({required String transferId}) =>
+    RustLib.instance.api.crateApiFrbPauseTransfer(transferId: transferId);
+
+Future<void> frbCancelTransfer({required String transferId}) =>
+    RustLib.instance.api.crateApiFrbCancelTransfer(transferId: transferId);
+
+Future<List<FrbAutoSyncRule>> frbListAutoSyncRules() =>
+    RustLib.instance.api.crateApiFrbListAutoSyncRules();
+
+Future<void> frbUpsertAutoSyncRule(
+        {required String id,
+        required String name,
+        required String targetDeviceId,
+        required String folderPattern,
+        required bool enabled}) =>
+    RustLib.instance.api.crateApiFrbUpsertAutoSyncRule(
+        id: id,
+        name: name,
+        targetDeviceId: targetDeviceId,
+        folderPattern: folderPattern,
+        enabled: enabled);
+
+Future<List<FrbSavedSearch>> frbListSavedSearches() =>
+    RustLib.instance.api.crateApiFrbListSavedSearches();
+
+Future<void> frbSaveSearch(
+        {required String name, required String query, String? mediaType}) =>
+    RustLib.instance.api
+        .crateApiFrbSaveSearch(name: name, query: query, mediaType: mediaType);
+
 Future<void> frbForgetDevice({required String deviceId}) =>
     RustLib.instance.api.crateApiFrbForgetDevice(deviceId: deviceId);
 
@@ -243,6 +302,7 @@ class FrbAppSettings {
   final String? manualTransportOverride;
   final String aliasTemplate;
   final List<String> scanFolders;
+  final List<String> excludedFolders;
 
   const FrbAppSettings({
     required this.sidebarWidth,
@@ -251,6 +311,7 @@ class FrbAppSettings {
     this.manualTransportOverride,
     required this.aliasTemplate,
     required this.scanFolders,
+    required this.excludedFolders,
   });
 
   @override
@@ -260,7 +321,8 @@ class FrbAppSettings {
       darkMode.hashCode ^
       manualTransportOverride.hashCode ^
       aliasTemplate.hashCode ^
-      scanFolders.hashCode;
+      scanFolders.hashCode ^
+      excludedFolders.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -272,7 +334,47 @@ class FrbAppSettings {
           darkMode == other.darkMode &&
           manualTransportOverride == other.manualTransportOverride &&
           aliasTemplate == other.aliasTemplate &&
-          scanFolders == other.scanFolders;
+          scanFolders == other.scanFolders &&
+          excludedFolders == other.excludedFolders;
+}
+
+class FrbAutoSyncRule {
+  final String id;
+  final String name;
+  final String sourceDeviceId;
+  final String targetDeviceId;
+  final String folderPattern;
+  final bool enabled;
+
+  const FrbAutoSyncRule({
+    required this.id,
+    required this.name,
+    required this.sourceDeviceId,
+    required this.targetDeviceId,
+    required this.folderPattern,
+    required this.enabled,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      name.hashCode ^
+      sourceDeviceId.hashCode ^
+      targetDeviceId.hashCode ^
+      folderPattern.hashCode ^
+      enabled.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FrbAutoSyncRule &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name &&
+          sourceDeviceId == other.sourceDeviceId &&
+          targetDeviceId == other.targetDeviceId &&
+          folderPattern == other.folderPattern &&
+          enabled == other.enabled;
 }
 
 class FrbBulkRenamePreview {
@@ -325,6 +427,27 @@ class FrbBulkRenameResult {
           runtimeType == other.runtimeType &&
           batchId == other.batchId &&
           renamedCount == other.renamedCount;
+}
+
+class FrbCleanupReport {
+  final BigInt cleanedCount;
+  final BigInt freedBytes;
+
+  const FrbCleanupReport({
+    required this.cleanedCount,
+    required this.freedBytes,
+  });
+
+  @override
+  int get hashCode => cleanedCount.hashCode ^ freedBytes.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FrbCleanupReport &&
+          runtimeType == other.runtimeType &&
+          cleanedCount == other.cleanedCount &&
+          freedBytes == other.freedBytes;
 }
 
 class FrbCoverItem {
@@ -454,6 +577,37 @@ class FrbDownloadJob {
           status == other.status &&
           progress == other.progress &&
           error == other.error;
+}
+
+class FrbDuplicateGroup {
+  final String groupId;
+  final BigInt size;
+  final BigInt reclaimableBytes;
+  final List<FrbMediaItem> items;
+
+  const FrbDuplicateGroup({
+    required this.groupId,
+    required this.size,
+    required this.reclaimableBytes,
+    required this.items,
+  });
+
+  @override
+  int get hashCode =>
+      groupId.hashCode ^
+      size.hashCode ^
+      reclaimableBytes.hashCode ^
+      items.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FrbDuplicateGroup &&
+          runtimeType == other.runtimeType &&
+          groupId == other.groupId &&
+          size == other.size &&
+          reclaimableBytes == other.reclaimableBytes &&
+          items == other.items;
 }
 
 class FrbFolderSummary {
@@ -667,6 +821,27 @@ class FrbMediaPage {
           nextCursor == other.nextCursor;
 }
 
+class FrbMusicGroup {
+  final String groupName;
+  final List<FrbUnifiedTrack> tracks;
+
+  const FrbMusicGroup({
+    required this.groupName,
+    required this.tracks,
+  });
+
+  @override
+  int get hashCode => groupName.hashCode ^ tracks.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FrbMusicGroup &&
+          runtimeType == other.runtimeType &&
+          groupName == other.groupName &&
+          tracks == other.tracks;
+}
+
 class FrbPairingSession {
   final String pin;
   final String qrPayload;
@@ -728,6 +903,34 @@ class FrbPinnedFolder {
           label == other.label &&
           icon == other.icon &&
           position == other.position;
+}
+
+class FrbSavedSearch {
+  final String id;
+  final String name;
+  final String query;
+  final String? mediaType;
+
+  const FrbSavedSearch({
+    required this.id,
+    required this.name,
+    required this.query,
+    this.mediaType,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^ name.hashCode ^ query.hashCode ^ mediaType.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FrbSavedSearch &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name &&
+          query == other.query &&
+          mediaType == other.mediaType;
 }
 
 class FrbStorageStats {
@@ -816,4 +1019,106 @@ class FrbThumbnailEntry {
           runtimeType == other.runtimeType &&
           mediaId == other.mediaId &&
           filePath == other.filePath;
+}
+
+class FrbTransferItem {
+  final String id;
+  final String mediaId;
+  final String fileName;
+  final String fromDevice;
+  final String toDevice;
+  final String status;
+  final BigInt bytesDone;
+  final BigInt bytesTotal;
+  final String pathKind;
+  final BigInt speedBps;
+  final String? error;
+
+  const FrbTransferItem({
+    required this.id,
+    required this.mediaId,
+    required this.fileName,
+    required this.fromDevice,
+    required this.toDevice,
+    required this.status,
+    required this.bytesDone,
+    required this.bytesTotal,
+    required this.pathKind,
+    required this.speedBps,
+    this.error,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      mediaId.hashCode ^
+      fileName.hashCode ^
+      fromDevice.hashCode ^
+      toDevice.hashCode ^
+      status.hashCode ^
+      bytesDone.hashCode ^
+      bytesTotal.hashCode ^
+      pathKind.hashCode ^
+      speedBps.hashCode ^
+      error.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FrbTransferItem &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          mediaId == other.mediaId &&
+          fileName == other.fileName &&
+          fromDevice == other.fromDevice &&
+          toDevice == other.toDevice &&
+          status == other.status &&
+          bytesDone == other.bytesDone &&
+          bytesTotal == other.bytesTotal &&
+          pathKind == other.pathKind &&
+          speedBps == other.speedBps &&
+          error == other.error;
+}
+
+class FrbUnifiedTrack {
+  final String canonicalKey;
+  final String title;
+  final String artist;
+  final String album;
+  final BigInt durationMs;
+  final FrbMediaItem primary;
+  final List<String> sourceDevices;
+
+  const FrbUnifiedTrack({
+    required this.canonicalKey,
+    required this.title,
+    required this.artist,
+    required this.album,
+    required this.durationMs,
+    required this.primary,
+    required this.sourceDevices,
+  });
+
+  @override
+  int get hashCode =>
+      canonicalKey.hashCode ^
+      title.hashCode ^
+      artist.hashCode ^
+      album.hashCode ^
+      durationMs.hashCode ^
+      primary.hashCode ^
+      sourceDevices.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FrbUnifiedTrack &&
+          runtimeType == other.runtimeType &&
+          canonicalKey == other.canonicalKey &&
+          title == other.title &&
+          artist == other.artist &&
+          album == other.album &&
+          durationMs == other.durationMs &&
+          primary == other.primary &&
+          sourceDevices == other.sourceDevices;
 }

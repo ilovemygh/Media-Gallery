@@ -55,10 +55,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FrbAppSettings dco_decode_frb_app_settings(dynamic raw);
 
   @protected
+  FrbAutoSyncRule dco_decode_frb_auto_sync_rule(dynamic raw);
+
+  @protected
   FrbBulkRenamePreview dco_decode_frb_bulk_rename_preview(dynamic raw);
 
   @protected
   FrbBulkRenameResult dco_decode_frb_bulk_rename_result(dynamic raw);
+
+  @protected
+  FrbCleanupReport dco_decode_frb_cleanup_report(dynamic raw);
 
   @protected
   FrbCoverItem dco_decode_frb_cover_item(dynamic raw);
@@ -68,6 +74,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   FrbDownloadJob dco_decode_frb_download_job(dynamic raw);
+
+  @protected
+  FrbDuplicateGroup dco_decode_frb_duplicate_group(dynamic raw);
 
   @protected
   FrbFolderSummary dco_decode_frb_folder_summary(dynamic raw);
@@ -82,16 +91,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FrbMediaPage dco_decode_frb_media_page(dynamic raw);
 
   @protected
+  FrbMusicGroup dco_decode_frb_music_group(dynamic raw);
+
+  @protected
   FrbPairingSession dco_decode_frb_pairing_session(dynamic raw);
 
   @protected
   FrbPinnedFolder dco_decode_frb_pinned_folder(dynamic raw);
 
   @protected
+  FrbSavedSearch dco_decode_frb_saved_search(dynamic raw);
+
+  @protected
   FrbStorageStats dco_decode_frb_storage_stats(dynamic raw);
 
   @protected
   FrbThumbnailEntry dco_decode_frb_thumbnail_entry(dynamic raw);
+
+  @protected
+  FrbTransferItem dco_decode_frb_transfer_item(dynamic raw);
+
+  @protected
+  FrbUnifiedTrack dco_decode_frb_unified_track(dynamic raw);
 
   @protected
   int dco_decode_i_32(dynamic raw);
@@ -101,6 +122,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
+  List<FrbAutoSyncRule> dco_decode_list_frb_auto_sync_rule(dynamic raw);
 
   @protected
   List<FrbBulkRenamePreview> dco_decode_list_frb_bulk_rename_preview(
@@ -113,16 +137,31 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<FrbDownloadJob> dco_decode_list_frb_download_job(dynamic raw);
 
   @protected
+  List<FrbDuplicateGroup> dco_decode_list_frb_duplicate_group(dynamic raw);
+
+  @protected
   List<FrbFolderSummary> dco_decode_list_frb_folder_summary(dynamic raw);
 
   @protected
   List<FrbMediaItem> dco_decode_list_frb_media_item(dynamic raw);
 
   @protected
+  List<FrbMusicGroup> dco_decode_list_frb_music_group(dynamic raw);
+
+  @protected
   List<FrbPinnedFolder> dco_decode_list_frb_pinned_folder(dynamic raw);
 
   @protected
+  List<FrbSavedSearch> dco_decode_list_frb_saved_search(dynamic raw);
+
+  @protected
   List<FrbThumbnailEntry> dco_decode_list_frb_thumbnail_entry(dynamic raw);
+
+  @protected
+  List<FrbTransferItem> dco_decode_list_frb_transfer_item(dynamic raw);
+
+  @protected
+  List<FrbUnifiedTrack> dco_decode_list_frb_unified_track(dynamic raw);
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
@@ -194,12 +233,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FrbAppSettings sse_decode_frb_app_settings(SseDeserializer deserializer);
 
   @protected
+  FrbAutoSyncRule sse_decode_frb_auto_sync_rule(SseDeserializer deserializer);
+
+  @protected
   FrbBulkRenamePreview sse_decode_frb_bulk_rename_preview(
       SseDeserializer deserializer);
 
   @protected
   FrbBulkRenameResult sse_decode_frb_bulk_rename_result(
       SseDeserializer deserializer);
+
+  @protected
+  FrbCleanupReport sse_decode_frb_cleanup_report(SseDeserializer deserializer);
 
   @protected
   FrbCoverItem sse_decode_frb_cover_item(SseDeserializer deserializer);
@@ -209,6 +254,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   FrbDownloadJob sse_decode_frb_download_job(SseDeserializer deserializer);
+
+  @protected
+  FrbDuplicateGroup sse_decode_frb_duplicate_group(
+      SseDeserializer deserializer);
 
   @protected
   FrbFolderSummary sse_decode_frb_folder_summary(SseDeserializer deserializer);
@@ -224,11 +273,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FrbMediaPage sse_decode_frb_media_page(SseDeserializer deserializer);
 
   @protected
+  FrbMusicGroup sse_decode_frb_music_group(SseDeserializer deserializer);
+
+  @protected
   FrbPairingSession sse_decode_frb_pairing_session(
       SseDeserializer deserializer);
 
   @protected
   FrbPinnedFolder sse_decode_frb_pinned_folder(SseDeserializer deserializer);
+
+  @protected
+  FrbSavedSearch sse_decode_frb_saved_search(SseDeserializer deserializer);
 
   @protected
   FrbStorageStats sse_decode_frb_storage_stats(SseDeserializer deserializer);
@@ -238,6 +293,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  FrbTransferItem sse_decode_frb_transfer_item(SseDeserializer deserializer);
+
+  @protected
+  FrbUnifiedTrack sse_decode_frb_unified_track(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
@@ -245,6 +306,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
+
+  @protected
+  List<FrbAutoSyncRule> sse_decode_list_frb_auto_sync_rule(
+      SseDeserializer deserializer);
 
   @protected
   List<FrbBulkRenamePreview> sse_decode_list_frb_bulk_rename_preview(
@@ -259,6 +324,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  List<FrbDuplicateGroup> sse_decode_list_frb_duplicate_group(
+      SseDeserializer deserializer);
+
+  @protected
   List<FrbFolderSummary> sse_decode_list_frb_folder_summary(
       SseDeserializer deserializer);
 
@@ -267,11 +336,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  List<FrbMusicGroup> sse_decode_list_frb_music_group(
+      SseDeserializer deserializer);
+
+  @protected
   List<FrbPinnedFolder> sse_decode_list_frb_pinned_folder(
       SseDeserializer deserializer);
 
   @protected
+  List<FrbSavedSearch> sse_decode_list_frb_saved_search(
+      SseDeserializer deserializer);
+
+  @protected
   List<FrbThumbnailEntry> sse_decode_list_frb_thumbnail_entry(
+      SseDeserializer deserializer);
+
+  @protected
+  List<FrbTransferItem> sse_decode_list_frb_transfer_item(
+      SseDeserializer deserializer);
+
+  @protected
+  List<FrbUnifiedTrack> sse_decode_list_frb_unified_track(
       SseDeserializer deserializer);
 
   @protected
@@ -347,12 +432,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       FrbAppSettings self, SseSerializer serializer);
 
   @protected
+  void sse_encode_frb_auto_sync_rule(
+      FrbAutoSyncRule self, SseSerializer serializer);
+
+  @protected
   void sse_encode_frb_bulk_rename_preview(
       FrbBulkRenamePreview self, SseSerializer serializer);
 
   @protected
   void sse_encode_frb_bulk_rename_result(
       FrbBulkRenameResult self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_frb_cleanup_report(
+      FrbCleanupReport self, SseSerializer serializer);
 
   @protected
   void sse_encode_frb_cover_item(FrbCoverItem self, SseSerializer serializer);
@@ -363,6 +456,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_frb_download_job(
       FrbDownloadJob self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_frb_duplicate_group(
+      FrbDuplicateGroup self, SseSerializer serializer);
 
   @protected
   void sse_encode_frb_folder_summary(
@@ -379,12 +476,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_frb_media_page(FrbMediaPage self, SseSerializer serializer);
 
   @protected
+  void sse_encode_frb_music_group(FrbMusicGroup self, SseSerializer serializer);
+
+  @protected
   void sse_encode_frb_pairing_session(
       FrbPairingSession self, SseSerializer serializer);
 
   @protected
   void sse_encode_frb_pinned_folder(
       FrbPinnedFolder self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_frb_saved_search(
+      FrbSavedSearch self, SseSerializer serializer);
 
   @protected
   void sse_encode_frb_storage_stats(
@@ -395,6 +499,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       FrbThumbnailEntry self, SseSerializer serializer);
 
   @protected
+  void sse_encode_frb_transfer_item(
+      FrbTransferItem self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_frb_unified_track(
+      FrbUnifiedTrack self, SseSerializer serializer);
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
 
   @protected
@@ -402,6 +514,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_frb_auto_sync_rule(
+      List<FrbAutoSyncRule> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_frb_bulk_rename_preview(
@@ -416,6 +532,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       List<FrbDownloadJob> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_frb_duplicate_group(
+      List<FrbDuplicateGroup> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_frb_folder_summary(
       List<FrbFolderSummary> self, SseSerializer serializer);
 
@@ -424,12 +544,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       List<FrbMediaItem> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_frb_music_group(
+      List<FrbMusicGroup> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_frb_pinned_folder(
       List<FrbPinnedFolder> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_frb_saved_search(
+      List<FrbSavedSearch> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_frb_thumbnail_entry(
       List<FrbThumbnailEntry> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_frb_transfer_item(
+      List<FrbTransferItem> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_frb_unified_track(
+      List<FrbUnifiedTrack> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_prim_u_8_strict(

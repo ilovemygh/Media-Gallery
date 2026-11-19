@@ -239,6 +239,53 @@ fn frb_live_core_scan_thumbnails_stats_and_trash_cycle_work() {
         assert_eq!(stats_final.trashed_count, 0);
         assert_eq!(stats_final.total_files, 1);
 
+        // Create a duplicate again, test frb_list_duplicate_groups + frb_clean_duplicates
+        let p3 = media_dir.join("IMG_003_dup.jpg");
+        std::fs::write(&p3, img_bytes).unwrap();
+        core_api::api::frb_scan_folders(vec![media_dir.to_string_lossy().to_string()], Vec::new())
+            .await
+            .unwrap();
+        let groups = core_api::api::frb_list_duplicate_groups().await.unwrap();
+        assert_eq!(groups.len(), 1);
+        let cleaned = core_api::api::frb_clean_duplicates(true).await.unwrap();
+        assert_eq!(cleaned.cleaned_count, 1);
+        assert!(cleaned.freed_bytes > 0);
+
+        // Saved searches & unified music
+        core_api::api::frb_save_search(
+            "All Images".to_string(),
+            "".to_string(),
+            Some("image".to_string()),
+        )
+        .await
+        .unwrap();
+        let searches = core_api::api::frb_list_saved_searches().await.unwrap();
+        assert_eq!(searches.len(), 1);
+        let music_groups = core_api::api::frb_list_unified_music("artist".to_string())
+            .await
+            .unwrap();
+        assert!(music_groups.is_empty());
+
+        // Pairing + Auto-Sync rules
+        let sess = core_api::api::frb_create_pairing_session().await.unwrap();
+        assert_eq!(sess.pin.len(), 6);
+        let paired = core_api::api::frb_pair_with_device(sess.pin, Some("My Phone".to_string()))
+            .await
+            .unwrap();
+        assert_eq!(paired.name, "My Phone");
+
+        core_api::api::frb_upsert_auto_sync_rule(
+            "rule-cam".to_string(),
+            "Backup Camera".to_string(),
+            paired.id.clone(),
+            "DCIM/Camera".to_string(),
+            true,
+        )
+        .await
+        .unwrap();
+        let rules = core_api::api::frb_list_auto_sync_rules().await.unwrap();
+        assert_eq!(rules.len(), 1);
+
         let _ = std::fs::remove_dir_all(&dir);
     });
 }
