@@ -35,8 +35,12 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 
   /// Initialize flutter_rust_bridge in mock mode.
   /// No libraries for FFI are loaded.
-  static void initMock({required RustLibApi api}) {
-    instance.initMockImpl(api: api);
+  static void initMock({
+    required RustLibApi api,
+  }) {
+    instance.initMockImpl(
+      api: api,
+    );
   }
 
   /// Dispose flutter_rust_bridge
@@ -68,22 +72,18 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
-        stem: 'core_api',
-        ioDirectory: '../crates/core-api/target/release/',
-        webPrefix: 'pkg/',
-      );
+    stem: 'core_api',
+    ioDirectory: '../crates/core-api/target/release/',
+    webPrefix: 'pkg/',
+  );
 }
 
 abstract class RustLibApi extends BaseApi {
-  Future<FrbBulkRenameResult> crateApiFrbApplyBulkRename({
-    required List<String> mediaIds,
-    required String template,
-  });
+  Future<FrbBulkRenameResult> crateApiFrbApplyBulkRename(
+      {required List<String> mediaIds, required String template});
 
-  Future<FrbMediaItem> crateApiFrbApplyRealRename({
-    required String mediaId,
-    required String newName,
-  });
+  Future<FrbMediaItem> crateApiFrbApplyRealRename(
+      {required String mediaId, required String newName});
 
   String crateApiFrbCleanAliasName({required String fileName});
 
@@ -93,16 +93,14 @@ abstract class RustLibApi extends BaseApi {
 
   Future<BigInt> crateApiFrbEmptyTrash({String? mediaId});
 
-  Future<FrbDownloadJob> crateApiFrbEnqueueYoutubeDownload({
-    required String url,
-    required String format,
-    required String quality,
-    required String destinationFolder,
-  });
+  Future<FrbDownloadJob> crateApiFrbEnqueueYoutubeDownload(
+      {required String url,
+      required String format,
+      required String quality,
+      required String destinationFolder});
 
-  Future<List<FrbThumbnailEntry>> crateApiFrbEnsureThumbnailsBatch({
-    required List<String> mediaIds,
-  });
+  Future<List<FrbThumbnailEntry>> crateApiFrbEnsureThumbnailsBatch(
+      {required List<String> mediaIds});
 
   Future<void> crateApiFrbForgetDevice({required String deviceId});
 
@@ -112,112 +110,88 @@ abstract class RustLibApi extends BaseApi {
 
   String crateApiFrbHealthCheck();
 
-  Future<FrbLegacyImportReport> crateApiFrbImportLegacyDatabase({
-    required String targetDbPath,
-    required String legacyDbPath,
-  });
+  Future<FrbLegacyImportReport> crateApiFrbImportLegacyDatabase(
+      {required String targetDbPath, required String legacyDbPath});
 
-  Future<int> crateApiFrbIngestAndroidMediastore({
-    required String deviceId,
-    required String deviceName,
-    required String rowsJson,
-  });
+  Future<int> crateApiFrbIngestAndroidMediastore(
+      {required String deviceId,
+      required String deviceName,
+      required String rowsJson});
 
-  Future<void> crateApiFrbInitCore({
-    String? dbPath,
-    required String cacheDir,
-    required String selfDeviceId,
-    required String selfDeviceName,
-    required bool isPhone,
-  });
+  Future<void> crateApiFrbInitCore(
+      {String? dbPath,
+      required String cacheDir,
+      required String selfDeviceId,
+      required String selfDeviceName,
+      required bool isPhone});
 
   Future<List<FrbDeviceItem>> crateApiFrbListDevices();
 
   Future<List<FrbDownloadJob>> crateApiFrbListDownloadJobs();
 
-  Future<List<FrbFolderSummary>> crateApiFrbListFolders({
-    String? deviceId,
-    String? mediaType,
-  });
+  Future<List<FrbFolderSummary>> crateApiFrbListFolders(
+      {String? deviceId, String? mediaType});
 
-  Future<FrbMediaPage> crateApiFrbListMedia({
-    required String query,
-    String? mediaType,
-    String? deviceId,
-    String? folderPath,
-    String? syncState,
-    BigInt? minSize,
-    required bool onlyDuplicates,
-    required bool trashedOnly,
-    required String sortField,
-    required String sortDir,
-    String? cursor,
-    required int limit,
-  });
+  Future<FrbMediaPage> crateApiFrbListMedia(
+      {required String query,
+      String? mediaType,
+      String? deviceId,
+      String? folderPath,
+      String? syncState,
+      BigInt? minSize,
+      required bool onlyDuplicates,
+      required bool trashedOnly,
+      required String sortField,
+      required String sortDir,
+      String? cursor,
+      required int limit});
 
   Future<List<FrbPinnedFolder>> crateApiFrbListPinnedFolders();
 
-  Future<FrbMediaItem> crateApiFrbMoveMediaToFolder({
-    required String mediaId,
-    required String targetFolder,
-  });
+  Future<FrbMediaItem> crateApiFrbMoveMediaToFolder(
+      {required String mediaId, required String targetFolder});
 
   Future<String> crateApiFrbMoveToTrash({required String mediaId});
 
-  Future<FrbCoverItem> crateApiFrbPickVideoFrame({
-    required String mediaId,
-    required BigInt frameTimeMs,
-  });
+  Future<FrbCoverItem> crateApiFrbPickVideoFrame(
+      {required String mediaId, required BigInt frameTimeMs});
 
-  Future<List<FrbBulkRenamePreview>> crateApiFrbPreviewBulkRename({
-    required List<String> mediaIds,
-    required String template,
-  });
+  Future<List<FrbBulkRenamePreview>> crateApiFrbPreviewBulkRename(
+      {required List<String> mediaIds, required String template});
 
   Future<void> crateApiFrbRemovePinnedFolder({required String id});
 
-  Future<void> crateApiFrbReorderPinnedFolders({
-    required List<String> orderedIds,
-  });
+  Future<void> crateApiFrbReorderPinnedFolders(
+      {required List<String> orderedIds});
 
-  Future<FrbCoverItem> crateApiFrbRerollVideoThumbnail({
-    required String mediaId,
-  });
+  Future<FrbCoverItem> crateApiFrbRerollVideoThumbnail(
+      {required String mediaId});
 
   Future<FrbMediaItem> crateApiFrbRestoreFromTrash({required String mediaId});
 
   Future<void> crateApiFrbSaveSettings({required FrbAppSettings settings});
 
-  Future<BigInt> crateApiFrbScanFolders({
-    required List<String> roots,
-    required List<String> excluded,
-  });
+  Future<BigInt> crateApiFrbScanFolders(
+      {required List<String> roots, required List<String> excluded});
 
-  BigInt crateApiFrbSelectFirstThirdFrameMs({
-    required BigInt durationMs,
-    double? sample,
-  });
+  BigInt crateApiFrbSelectFirstThirdFrameMs(
+      {required BigInt durationMs, double? sample});
 
-  Future<FrbMediaItem> crateApiFrbSetAlias({
-    required String mediaId,
-    required String alias,
-  });
+  Future<FrbMediaItem> crateApiFrbSetAlias(
+      {required String mediaId, required String alias});
 
-  Future<FrbCoverItem> crateApiFrbSetCustomCover({
-    required String mediaId,
-    required String imagePath,
-    required String aspect,
-    required bool confirmedEmbeddedWrite,
-  });
+  Future<FrbCoverItem> crateApiFrbSetCustomCover(
+      {required String mediaId,
+      required String imagePath,
+      required String aspect,
+      required bool confirmedEmbeddedWrite});
 
   Future<int> crateApiFrbUndoBulkRename({required String batchId});
 
   Future<bool> crateApiFrbUndoLastRename({String? mediaId});
 
-  Future<FrbCoverItem> crateApiFrbUpdateCoverAspect({
-    required String mediaId,
-    required String aspect,
-  });
+  Future<FrbCoverItem> crateApiFrbUpdateCoverAspect(
+      {required String mediaId, required String aspect});
 
   Future<void> crateApiFrbUpsertPinnedFolder({required FrbPinnedFolder folder});
 }
@@ -231,120 +205,96 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   });
 
   @override
-  Future<FrbBulkRenameResult> crateApiFrbApplyBulkRename({
-    required List<String> mediaIds,
-    required String template,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_list_String(mediaIds, serializer);
-          sse_encode_String(template, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 1,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_frb_bulk_rename_result,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbApplyBulkRenameConstMeta,
-        argValues: [mediaIds, template],
-        apiImpl: this,
+  Future<FrbBulkRenameResult> crateApiFrbApplyBulkRename(
+      {required List<String> mediaIds, required String template}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_list_String(mediaIds, serializer);
+        sse_encode_String(template, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 1, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_frb_bulk_rename_result,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbApplyBulkRenameConstMeta,
+      argValues: [mediaIds, template],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbApplyBulkRenameConstMeta => const TaskConstMeta(
-    debugName: "frb_apply_bulk_rename",
-    argNames: ["mediaIds", "template"],
-  );
+        debugName: "frb_apply_bulk_rename",
+        argNames: ["mediaIds", "template"],
+      );
 
   @override
-  Future<FrbMediaItem> crateApiFrbApplyRealRename({
-    required String mediaId,
-    required String newName,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(mediaId, serializer);
-          sse_encode_String(newName, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 2,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_frb_media_item,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbApplyRealRenameConstMeta,
-        argValues: [mediaId, newName],
-        apiImpl: this,
+  Future<FrbMediaItem> crateApiFrbApplyRealRename(
+      {required String mediaId, required String newName}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(mediaId, serializer);
+        sse_encode_String(newName, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 2, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_frb_media_item,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbApplyRealRenameConstMeta,
+      argValues: [mediaId, newName],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbApplyRealRenameConstMeta => const TaskConstMeta(
-    debugName: "frb_apply_real_rename",
-    argNames: ["mediaId", "newName"],
-  );
+        debugName: "frb_apply_real_rename",
+        argNames: ["mediaId", "newName"],
+      );
 
   @override
   String crateApiFrbCleanAliasName({required String fileName}) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(fileName, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3)!;
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_String,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiFrbCleanAliasNameConstMeta,
-        argValues: [fileName],
-        apiImpl: this,
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(fileName, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_String,
+        decodeErrorData: null,
       ),
-    );
+      constMeta: kCrateApiFrbCleanAliasNameConstMeta,
+      argValues: [fileName],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbCleanAliasNameConstMeta => const TaskConstMeta(
-    debugName: "frb_clean_alias_name",
-    argNames: ["fileName"],
-  );
+        debugName: "frb_clean_alias_name",
+        argNames: ["fileName"],
+      );
 
   @override
   Future<FrbPairingSession> crateApiFrbCreatePairingSession() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 4,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_frb_pairing_session,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbCreatePairingSessionConstMeta,
-        argValues: [],
-        apiImpl: this,
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 4, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_frb_pairing_session,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbCreatePairingSessionConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbCreatePairingSessionConstMeta =>
@@ -355,27 +305,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<bool> crateApiFrbDetectLegacyDatabase({required String legacyDbPath}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(legacyDbPath, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 5,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_bool,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiFrbDetectLegacyDatabaseConstMeta,
-        argValues: [legacyDbPath],
-        apiImpl: this,
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(legacyDbPath, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 5, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_bool,
+        decodeErrorData: null,
       ),
-    );
+      constMeta: kCrateApiFrbDetectLegacyDatabaseConstMeta,
+      argValues: [legacyDbPath],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbDetectLegacyDatabaseConstMeta =>
@@ -386,63 +330,52 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<BigInt> crateApiFrbEmptyTrash({String? mediaId}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_opt_String(mediaId, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 6,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_u_64,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbEmptyTrashConstMeta,
-        argValues: [mediaId],
-        apiImpl: this,
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_opt_String(mediaId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 6, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_u_64,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbEmptyTrashConstMeta,
+      argValues: [mediaId],
+      apiImpl: this,
+    ));
   }
 
-  TaskConstMeta get kCrateApiFrbEmptyTrashConstMeta =>
-      const TaskConstMeta(debugName: "frb_empty_trash", argNames: ["mediaId"]);
+  TaskConstMeta get kCrateApiFrbEmptyTrashConstMeta => const TaskConstMeta(
+        debugName: "frb_empty_trash",
+        argNames: ["mediaId"],
+      );
 
   @override
-  Future<FrbDownloadJob> crateApiFrbEnqueueYoutubeDownload({
-    required String url,
-    required String format,
-    required String quality,
-    required String destinationFolder,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(url, serializer);
-          sse_encode_String(format, serializer);
-          sse_encode_String(quality, serializer);
-          sse_encode_String(destinationFolder, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 7,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_frb_download_job,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbEnqueueYoutubeDownloadConstMeta,
-        argValues: [url, format, quality, destinationFolder],
-        apiImpl: this,
+  Future<FrbDownloadJob> crateApiFrbEnqueueYoutubeDownload(
+      {required String url,
+      required String format,
+      required String quality,
+      required String destinationFolder}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(url, serializer);
+        sse_encode_String(format, serializer);
+        sse_encode_String(quality, serializer);
+        sse_encode_String(destinationFolder, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 7, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_frb_download_job,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbEnqueueYoutubeDownloadConstMeta,
+      argValues: [url, format, quality, destinationFolder],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbEnqueueYoutubeDownloadConstMeta =>
@@ -452,30 +385,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<List<FrbThumbnailEntry>> crateApiFrbEnsureThumbnailsBatch({
-    required List<String> mediaIds,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_list_String(mediaIds, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 8,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_frb_thumbnail_entry,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbEnsureThumbnailsBatchConstMeta,
-        argValues: [mediaIds],
-        apiImpl: this,
+  Future<List<FrbThumbnailEntry>> crateApiFrbEnsureThumbnailsBatch(
+      {required List<String> mediaIds}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_list_String(mediaIds, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 8, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_frb_thumbnail_entry,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbEnsureThumbnailsBatchConstMeta,
+      argValues: [mediaIds],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbEnsureThumbnailsBatchConstMeta =>
@@ -486,137 +412,115 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<void> crateApiFrbForgetDevice({required String deviceId}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(deviceId, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 9,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbForgetDeviceConstMeta,
-        argValues: [deviceId],
-        apiImpl: this,
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(deviceId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 9, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbForgetDeviceConstMeta,
+      argValues: [deviceId],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbForgetDeviceConstMeta => const TaskConstMeta(
-    debugName: "frb_forget_device",
-    argNames: ["deviceId"],
-  );
+        debugName: "frb_forget_device",
+        argNames: ["deviceId"],
+      );
 
   @override
   Future<FrbAppSettings> crateApiFrbGetSettings() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 10,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_frb_app_settings,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbGetSettingsConstMeta,
-        argValues: [],
-        apiImpl: this,
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 10, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_frb_app_settings,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbGetSettingsConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
   }
 
-  TaskConstMeta get kCrateApiFrbGetSettingsConstMeta =>
-      const TaskConstMeta(debugName: "frb_get_settings", argNames: []);
+  TaskConstMeta get kCrateApiFrbGetSettingsConstMeta => const TaskConstMeta(
+        debugName: "frb_get_settings",
+        argNames: [],
+      );
 
   @override
   Future<FrbStorageStats> crateApiFrbGetStorageStats() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 11,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_frb_storage_stats,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbGetStorageStatsConstMeta,
-        argValues: [],
-        apiImpl: this,
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 11, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_frb_storage_stats,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbGetStorageStatsConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
   }
 
-  TaskConstMeta get kCrateApiFrbGetStorageStatsConstMeta =>
-      const TaskConstMeta(debugName: "frb_get_storage_stats", argNames: []);
+  TaskConstMeta get kCrateApiFrbGetStorageStatsConstMeta => const TaskConstMeta(
+        debugName: "frb_get_storage_stats",
+        argNames: [],
+      );
 
   @override
   String crateApiFrbHealthCheck() {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_String,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiFrbHealthCheckConstMeta,
-        argValues: [],
-        apiImpl: this,
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_String,
+        decodeErrorData: null,
       ),
-    );
+      constMeta: kCrateApiFrbHealthCheckConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
   }
 
-  TaskConstMeta get kCrateApiFrbHealthCheckConstMeta =>
-      const TaskConstMeta(debugName: "frb_health_check", argNames: []);
+  TaskConstMeta get kCrateApiFrbHealthCheckConstMeta => const TaskConstMeta(
+        debugName: "frb_health_check",
+        argNames: [],
+      );
 
   @override
-  Future<FrbLegacyImportReport> crateApiFrbImportLegacyDatabase({
-    required String targetDbPath,
-    required String legacyDbPath,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(targetDbPath, serializer);
-          sse_encode_String(legacyDbPath, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 13,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_frb_legacy_import_report,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbImportLegacyDatabaseConstMeta,
-        argValues: [targetDbPath, legacyDbPath],
-        apiImpl: this,
+  Future<FrbLegacyImportReport> crateApiFrbImportLegacyDatabase(
+      {required String targetDbPath, required String legacyDbPath}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(targetDbPath, serializer);
+        sse_encode_String(legacyDbPath, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 13, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_frb_legacy_import_report,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbImportLegacyDatabaseConstMeta,
+      argValues: [targetDbPath, legacyDbPath],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbImportLegacyDatabaseConstMeta =>
@@ -626,34 +530,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<int> crateApiFrbIngestAndroidMediastore({
-    required String deviceId,
-    required String deviceName,
-    required String rowsJson,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(deviceId, serializer);
-          sse_encode_String(deviceName, serializer);
-          sse_encode_String(rowsJson, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 14,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_u_32,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbIngestAndroidMediastoreConstMeta,
-        argValues: [deviceId, deviceName, rowsJson],
-        apiImpl: this,
+  Future<int> crateApiFrbIngestAndroidMediastore(
+      {required String deviceId,
+      required String deviceName,
+      required String rowsJson}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(deviceId, serializer);
+        sse_encode_String(deviceName, serializer);
+        sse_encode_String(rowsJson, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 14, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_u_32,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbIngestAndroidMediastoreConstMeta,
+      argValues: [deviceId, deviceName, rowsJson],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbIngestAndroidMediastoreConstMeta =>
@@ -663,273 +560,233 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiFrbInitCore({
-    String? dbPath,
-    required String cacheDir,
-    required String selfDeviceId,
-    required String selfDeviceName,
-    required bool isPhone,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_opt_String(dbPath, serializer);
-          sse_encode_String(cacheDir, serializer);
-          sse_encode_String(selfDeviceId, serializer);
-          sse_encode_String(selfDeviceName, serializer);
-          sse_encode_bool(isPhone, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 15,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbInitCoreConstMeta,
-        argValues: [dbPath, cacheDir, selfDeviceId, selfDeviceName, isPhone],
-        apiImpl: this,
+  Future<void> crateApiFrbInitCore(
+      {String? dbPath,
+      required String cacheDir,
+      required String selfDeviceId,
+      required String selfDeviceName,
+      required bool isPhone}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_opt_String(dbPath, serializer);
+        sse_encode_String(cacheDir, serializer);
+        sse_encode_String(selfDeviceId, serializer);
+        sse_encode_String(selfDeviceName, serializer);
+        sse_encode_bool(isPhone, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 15, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbInitCoreConstMeta,
+      argValues: [dbPath, cacheDir, selfDeviceId, selfDeviceName, isPhone],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbInitCoreConstMeta => const TaskConstMeta(
-    debugName: "frb_init_core",
-    argNames: [
-      "dbPath",
-      "cacheDir",
-      "selfDeviceId",
-      "selfDeviceName",
-      "isPhone",
-    ],
-  );
+        debugName: "frb_init_core",
+        argNames: [
+          "dbPath",
+          "cacheDir",
+          "selfDeviceId",
+          "selfDeviceName",
+          "isPhone"
+        ],
+      );
 
   @override
   Future<List<FrbDeviceItem>> crateApiFrbListDevices() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 16,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_frb_device_item,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbListDevicesConstMeta,
-        argValues: [],
-        apiImpl: this,
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 16, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_frb_device_item,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbListDevicesConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
   }
 
-  TaskConstMeta get kCrateApiFrbListDevicesConstMeta =>
-      const TaskConstMeta(debugName: "frb_list_devices", argNames: []);
+  TaskConstMeta get kCrateApiFrbListDevicesConstMeta => const TaskConstMeta(
+        debugName: "frb_list_devices",
+        argNames: [],
+      );
 
   @override
   Future<List<FrbDownloadJob>> crateApiFrbListDownloadJobs() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 17,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_frb_download_job,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbListDownloadJobsConstMeta,
-        argValues: [],
-        apiImpl: this,
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 17, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_frb_download_job,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbListDownloadJobsConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbListDownloadJobsConstMeta =>
-      const TaskConstMeta(debugName: "frb_list_download_jobs", argNames: []);
+      const TaskConstMeta(
+        debugName: "frb_list_download_jobs",
+        argNames: [],
+      );
 
   @override
-  Future<List<FrbFolderSummary>> crateApiFrbListFolders({
-    String? deviceId,
-    String? mediaType,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_opt_String(deviceId, serializer);
-          sse_encode_opt_String(mediaType, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 18,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_frb_folder_summary,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbListFoldersConstMeta,
-        argValues: [deviceId, mediaType],
-        apiImpl: this,
+  Future<List<FrbFolderSummary>> crateApiFrbListFolders(
+      {String? deviceId, String? mediaType}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_opt_String(deviceId, serializer);
+        sse_encode_opt_String(mediaType, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 18, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_frb_folder_summary,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbListFoldersConstMeta,
+      argValues: [deviceId, mediaType],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbListFoldersConstMeta => const TaskConstMeta(
-    debugName: "frb_list_folders",
-    argNames: ["deviceId", "mediaType"],
-  );
+        debugName: "frb_list_folders",
+        argNames: ["deviceId", "mediaType"],
+      );
 
   @override
-  Future<FrbMediaPage> crateApiFrbListMedia({
-    required String query,
-    String? mediaType,
-    String? deviceId,
-    String? folderPath,
-    String? syncState,
-    BigInt? minSize,
-    required bool onlyDuplicates,
-    required bool trashedOnly,
-    required String sortField,
-    required String sortDir,
-    String? cursor,
-    required int limit,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(query, serializer);
-          sse_encode_opt_String(mediaType, serializer);
-          sse_encode_opt_String(deviceId, serializer);
-          sse_encode_opt_String(folderPath, serializer);
-          sse_encode_opt_String(syncState, serializer);
-          sse_encode_opt_box_autoadd_u_64(minSize, serializer);
-          sse_encode_bool(onlyDuplicates, serializer);
-          sse_encode_bool(trashedOnly, serializer);
-          sse_encode_String(sortField, serializer);
-          sse_encode_String(sortDir, serializer);
-          sse_encode_opt_String(cursor, serializer);
-          sse_encode_u_32(limit, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 19,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_frb_media_page,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbListMediaConstMeta,
-        argValues: [
-          query,
-          mediaType,
-          deviceId,
-          folderPath,
-          syncState,
-          minSize,
-          onlyDuplicates,
-          trashedOnly,
-          sortField,
-          sortDir,
-          cursor,
-          limit,
-        ],
-        apiImpl: this,
+  Future<FrbMediaPage> crateApiFrbListMedia(
+      {required String query,
+      String? mediaType,
+      String? deviceId,
+      String? folderPath,
+      String? syncState,
+      BigInt? minSize,
+      required bool onlyDuplicates,
+      required bool trashedOnly,
+      required String sortField,
+      required String sortDir,
+      String? cursor,
+      required int limit}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(query, serializer);
+        sse_encode_opt_String(mediaType, serializer);
+        sse_encode_opt_String(deviceId, serializer);
+        sse_encode_opt_String(folderPath, serializer);
+        sse_encode_opt_String(syncState, serializer);
+        sse_encode_opt_box_autoadd_u_64(minSize, serializer);
+        sse_encode_bool(onlyDuplicates, serializer);
+        sse_encode_bool(trashedOnly, serializer);
+        sse_encode_String(sortField, serializer);
+        sse_encode_String(sortDir, serializer);
+        sse_encode_opt_String(cursor, serializer);
+        sse_encode_u_32(limit, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 19, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_frb_media_page,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbListMediaConstMeta,
+      argValues: [
+        query,
+        mediaType,
+        deviceId,
+        folderPath,
+        syncState,
+        minSize,
+        onlyDuplicates,
+        trashedOnly,
+        sortField,
+        sortDir,
+        cursor,
+        limit
+      ],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbListMediaConstMeta => const TaskConstMeta(
-    debugName: "frb_list_media",
-    argNames: [
-      "query",
-      "mediaType",
-      "deviceId",
-      "folderPath",
-      "syncState",
-      "minSize",
-      "onlyDuplicates",
-      "trashedOnly",
-      "sortField",
-      "sortDir",
-      "cursor",
-      "limit",
-    ],
-  );
+        debugName: "frb_list_media",
+        argNames: [
+          "query",
+          "mediaType",
+          "deviceId",
+          "folderPath",
+          "syncState",
+          "minSize",
+          "onlyDuplicates",
+          "trashedOnly",
+          "sortField",
+          "sortDir",
+          "cursor",
+          "limit"
+        ],
+      );
 
   @override
   Future<List<FrbPinnedFolder>> crateApiFrbListPinnedFolders() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 20,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_frb_pinned_folder,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbListPinnedFoldersConstMeta,
-        argValues: [],
-        apiImpl: this,
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 20, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_frb_pinned_folder,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbListPinnedFoldersConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbListPinnedFoldersConstMeta =>
-      const TaskConstMeta(debugName: "frb_list_pinned_folders", argNames: []);
+      const TaskConstMeta(
+        debugName: "frb_list_pinned_folders",
+        argNames: [],
+      );
 
   @override
-  Future<FrbMediaItem> crateApiFrbMoveMediaToFolder({
-    required String mediaId,
-    required String targetFolder,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(mediaId, serializer);
-          sse_encode_String(targetFolder, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 21,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_frb_media_item,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbMoveMediaToFolderConstMeta,
-        argValues: [mediaId, targetFolder],
-        apiImpl: this,
+  Future<FrbMediaItem> crateApiFrbMoveMediaToFolder(
+      {required String mediaId, required String targetFolder}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(mediaId, serializer);
+        sse_encode_String(targetFolder, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 21, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_frb_media_item,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbMoveMediaToFolderConstMeta,
+      argValues: [mediaId, targetFolder],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbMoveMediaToFolderConstMeta =>
@@ -940,95 +797,73 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<String> crateApiFrbMoveToTrash({required String mediaId}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(mediaId, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 22,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_String,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbMoveToTrashConstMeta,
-        argValues: [mediaId],
-        apiImpl: this,
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(mediaId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 22, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_String,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbMoveToTrashConstMeta,
+      argValues: [mediaId],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbMoveToTrashConstMeta => const TaskConstMeta(
-    debugName: "frb_move_to_trash",
-    argNames: ["mediaId"],
-  );
+        debugName: "frb_move_to_trash",
+        argNames: ["mediaId"],
+      );
 
   @override
-  Future<FrbCoverItem> crateApiFrbPickVideoFrame({
-    required String mediaId,
-    required BigInt frameTimeMs,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(mediaId, serializer);
-          sse_encode_u_64(frameTimeMs, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 23,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_frb_cover_item,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbPickVideoFrameConstMeta,
-        argValues: [mediaId, frameTimeMs],
-        apiImpl: this,
+  Future<FrbCoverItem> crateApiFrbPickVideoFrame(
+      {required String mediaId, required BigInt frameTimeMs}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(mediaId, serializer);
+        sse_encode_u_64(frameTimeMs, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 23, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_frb_cover_item,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbPickVideoFrameConstMeta,
+      argValues: [mediaId, frameTimeMs],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbPickVideoFrameConstMeta => const TaskConstMeta(
-    debugName: "frb_pick_video_frame",
-    argNames: ["mediaId", "frameTimeMs"],
-  );
+        debugName: "frb_pick_video_frame",
+        argNames: ["mediaId", "frameTimeMs"],
+      );
 
   @override
-  Future<List<FrbBulkRenamePreview>> crateApiFrbPreviewBulkRename({
-    required List<String> mediaIds,
-    required String template,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_list_String(mediaIds, serializer);
-          sse_encode_String(template, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 24,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_frb_bulk_rename_preview,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbPreviewBulkRenameConstMeta,
-        argValues: [mediaIds, template],
-        apiImpl: this,
+  Future<List<FrbBulkRenamePreview>> crateApiFrbPreviewBulkRename(
+      {required List<String> mediaIds, required String template}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_list_String(mediaIds, serializer);
+        sse_encode_String(template, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 24, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_frb_bulk_rename_preview,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbPreviewBulkRenameConstMeta,
+      argValues: [mediaIds, template],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbPreviewBulkRenameConstMeta =>
@@ -1039,27 +874,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<void> crateApiFrbRemovePinnedFolder({required String id}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(id, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 25,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbRemovePinnedFolderConstMeta,
-        argValues: [id],
-        apiImpl: this,
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(id, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 25, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbRemovePinnedFolderConstMeta,
+      argValues: [id],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbRemovePinnedFolderConstMeta =>
@@ -1069,30 +898,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiFrbReorderPinnedFolders({
-    required List<String> orderedIds,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_list_String(orderedIds, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 26,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbReorderPinnedFoldersConstMeta,
-        argValues: [orderedIds],
-        apiImpl: this,
+  Future<void> crateApiFrbReorderPinnedFolders(
+      {required List<String> orderedIds}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_list_String(orderedIds, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 26, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbReorderPinnedFoldersConstMeta,
+      argValues: [orderedIds],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbReorderPinnedFoldersConstMeta =>
@@ -1102,30 +924,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<FrbCoverItem> crateApiFrbRerollVideoThumbnail({
-    required String mediaId,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(mediaId, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 27,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_frb_cover_item,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbRerollVideoThumbnailConstMeta,
-        argValues: [mediaId],
-        apiImpl: this,
+  Future<FrbCoverItem> crateApiFrbRerollVideoThumbnail(
+      {required String mediaId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(mediaId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 27, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_frb_cover_item,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbRerollVideoThumbnailConstMeta,
+      argValues: [mediaId],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbRerollVideoThumbnailConstMeta =>
@@ -1136,27 +951,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<FrbMediaItem> crateApiFrbRestoreFromTrash({required String mediaId}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(mediaId, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 28,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_frb_media_item,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbRestoreFromTrashConstMeta,
-        argValues: [mediaId],
-        apiImpl: this,
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(mediaId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 28, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_frb_media_item,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbRestoreFromTrashConstMeta,
+      argValues: [mediaId],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbRestoreFromTrashConstMeta =>
@@ -1167,90 +976,72 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<void> crateApiFrbSaveSettings({required FrbAppSettings settings}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_box_autoadd_frb_app_settings(settings, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 29,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbSaveSettingsConstMeta,
-        argValues: [settings],
-        apiImpl: this,
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_box_autoadd_frb_app_settings(settings, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 29, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbSaveSettingsConstMeta,
+      argValues: [settings],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbSaveSettingsConstMeta => const TaskConstMeta(
-    debugName: "frb_save_settings",
-    argNames: ["settings"],
-  );
+        debugName: "frb_save_settings",
+        argNames: ["settings"],
+      );
 
   @override
-  Future<BigInt> crateApiFrbScanFolders({
-    required List<String> roots,
-    required List<String> excluded,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_list_String(roots, serializer);
-          sse_encode_list_String(excluded, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 30,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_u_64,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbScanFoldersConstMeta,
-        argValues: [roots, excluded],
-        apiImpl: this,
+  Future<BigInt> crateApiFrbScanFolders(
+      {required List<String> roots, required List<String> excluded}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_list_String(roots, serializer);
+        sse_encode_list_String(excluded, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 30, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_u_64,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbScanFoldersConstMeta,
+      argValues: [roots, excluded],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbScanFoldersConstMeta => const TaskConstMeta(
-    debugName: "frb_scan_folders",
-    argNames: ["roots", "excluded"],
-  );
+        debugName: "frb_scan_folders",
+        argNames: ["roots", "excluded"],
+      );
 
   @override
-  BigInt crateApiFrbSelectFirstThirdFrameMs({
-    required BigInt durationMs,
-    double? sample,
-  }) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_u_64(durationMs, serializer);
-          sse_encode_opt_box_autoadd_f_64(sample, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 31)!;
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_u_64,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiFrbSelectFirstThirdFrameMsConstMeta,
-        argValues: [durationMs, sample],
-        apiImpl: this,
+  BigInt crateApiFrbSelectFirstThirdFrameMs(
+      {required BigInt durationMs, double? sample}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_u_64(durationMs, serializer);
+        sse_encode_opt_box_autoadd_f_64(sample, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 31)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_u_64,
+        decodeErrorData: null,
       ),
-    );
+      constMeta: kCrateApiFrbSelectFirstThirdFrameMsConstMeta,
+      argValues: [durationMs, sample],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbSelectFirstThirdFrameMsConstMeta =>
@@ -1260,164 +1051,129 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<FrbMediaItem> crateApiFrbSetAlias({
-    required String mediaId,
-    required String alias,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(mediaId, serializer);
-          sse_encode_String(alias, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 32,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_frb_media_item,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbSetAliasConstMeta,
-        argValues: [mediaId, alias],
-        apiImpl: this,
+  Future<FrbMediaItem> crateApiFrbSetAlias(
+      {required String mediaId, required String alias}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(mediaId, serializer);
+        sse_encode_String(alias, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 32, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_frb_media_item,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbSetAliasConstMeta,
+      argValues: [mediaId, alias],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbSetAliasConstMeta => const TaskConstMeta(
-    debugName: "frb_set_alias",
-    argNames: ["mediaId", "alias"],
-  );
+        debugName: "frb_set_alias",
+        argNames: ["mediaId", "alias"],
+      );
 
   @override
-  Future<FrbCoverItem> crateApiFrbSetCustomCover({
-    required String mediaId,
-    required String imagePath,
-    required String aspect,
-    required bool confirmedEmbeddedWrite,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(mediaId, serializer);
-          sse_encode_String(imagePath, serializer);
-          sse_encode_String(aspect, serializer);
-          sse_encode_bool(confirmedEmbeddedWrite, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 33,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_frb_cover_item,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbSetCustomCoverConstMeta,
-        argValues: [mediaId, imagePath, aspect, confirmedEmbeddedWrite],
-        apiImpl: this,
+  Future<FrbCoverItem> crateApiFrbSetCustomCover(
+      {required String mediaId,
+      required String imagePath,
+      required String aspect,
+      required bool confirmedEmbeddedWrite}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(mediaId, serializer);
+        sse_encode_String(imagePath, serializer);
+        sse_encode_String(aspect, serializer);
+        sse_encode_bool(confirmedEmbeddedWrite, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 33, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_frb_cover_item,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbSetCustomCoverConstMeta,
+      argValues: [mediaId, imagePath, aspect, confirmedEmbeddedWrite],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbSetCustomCoverConstMeta => const TaskConstMeta(
-    debugName: "frb_set_custom_cover",
-    argNames: ["mediaId", "imagePath", "aspect", "confirmedEmbeddedWrite"],
-  );
+        debugName: "frb_set_custom_cover",
+        argNames: ["mediaId", "imagePath", "aspect", "confirmedEmbeddedWrite"],
+      );
 
   @override
   Future<int> crateApiFrbUndoBulkRename({required String batchId}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(batchId, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 34,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_u_32,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbUndoBulkRenameConstMeta,
-        argValues: [batchId],
-        apiImpl: this,
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(batchId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 34, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_u_32,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbUndoBulkRenameConstMeta,
+      argValues: [batchId],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbUndoBulkRenameConstMeta => const TaskConstMeta(
-    debugName: "frb_undo_bulk_rename",
-    argNames: ["batchId"],
-  );
+        debugName: "frb_undo_bulk_rename",
+        argNames: ["batchId"],
+      );
 
   @override
   Future<bool> crateApiFrbUndoLastRename({String? mediaId}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_opt_String(mediaId, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 35,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_bool,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbUndoLastRenameConstMeta,
-        argValues: [mediaId],
-        apiImpl: this,
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_opt_String(mediaId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 35, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_bool,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbUndoLastRenameConstMeta,
+      argValues: [mediaId],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbUndoLastRenameConstMeta => const TaskConstMeta(
-    debugName: "frb_undo_last_rename",
-    argNames: ["mediaId"],
-  );
+        debugName: "frb_undo_last_rename",
+        argNames: ["mediaId"],
+      );
 
   @override
-  Future<FrbCoverItem> crateApiFrbUpdateCoverAspect({
-    required String mediaId,
-    required String aspect,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(mediaId, serializer);
-          sse_encode_String(aspect, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 36,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_frb_cover_item,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbUpdateCoverAspectConstMeta,
-        argValues: [mediaId, aspect],
-        apiImpl: this,
+  Future<FrbCoverItem> crateApiFrbUpdateCoverAspect(
+      {required String mediaId, required String aspect}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(mediaId, serializer);
+        sse_encode_String(aspect, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 36, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_frb_cover_item,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbUpdateCoverAspectConstMeta,
+      argValues: [mediaId, aspect],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbUpdateCoverAspectConstMeta =>
@@ -1427,30 +1183,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiFrbUpsertPinnedFolder({
-    required FrbPinnedFolder folder,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_box_autoadd_frb_pinned_folder(folder, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 37,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_api_error,
-        ),
-        constMeta: kCrateApiFrbUpsertPinnedFolderConstMeta,
-        argValues: [folder],
-        apiImpl: this,
+  Future<void> crateApiFrbUpsertPinnedFolder(
+      {required FrbPinnedFolder folder}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_box_autoadd_frb_pinned_folder(folder, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 37, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_api_error,
       ),
-    );
+      constMeta: kCrateApiFrbUpsertPinnedFolderConstMeta,
+      argValues: [folder],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiFrbUpsertPinnedFolderConstMeta =>
@@ -1786,8 +1535,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   List<FrbBulkRenamePreview> dco_decode_list_frb_bulk_rename_preview(
-    dynamic raw,
-  ) {
+      dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>)
         .map(dco_decode_frb_bulk_rename_preview)
@@ -1926,24 +1674,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   FrbAppSettings sse_decode_box_autoadd_frb_app_settings(
-    SseDeserializer deserializer,
-  ) {
+      SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_frb_app_settings(deserializer));
   }
 
   @protected
   FrbCoverItem sse_decode_box_autoadd_frb_cover_item(
-    SseDeserializer deserializer,
-  ) {
+      SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_frb_cover_item(deserializer));
   }
 
   @protected
   FrbPinnedFolder sse_decode_box_autoadd_frb_pinned_folder(
-    SseDeserializer deserializer,
-  ) {
+      SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_frb_pinned_folder(deserializer));
   }
@@ -1976,43 +1721,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_aliasTemplate = sse_decode_String(deserializer);
     var var_scanFolders = sse_decode_list_String(deserializer);
     return FrbAppSettings(
-      sidebarWidth: var_sidebarWidth,
-      sidebarCollapsed: var_sidebarCollapsed,
-      darkMode: var_darkMode,
-      manualTransportOverride: var_manualTransportOverride,
-      aliasTemplate: var_aliasTemplate,
-      scanFolders: var_scanFolders,
-    );
+        sidebarWidth: var_sidebarWidth,
+        sidebarCollapsed: var_sidebarCollapsed,
+        darkMode: var_darkMode,
+        manualTransportOverride: var_manualTransportOverride,
+        aliasTemplate: var_aliasTemplate,
+        scanFolders: var_scanFolders);
   }
 
   @protected
   FrbBulkRenamePreview sse_decode_frb_bulk_rename_preview(
-    SseDeserializer deserializer,
-  ) {
+      SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_mediaId = sse_decode_String(deserializer);
     var var_oldFileName = sse_decode_String(deserializer);
     var var_newFileName = sse_decode_String(deserializer);
     var var_conflict = sse_decode_bool(deserializer);
     return FrbBulkRenamePreview(
-      mediaId: var_mediaId,
-      oldFileName: var_oldFileName,
-      newFileName: var_newFileName,
-      conflict: var_conflict,
-    );
+        mediaId: var_mediaId,
+        oldFileName: var_oldFileName,
+        newFileName: var_newFileName,
+        conflict: var_conflict);
   }
 
   @protected
   FrbBulkRenameResult sse_decode_frb_bulk_rename_result(
-    SseDeserializer deserializer,
-  ) {
+      SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_batchId = sse_decode_String(deserializer);
     var var_renamedCount = sse_decode_u_32(deserializer);
     return FrbBulkRenameResult(
-      batchId: var_batchId,
-      renamedCount: var_renamedCount,
-    );
+        batchId: var_batchId, renamedCount: var_renamedCount);
   }
 
   @protected
@@ -2024,12 +1763,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_aspect = sse_decode_String(deserializer);
     var var_frameTimeMs = sse_decode_u_64(deserializer);
     return FrbCoverItem(
-      id: var_id,
-      mediaId: var_mediaId,
-      filePath: var_filePath,
-      aspect: var_aspect,
-      frameTimeMs: var_frameTimeMs,
-    );
+        id: var_id,
+        mediaId: var_mediaId,
+        filePath: var_filePath,
+        aspect: var_aspect,
+        frameTimeMs: var_frameTimeMs);
   }
 
   @protected
@@ -2043,14 +1781,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_isOnline = sse_decode_bool(deserializer);
     var var_pairedAt = sse_decode_opt_box_autoadd_i_64(deserializer);
     return FrbDeviceItem(
-      id: var_id,
-      name: var_name,
-      deviceType: var_deviceType,
-      transports: var_transports,
-      isSelf: var_isSelf,
-      isOnline: var_isOnline,
-      pairedAt: var_pairedAt,
-    );
+        id: var_id,
+        name: var_name,
+        deviceType: var_deviceType,
+        transports: var_transports,
+        isSelf: var_isSelf,
+        isOnline: var_isOnline,
+        pairedAt: var_pairedAt);
   }
 
   @protected
@@ -2066,16 +1803,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_progress = sse_decode_f_64(deserializer);
     var var_error = sse_decode_opt_String(deserializer);
     return FrbDownloadJob(
-      id: var_id,
-      url: var_url,
-      title: var_title,
-      format: var_format,
-      quality: var_quality,
-      destinationFolder: var_destinationFolder,
-      status: var_status,
-      progress: var_progress,
-      error: var_error,
-    );
+        id: var_id,
+        url: var_url,
+        title: var_title,
+        format: var_format,
+        quality: var_quality,
+        destinationFolder: var_destinationFolder,
+        status: var_status,
+        progress: var_progress,
+        error: var_error);
   }
 
   @protected
@@ -2087,18 +1823,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_itemCount = sse_decode_u_64(deserializer);
     var var_previewCovers = sse_decode_list_String(deserializer);
     return FrbFolderSummary(
-      path: var_path,
-      name: var_name,
-      deviceId: var_deviceId,
-      itemCount: var_itemCount,
-      previewCovers: var_previewCovers,
-    );
+        path: var_path,
+        name: var_name,
+        deviceId: var_deviceId,
+        itemCount: var_itemCount,
+        previewCovers: var_previewCovers);
   }
 
   @protected
   FrbLegacyImportReport sse_decode_frb_legacy_import_report(
-    SseDeserializer deserializer,
-  ) {
+      SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_importedDevices = sse_decode_u_64(deserializer);
     var var_importedMedia = sse_decode_u_64(deserializer);
@@ -2109,15 +1843,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_authReloginRequired = sse_decode_bool(deserializer);
     var var_errors = sse_decode_list_String(deserializer);
     return FrbLegacyImportReport(
-      importedDevices: var_importedDevices,
-      importedMedia: var_importedMedia,
-      importedCovers: var_importedCovers,
-      importedPinnedFolders: var_importedPinnedFolders,
-      importedRenameLogs: var_importedRenameLogs,
-      skippedItems: var_skippedItems,
-      authReloginRequired: var_authReloginRequired,
-      errors: var_errors,
-    );
+        importedDevices: var_importedDevices,
+        importedMedia: var_importedMedia,
+        importedCovers: var_importedCovers,
+        importedPinnedFolders: var_importedPinnedFolders,
+        importedRenameLogs: var_importedRenameLogs,
+        skippedItems: var_skippedItems,
+        authReloginRequired: var_authReloginRequired,
+        errors: var_errors);
   }
 
   @protected
@@ -2146,29 +1879,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_isDuplicate = sse_decode_bool(deserializer);
     var var_isTrashed = sse_decode_bool(deserializer);
     return FrbMediaItem(
-      id: var_id,
-      deviceId: var_deviceId,
-      deviceName: var_deviceName,
-      deviceOnline: var_deviceOnline,
-      path: var_path,
-      folderPath: var_folderPath,
-      fileName: var_fileName,
-      mediaType: var_mediaType,
-      size: var_size,
-      createdAt: var_createdAt,
-      durationMs: var_durationMs,
-      width: var_width,
-      height: var_height,
-      alias: var_alias,
-      autoAlias: var_autoAlias,
-      syncState: var_syncState,
-      place: var_place,
-      artist: var_artist,
-      album: var_album,
-      cover: var_cover,
-      isDuplicate: var_isDuplicate,
-      isTrashed: var_isTrashed,
-    );
+        id: var_id,
+        deviceId: var_deviceId,
+        deviceName: var_deviceName,
+        deviceOnline: var_deviceOnline,
+        path: var_path,
+        folderPath: var_folderPath,
+        fileName: var_fileName,
+        mediaType: var_mediaType,
+        size: var_size,
+        createdAt: var_createdAt,
+        durationMs: var_durationMs,
+        width: var_width,
+        height: var_height,
+        alias: var_alias,
+        autoAlias: var_autoAlias,
+        syncState: var_syncState,
+        place: var_place,
+        artist: var_artist,
+        album: var_album,
+        cover: var_cover,
+        isDuplicate: var_isDuplicate,
+        isTrashed: var_isTrashed);
   }
 
   @protected
@@ -2178,25 +1910,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_totalCount = sse_decode_u_64(deserializer);
     var var_nextCursor = sse_decode_opt_String(deserializer);
     return FrbMediaPage(
-      items: var_items,
-      totalCount: var_totalCount,
-      nextCursor: var_nextCursor,
-    );
+        items: var_items,
+        totalCount: var_totalCount,
+        nextCursor: var_nextCursor);
   }
 
   @protected
   FrbPairingSession sse_decode_frb_pairing_session(
-    SseDeserializer deserializer,
-  ) {
+      SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_pin = sse_decode_String(deserializer);
     var var_qrPayload = sse_decode_String(deserializer);
     var var_expiresAt = sse_decode_i_64(deserializer);
     return FrbPairingSession(
-      pin: var_pin,
-      qrPayload: var_qrPayload,
-      expiresAt: var_expiresAt,
-    );
+        pin: var_pin, qrPayload: var_qrPayload, expiresAt: var_expiresAt);
   }
 
   @protected
@@ -2209,13 +1936,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_icon = sse_decode_String(deserializer);
     var var_position = sse_decode_i_32(deserializer);
     return FrbPinnedFolder(
-      id: var_id,
-      deviceId: var_deviceId,
-      path: var_path,
-      label: var_label,
-      icon: var_icon,
-      position: var_position,
-    );
+        id: var_id,
+        deviceId: var_deviceId,
+        path: var_path,
+        label: var_label,
+        icon: var_icon,
+        position: var_position);
   }
 
   @protected
@@ -2235,26 +1961,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_trashedBytes = sse_decode_u_64(deserializer);
     var var_largeFilesCount = sse_decode_u_64(deserializer);
     return FrbStorageStats(
-      totalFiles: var_totalFiles,
-      totalBytes: var_totalBytes,
-      videoCount: var_videoCount,
-      videoBytes: var_videoBytes,
-      imageCount: var_imageCount,
-      imageBytes: var_imageBytes,
-      audioCount: var_audioCount,
-      audioBytes: var_audioBytes,
-      duplicateGroups: var_duplicateGroups,
-      duplicateExtraBytes: var_duplicateExtraBytes,
-      trashedCount: var_trashedCount,
-      trashedBytes: var_trashedBytes,
-      largeFilesCount: var_largeFilesCount,
-    );
+        totalFiles: var_totalFiles,
+        totalBytes: var_totalBytes,
+        videoCount: var_videoCount,
+        videoBytes: var_videoBytes,
+        imageCount: var_imageCount,
+        imageBytes: var_imageBytes,
+        audioCount: var_audioCount,
+        audioBytes: var_audioBytes,
+        duplicateGroups: var_duplicateGroups,
+        duplicateExtraBytes: var_duplicateExtraBytes,
+        trashedCount: var_trashedCount,
+        trashedBytes: var_trashedBytes,
+        largeFilesCount: var_largeFilesCount);
   }
 
   @protected
   FrbThumbnailEntry sse_decode_frb_thumbnail_entry(
-    SseDeserializer deserializer,
-  ) {
+      SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_mediaId = sse_decode_String(deserializer);
     var var_filePath = sse_decode_String(deserializer);
@@ -2287,8 +2011,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   List<FrbBulkRenamePreview> sse_decode_list_frb_bulk_rename_preview(
-    SseDeserializer deserializer,
-  ) {
+      SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     var len_ = sse_decode_i_32(deserializer);
@@ -2301,8 +2024,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   List<FrbDeviceItem> sse_decode_list_frb_device_item(
-    SseDeserializer deserializer,
-  ) {
+      SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     var len_ = sse_decode_i_32(deserializer);
@@ -2315,8 +2037,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   List<FrbDownloadJob> sse_decode_list_frb_download_job(
-    SseDeserializer deserializer,
-  ) {
+      SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     var len_ = sse_decode_i_32(deserializer);
@@ -2329,8 +2050,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   List<FrbFolderSummary> sse_decode_list_frb_folder_summary(
-    SseDeserializer deserializer,
-  ) {
+      SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     var len_ = sse_decode_i_32(deserializer);
@@ -2343,8 +2063,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   List<FrbMediaItem> sse_decode_list_frb_media_item(
-    SseDeserializer deserializer,
-  ) {
+      SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     var len_ = sse_decode_i_32(deserializer);
@@ -2357,8 +2076,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   List<FrbPinnedFolder> sse_decode_list_frb_pinned_folder(
-    SseDeserializer deserializer,
-  ) {
+      SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     var len_ = sse_decode_i_32(deserializer);
@@ -2371,8 +2089,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   List<FrbThumbnailEntry> sse_decode_list_frb_thumbnail_entry(
-    SseDeserializer deserializer,
-  ) {
+      SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     var len_ = sse_decode_i_32(deserializer);
@@ -2414,8 +2131,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   FrbCoverItem? sse_decode_opt_box_autoadd_frb_cover_item(
-    SseDeserializer deserializer,
-  ) {
+      SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     if (sse_decode_bool(deserializer)) {
@@ -2503,36 +2219,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void sse_encode_box_autoadd_frb_app_settings(
-    FrbAppSettings self,
-    SseSerializer serializer,
-  ) {
+      FrbAppSettings self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_frb_app_settings(self, serializer);
   }
 
   @protected
   void sse_encode_box_autoadd_frb_cover_item(
-    FrbCoverItem self,
-    SseSerializer serializer,
-  ) {
+      FrbCoverItem self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_frb_cover_item(self, serializer);
   }
 
   @protected
   void sse_encode_box_autoadd_frb_pinned_folder(
-    FrbPinnedFolder self,
-    SseSerializer serializer,
-  ) {
+      FrbPinnedFolder self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_frb_pinned_folder(self, serializer);
   }
 
   @protected
   void sse_encode_box_autoadd_i_64(
-    PlatformInt64 self,
-    SseSerializer serializer,
-  ) {
+      PlatformInt64 self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_64(self, serializer);
   }
@@ -2551,9 +2259,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void sse_encode_frb_app_settings(
-    FrbAppSettings self,
-    SseSerializer serializer,
-  ) {
+      FrbAppSettings self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_32(self.sidebarWidth, serializer);
     sse_encode_bool(self.sidebarCollapsed, serializer);
@@ -2565,9 +2271,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void sse_encode_frb_bulk_rename_preview(
-    FrbBulkRenamePreview self,
-    SseSerializer serializer,
-  ) {
+      FrbBulkRenamePreview self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.mediaId, serializer);
     sse_encode_String(self.oldFileName, serializer);
@@ -2577,9 +2281,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void sse_encode_frb_bulk_rename_result(
-    FrbBulkRenameResult self,
-    SseSerializer serializer,
-  ) {
+      FrbBulkRenameResult self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.batchId, serializer);
     sse_encode_u_32(self.renamedCount, serializer);
@@ -2597,9 +2299,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void sse_encode_frb_device_item(
-    FrbDeviceItem self,
-    SseSerializer serializer,
-  ) {
+      FrbDeviceItem self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.id, serializer);
     sse_encode_String(self.name, serializer);
@@ -2612,9 +2312,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void sse_encode_frb_download_job(
-    FrbDownloadJob self,
-    SseSerializer serializer,
-  ) {
+      FrbDownloadJob self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.id, serializer);
     sse_encode_String(self.url, serializer);
@@ -2629,9 +2327,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void sse_encode_frb_folder_summary(
-    FrbFolderSummary self,
-    SseSerializer serializer,
-  ) {
+      FrbFolderSummary self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.path, serializer);
     sse_encode_String(self.name, serializer);
@@ -2642,9 +2338,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void sse_encode_frb_legacy_import_report(
-    FrbLegacyImportReport self,
-    SseSerializer serializer,
-  ) {
+      FrbLegacyImportReport self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_64(self.importedDevices, serializer);
     sse_encode_u_64(self.importedMedia, serializer);
@@ -2693,9 +2387,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void sse_encode_frb_pairing_session(
-    FrbPairingSession self,
-    SseSerializer serializer,
-  ) {
+      FrbPairingSession self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.pin, serializer);
     sse_encode_String(self.qrPayload, serializer);
@@ -2704,9 +2396,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void sse_encode_frb_pinned_folder(
-    FrbPinnedFolder self,
-    SseSerializer serializer,
-  ) {
+      FrbPinnedFolder self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.id, serializer);
     sse_encode_String(self.deviceId, serializer);
@@ -2718,9 +2408,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void sse_encode_frb_storage_stats(
-    FrbStorageStats self,
-    SseSerializer serializer,
-  ) {
+      FrbStorageStats self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_64(self.totalFiles, serializer);
     sse_encode_u_64(self.totalBytes, serializer);
@@ -2739,9 +2427,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void sse_encode_frb_thumbnail_entry(
-    FrbThumbnailEntry self,
-    SseSerializer serializer,
-  ) {
+      FrbThumbnailEntry self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.mediaId, serializer);
     sse_encode_String(self.filePath, serializer);
@@ -2770,9 +2456,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void sse_encode_list_frb_bulk_rename_preview(
-    List<FrbBulkRenamePreview> self,
-    SseSerializer serializer,
-  ) {
+      List<FrbBulkRenamePreview> self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
@@ -2782,9 +2466,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void sse_encode_list_frb_device_item(
-    List<FrbDeviceItem> self,
-    SseSerializer serializer,
-  ) {
+      List<FrbDeviceItem> self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
@@ -2794,9 +2476,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void sse_encode_list_frb_download_job(
-    List<FrbDownloadJob> self,
-    SseSerializer serializer,
-  ) {
+      List<FrbDownloadJob> self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
@@ -2806,9 +2486,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void sse_encode_list_frb_folder_summary(
-    List<FrbFolderSummary> self,
-    SseSerializer serializer,
-  ) {
+      List<FrbFolderSummary> self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
@@ -2818,9 +2496,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void sse_encode_list_frb_media_item(
-    List<FrbMediaItem> self,
-    SseSerializer serializer,
-  ) {
+      List<FrbMediaItem> self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
@@ -2830,9 +2506,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void sse_encode_list_frb_pinned_folder(
-    List<FrbPinnedFolder> self,
-    SseSerializer serializer,
-  ) {
+      List<FrbPinnedFolder> self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
@@ -2842,9 +2516,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void sse_encode_list_frb_thumbnail_entry(
-    List<FrbThumbnailEntry> self,
-    SseSerializer serializer,
-  ) {
+      List<FrbThumbnailEntry> self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
@@ -2854,9 +2526,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void sse_encode_list_prim_u_8_strict(
-    Uint8List self,
-    SseSerializer serializer,
-  ) {
+      Uint8List self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     serializer.buffer.putUint8List(self);
@@ -2884,9 +2554,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void sse_encode_opt_box_autoadd_frb_cover_item(
-    FrbCoverItem? self,
-    SseSerializer serializer,
-  ) {
+      FrbCoverItem? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     sse_encode_bool(self != null, serializer);
@@ -2897,9 +2565,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void sse_encode_opt_box_autoadd_i_64(
-    PlatformInt64? self,
-    SseSerializer serializer,
-  ) {
+      PlatformInt64? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     sse_encode_bool(self != null, serializer);

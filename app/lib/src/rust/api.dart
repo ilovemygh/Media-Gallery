@@ -8,76 +8,65 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `aspect_to_frb`, `core_slot`, `cover_to_frb`, `get_core`, `media_record_to_frb`, `media_with_cover_to_frb`, `parse_aspect_frb`, `parse_transport_frb`, `transport_to_frb`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `CoreConfig`, `CoreEvent`, `MediaGalleryCore`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `apply_bulk_rename`, `apply_real_rename`, `assert_remote_download_allowed`, `cancel_operation`, `create_pairing_session`, `detect_duplicates`, `empty_trash`, `enqueue_youtube_download`, `ensure_thumbnail`, `ensure_thumbnails_batch`, `forget_device`, `get_google_email`, `get_settings`, `get_storage_stats`, `import_legacy_database`, `ingest_android_mediastore_batch`, `init`, `list_devices`, `list_download_jobs`, `list_folders`, `list_media`, `list_pinned_folders`, `list_saved_searches`, `list_unified_music`, `move_media_to_folder`, `move_to_trash`, `pair_with_pin`, `pick_video_frame`, `preview_bulk_rename`, `remove_audio_cover`, `remove_pinned_folder`, `reorder_pinned_folders`, `reroll_video_thumbnail`, `restore_audio_cover`, `restore_from_trash`, `save_search`, `save_settings`, `scan_now`, `set_alias`, `set_custom_cover`, `set_google_session`, `shutdown`, `start_scan`, `subscribe_events`, `undo_bulk_rename`, `undo_last_rename`, `update_cover_aspect`, `update_yt_dlp`, `upsert_pinned_folder`, `with_sidecar`, `with_ytdl_backend`
 
-Future<void> frbInitCore({
-  String? dbPath,
-  required String cacheDir,
-  required String selfDeviceId,
-  required String selfDeviceName,
-  required bool isPhone,
-}) => RustLib.instance.api.crateApiFrbInitCore(
-  dbPath: dbPath,
-  cacheDir: cacheDir,
-  selfDeviceId: selfDeviceId,
-  selfDeviceName: selfDeviceName,
-  isPhone: isPhone,
-);
+Future<void> frbInitCore(
+        {String? dbPath,
+        required String cacheDir,
+        required String selfDeviceId,
+        required String selfDeviceName,
+        required bool isPhone}) =>
+    RustLib.instance.api.crateApiFrbInitCore(
+        dbPath: dbPath,
+        cacheDir: cacheDir,
+        selfDeviceId: selfDeviceId,
+        selfDeviceName: selfDeviceName,
+        isPhone: isPhone);
 
-Future<BigInt> frbScanFolders({
-  required List<String> roots,
-  required List<String> excluded,
-}) => RustLib.instance.api.crateApiFrbScanFolders(
-  roots: roots,
-  excluded: excluded,
-);
+Future<BigInt> frbScanFolders(
+        {required List<String> roots, required List<String> excluded}) =>
+    RustLib.instance.api
+        .crateApiFrbScanFolders(roots: roots, excluded: excluded);
 
-Future<int> frbIngestAndroidMediastore({
-  required String deviceId,
-  required String deviceName,
-  required String rowsJson,
-}) => RustLib.instance.api.crateApiFrbIngestAndroidMediastore(
-  deviceId: deviceId,
-  deviceName: deviceName,
-  rowsJson: rowsJson,
-);
+Future<int> frbIngestAndroidMediastore(
+        {required String deviceId,
+        required String deviceName,
+        required String rowsJson}) =>
+    RustLib.instance.api.crateApiFrbIngestAndroidMediastore(
+        deviceId: deviceId, deviceName: deviceName, rowsJson: rowsJson);
 
-Future<FrbMediaPage> frbListMedia({
-  required String query,
-  String? mediaType,
-  String? deviceId,
-  String? folderPath,
-  String? syncState,
-  BigInt? minSize,
-  required bool onlyDuplicates,
-  required bool trashedOnly,
-  required String sortField,
-  required String sortDir,
-  String? cursor,
-  required int limit,
-}) => RustLib.instance.api.crateApiFrbListMedia(
-  query: query,
-  mediaType: mediaType,
-  deviceId: deviceId,
-  folderPath: folderPath,
-  syncState: syncState,
-  minSize: minSize,
-  onlyDuplicates: onlyDuplicates,
-  trashedOnly: trashedOnly,
-  sortField: sortField,
-  sortDir: sortDir,
-  cursor: cursor,
-  limit: limit,
-);
+Future<FrbMediaPage> frbListMedia(
+        {required String query,
+        String? mediaType,
+        String? deviceId,
+        String? folderPath,
+        String? syncState,
+        BigInt? minSize,
+        required bool onlyDuplicates,
+        required bool trashedOnly,
+        required String sortField,
+        required String sortDir,
+        String? cursor,
+        required int limit}) =>
+    RustLib.instance.api.crateApiFrbListMedia(
+        query: query,
+        mediaType: mediaType,
+        deviceId: deviceId,
+        folderPath: folderPath,
+        syncState: syncState,
+        minSize: minSize,
+        onlyDuplicates: onlyDuplicates,
+        trashedOnly: trashedOnly,
+        sortField: sortField,
+        sortDir: sortDir,
+        cursor: cursor,
+        limit: limit);
 
-Future<List<FrbFolderSummary>> frbListFolders({
-  String? deviceId,
-  String? mediaType,
-}) => RustLib.instance.api.crateApiFrbListFolders(
-  deviceId: deviceId,
-  mediaType: mediaType,
-);
+Future<List<FrbFolderSummary>> frbListFolders(
+        {String? deviceId, String? mediaType}) =>
+    RustLib.instance.api
+        .crateApiFrbListFolders(deviceId: deviceId, mediaType: mediaType);
 
 Future<List<FrbDeviceItem>> frbListDevices() =>
     RustLib.instance.api.crateApiFrbListDevices();
@@ -85,52 +74,39 @@ Future<List<FrbDeviceItem>> frbListDevices() =>
 Future<FrbStorageStats> frbGetStorageStats() =>
     RustLib.instance.api.crateApiFrbGetStorageStats();
 
-Future<List<FrbThumbnailEntry>> frbEnsureThumbnailsBatch({
-  required List<String> mediaIds,
-}) => RustLib.instance.api.crateApiFrbEnsureThumbnailsBatch(mediaIds: mediaIds);
+Future<List<FrbThumbnailEntry>> frbEnsureThumbnailsBatch(
+        {required List<String> mediaIds}) =>
+    RustLib.instance.api.crateApiFrbEnsureThumbnailsBatch(mediaIds: mediaIds);
 
-Future<FrbMediaItem> frbSetAlias({
-  required String mediaId,
-  required String alias,
-}) => RustLib.instance.api.crateApiFrbSetAlias(mediaId: mediaId, alias: alias);
+Future<FrbMediaItem> frbSetAlias(
+        {required String mediaId, required String alias}) =>
+    RustLib.instance.api.crateApiFrbSetAlias(mediaId: mediaId, alias: alias);
 
-Future<FrbMediaItem> frbApplyRealRename({
-  required String mediaId,
-  required String newName,
-}) => RustLib.instance.api.crateApiFrbApplyRealRename(
-  mediaId: mediaId,
-  newName: newName,
-);
+Future<FrbMediaItem> frbApplyRealRename(
+        {required String mediaId, required String newName}) =>
+    RustLib.instance.api
+        .crateApiFrbApplyRealRename(mediaId: mediaId, newName: newName);
 
 Future<bool> frbUndoLastRename({String? mediaId}) =>
     RustLib.instance.api.crateApiFrbUndoLastRename(mediaId: mediaId);
 
-Future<List<FrbBulkRenamePreview>> frbPreviewBulkRename({
-  required List<String> mediaIds,
-  required String template,
-}) => RustLib.instance.api.crateApiFrbPreviewBulkRename(
-  mediaIds: mediaIds,
-  template: template,
-);
+Future<List<FrbBulkRenamePreview>> frbPreviewBulkRename(
+        {required List<String> mediaIds, required String template}) =>
+    RustLib.instance.api
+        .crateApiFrbPreviewBulkRename(mediaIds: mediaIds, template: template);
 
-Future<FrbBulkRenameResult> frbApplyBulkRename({
-  required List<String> mediaIds,
-  required String template,
-}) => RustLib.instance.api.crateApiFrbApplyBulkRename(
-  mediaIds: mediaIds,
-  template: template,
-);
+Future<FrbBulkRenameResult> frbApplyBulkRename(
+        {required List<String> mediaIds, required String template}) =>
+    RustLib.instance.api
+        .crateApiFrbApplyBulkRename(mediaIds: mediaIds, template: template);
 
 Future<int> frbUndoBulkRename({required String batchId}) =>
     RustLib.instance.api.crateApiFrbUndoBulkRename(batchId: batchId);
 
-Future<FrbMediaItem> frbMoveMediaToFolder({
-  required String mediaId,
-  required String targetFolder,
-}) => RustLib.instance.api.crateApiFrbMoveMediaToFolder(
-  mediaId: mediaId,
-  targetFolder: targetFolder,
-);
+Future<FrbMediaItem> frbMoveMediaToFolder(
+        {required String mediaId, required String targetFolder}) =>
+    RustLib.instance.api.crateApiFrbMoveMediaToFolder(
+        mediaId: mediaId, targetFolder: targetFolder);
 
 Future<String> frbMoveToTrash({required String mediaId}) =>
     RustLib.instance.api.crateApiFrbMoveToTrash(mediaId: mediaId);
@@ -141,36 +117,29 @@ Future<FrbMediaItem> frbRestoreFromTrash({required String mediaId}) =>
 Future<BigInt> frbEmptyTrash({String? mediaId}) =>
     RustLib.instance.api.crateApiFrbEmptyTrash(mediaId: mediaId);
 
-Future<FrbCoverItem> frbUpdateCoverAspect({
-  required String mediaId,
-  required String aspect,
-}) => RustLib.instance.api.crateApiFrbUpdateCoverAspect(
-  mediaId: mediaId,
-  aspect: aspect,
-);
+Future<FrbCoverItem> frbUpdateCoverAspect(
+        {required String mediaId, required String aspect}) =>
+    RustLib.instance.api
+        .crateApiFrbUpdateCoverAspect(mediaId: mediaId, aspect: aspect);
 
 Future<FrbCoverItem> frbRerollVideoThumbnail({required String mediaId}) =>
     RustLib.instance.api.crateApiFrbRerollVideoThumbnail(mediaId: mediaId);
 
-Future<FrbCoverItem> frbPickVideoFrame({
-  required String mediaId,
-  required BigInt frameTimeMs,
-}) => RustLib.instance.api.crateApiFrbPickVideoFrame(
-  mediaId: mediaId,
-  frameTimeMs: frameTimeMs,
-);
+Future<FrbCoverItem> frbPickVideoFrame(
+        {required String mediaId, required BigInt frameTimeMs}) =>
+    RustLib.instance.api
+        .crateApiFrbPickVideoFrame(mediaId: mediaId, frameTimeMs: frameTimeMs);
 
-Future<FrbCoverItem> frbSetCustomCover({
-  required String mediaId,
-  required String imagePath,
-  required String aspect,
-  required bool confirmedEmbeddedWrite,
-}) => RustLib.instance.api.crateApiFrbSetCustomCover(
-  mediaId: mediaId,
-  imagePath: imagePath,
-  aspect: aspect,
-  confirmedEmbeddedWrite: confirmedEmbeddedWrite,
-);
+Future<FrbCoverItem> frbSetCustomCover(
+        {required String mediaId,
+        required String imagePath,
+        required String aspect,
+        required bool confirmedEmbeddedWrite}) =>
+    RustLib.instance.api.crateApiFrbSetCustomCover(
+        mediaId: mediaId,
+        imagePath: imagePath,
+        aspect: aspect,
+        confirmedEmbeddedWrite: confirmedEmbeddedWrite);
 
 Future<List<FrbPinnedFolder>> frbListPinnedFolders() =>
     RustLib.instance.api.crateApiFrbListPinnedFolders();
@@ -182,9 +151,8 @@ Future<void> frbRemovePinnedFolder({required String id}) =>
     RustLib.instance.api.crateApiFrbRemovePinnedFolder(id: id);
 
 Future<void> frbReorderPinnedFolders({required List<String> orderedIds}) =>
-    RustLib.instance.api.crateApiFrbReorderPinnedFolders(
-      orderedIds: orderedIds,
-    );
+    RustLib.instance.api
+        .crateApiFrbReorderPinnedFolders(orderedIds: orderedIds);
 
 Future<FrbPairingSession> frbCreatePairingSession() =>
     RustLib.instance.api.crateApiFrbCreatePairingSession();
@@ -192,17 +160,16 @@ Future<FrbPairingSession> frbCreatePairingSession() =>
 Future<void> frbForgetDevice({required String deviceId}) =>
     RustLib.instance.api.crateApiFrbForgetDevice(deviceId: deviceId);
 
-Future<FrbDownloadJob> frbEnqueueYoutubeDownload({
-  required String url,
-  required String format,
-  required String quality,
-  required String destinationFolder,
-}) => RustLib.instance.api.crateApiFrbEnqueueYoutubeDownload(
-  url: url,
-  format: format,
-  quality: quality,
-  destinationFolder: destinationFolder,
-);
+Future<FrbDownloadJob> frbEnqueueYoutubeDownload(
+        {required String url,
+        required String format,
+        required String quality,
+        required String destinationFolder}) =>
+    RustLib.instance.api.crateApiFrbEnqueueYoutubeDownload(
+        url: url,
+        format: format,
+        quality: quality,
+        destinationFolder: destinationFolder);
 
 Future<List<FrbDownloadJob>> frbListDownloadJobs() =>
     RustLib.instance.api.crateApiFrbListDownloadJobs();
@@ -218,32 +185,28 @@ String frbHealthCheck() => RustLib.instance.api.crateApiFrbHealthCheck();
 String frbCleanAliasName({required String fileName}) =>
     RustLib.instance.api.crateApiFrbCleanAliasName(fileName: fileName);
 
-BigInt frbSelectFirstThirdFrameMs({
-  required BigInt durationMs,
-  double? sample,
-}) => RustLib.instance.api.crateApiFrbSelectFirstThirdFrameMs(
-  durationMs: durationMs,
-  sample: sample,
-);
+BigInt frbSelectFirstThirdFrameMs(
+        {required BigInt durationMs, double? sample}) =>
+    RustLib.instance.api.crateApiFrbSelectFirstThirdFrameMs(
+        durationMs: durationMs, sample: sample);
 
-Future<bool> frbDetectLegacyDatabase({required String legacyDbPath}) => RustLib
-    .instance
-    .api
-    .crateApiFrbDetectLegacyDatabase(legacyDbPath: legacyDbPath);
+Future<bool> frbDetectLegacyDatabase({required String legacyDbPath}) =>
+    RustLib.instance.api
+        .crateApiFrbDetectLegacyDatabase(legacyDbPath: legacyDbPath);
 
-Future<FrbLegacyImportReport> frbImportLegacyDatabase({
-  required String targetDbPath,
-  required String legacyDbPath,
-}) => RustLib.instance.api.crateApiFrbImportLegacyDatabase(
-  targetDbPath: targetDbPath,
-  legacyDbPath: legacyDbPath,
-);
+Future<FrbLegacyImportReport> frbImportLegacyDatabase(
+        {required String targetDbPath, required String legacyDbPath}) =>
+    RustLib.instance.api.crateApiFrbImportLegacyDatabase(
+        targetDbPath: targetDbPath, legacyDbPath: legacyDbPath);
 
 class ApiError implements FrbException {
   final ApiErrorCode code;
   final String message;
 
-  const ApiError({required this.code, required this.message});
+  const ApiError({
+    required this.code,
+    required this.message,
+  });
 
   @override
   int get hashCode => code.hashCode ^ message.hashCode;
@@ -270,6 +233,7 @@ enum ApiErrorCode {
   confirmationRequired,
   cancelled,
   internal,
+  ;
 }
 
 class FrbAppSettings {
@@ -837,7 +801,10 @@ class FrbThumbnailEntry {
   final String mediaId;
   final String filePath;
 
-  const FrbThumbnailEntry({required this.mediaId, required this.filePath});
+  const FrbThumbnailEntry({
+    required this.mediaId,
+    required this.filePath,
+  });
 
   @override
   int get hashCode => mediaId.hashCode ^ filePath.hashCode;
