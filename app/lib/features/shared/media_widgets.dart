@@ -1285,8 +1285,8 @@ class MiniPlayerBar extends ConsumerWidget {
     final playback = MediaPlaybackService.instance;
 
     return Container(
-      height: 68,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      height: 74,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.secondaryContainer,
         border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
@@ -1310,6 +1310,7 @@ class MiniPlayerBar extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                 ),
+                const SizedBox(height: 2),
                 ValueListenableBuilder<Duration>(
                   valueListenable: playback.position,
                   builder: (_, pos, __) {
@@ -1317,31 +1318,35 @@ class MiniPlayerBar extends ConsumerWidget {
                         ? playback.duration.value.inMilliseconds
                         : track.durationMs;
                     final curMs = pos.inMilliseconds.clamp(0, totalMs > 0 ? totalMs : 1);
-                    return Row(
-                      children: [
-                        Text(
-                          formatDuration(curMs).isEmpty ? '0:00' : formatDuration(curMs),
-                          style: const TextStyle(fontSize: 10),
-                        ),
-                        Expanded(
-                          child: SliderTheme(
-                            data: SliderTheme.of(context).copyWith(
-                              trackHeight: 2,
-                              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-                            ),
-                            child: Slider(
-                              value: curMs.toDouble(),
-                              max: (totalMs > 0 ? totalMs : 1).toDouble(),
-                              onChanged: (v) =>
-                                  playback.seek(Duration(milliseconds: v.round())),
+                    return SizedBox(
+                      height: 24,
+                      child: Row(
+                        children: [
+                          Text(
+                            formatDuration(curMs).isEmpty ? '0:00' : formatDuration(curMs),
+                            style: const TextStyle(fontSize: 10),
+                          ),
+                          Expanded(
+                            child: SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                trackHeight: 2,
+                                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+                                overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+                              ),
+                              child: Slider(
+                                value: curMs.toDouble(),
+                                max: (totalMs > 0 ? totalMs : 1).toDouble(),
+                                onChanged: (v) =>
+                                    playback.seek(Duration(milliseconds: v.round())),
+                              ),
                             ),
                           ),
-                        ),
-                        Text(
-                          formatDuration(totalMs),
-                          style: const TextStyle(fontSize: 10),
-                        ),
-                      ],
+                          Text(
+                            formatDuration(totalMs),
+                            style: const TextStyle(fontSize: 10),
+                          ),
+                        ],
+                      ),
                     );
                   },
                 ),
