@@ -13,7 +13,7 @@
 - [x] **Failure 1 (FRB codegen & drift check):** Pinned FRB `2.11.1`, added `flutter_rust_bridge.yaml`, committed generated bindings (`app/lib/src/rust/`, `crates/core-api/src/frb_generated.rs`), added `.gitattributes` LF rules, updated `.github/workflows/ci.yml` (`flutter pub get` before codegen + `--locked` + untracked-aware drift check), verified clean-checkout zero-diff twice locally (`b9498d7`)
 - [x] **Failure 2 (`upsert_media` & `parity-runner`):** Switch `media` upsert to `ON CONFLICT(device_id, path) DO UPDATE`, isolate parity-runner DB/fixtures, replace `unwrap()` with `anyhow::Context`, add 3 regression tests in `core-index`
 - [x] **Flutter CI readiness (`flutter test`, `windows`, `android`):** Fixed collapsed `_SidebarNavTile` overflow in `app/lib/features/shell/desktop_shell.dart` (`4c88a3d`), added `[lib] crate-type = ["cdylib", "rlib"]` to `crates/core-api/Cargo.toml`, scaffolded `app/windows/` (CMake `core_api.dll` build + bundle) & `app/android/` (`io.mediagallery.app` + env-driven release signing), updated `.github/workflows/ci.yml` (verified prebuilt FRB `2.11.1`, JDK 17, NDK `28.2.13676358`, `cargo-ndk`, disk cleanup before APK build, structured APK failure output), bumped `desktop_drop` to `^0.8.4`, and floored Android library `compileSdk >= 36` in `app/android/build.gradle.kts`
-- [/] **Part A Gate:** Pushed Android `compileSdk` & CI fixes to `main`; monitoring real GitHub Actions CI run to confirm 100% green (`rust-core` Windows+Ubuntu, `flutter-and-bindings`, `legacy-reference`)
+- [x] **Part A Gate:** CI Run `#44462776804` (`09429ed`) confirmed 100% green (`rust-core` Windows+Ubuntu, `flutter-and-bindings` including Windows release + Android APK build, `legacy-reference`)
 
 ---
 
