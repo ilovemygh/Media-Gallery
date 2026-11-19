@@ -25,4 +25,11 @@
 - [x] **B4: Publishing:** Configured `SHA256SUMS.txt` generation/verification, draft release -> upload 6 assets -> verify count -> publish, and structured release notes in `.github/workflows/release.yml`
 - [x] **B5: README "Install" Section:** Added CI/Release badges, download links & quick selector table, Windows SmartScreen & Android sideload/Play Protect guides, SHA-256 verification, 3-step QR pairing, troubleshooting, and moved developer docs under `Build from source` in `README.md`
 - [x] **B6: Maintainer Docs:** Wrote `docs/RELEASING.md` (keystore generation, secrets setup, cutting/testing/deleting releases, updating `sidecars.lock`)
-- [/] **Part B Gate:** Workflows and verification scripts pushed; awaiting authenticated GitHub `workflow_dispatch` dry run (or `gh auth login` / web Actions trigger) to verify published release-assets artifacts, checksums, and clean Windows silent install/launch/uninstall + portable launch in CI
+- [x] **Part B Gate:** Verified full Release dry-run (`44579573145` on `c32532e`): all 8 jobs passed (`prepare`, `ci-gate`, `build-windows` with Inno Setup silent install/launch/uninstall + portable `.zip`, `build-android` with verified `arm64-v8a`/`armeabi-v7a`/`universal` APKs, and `publish` `SHA256SUMS.txt` artifact bundle)
+
+---
+
+## PART C: Live Core Wiring + Google-Files & Explorer UX Upgrades
+- [x] **Live Rust FFI Core (`core-api` + `LiveCoreBridge`):** Exposed `MediaGalleryCore` via FRB v2 (`frb_init_core`, `frb_scan_folders`, `frb_ingest_android_mediastore`, `frb_list_media`, `frb_ensure_thumbnails_batch`, `frb_get_storage_stats`, `frb_preview_bulk_rename`/`frb_apply_bulk_rename`/`frb_undo_bulk_rename`, `frb_restore_from_trash`/`frb_empty_trash`, pairing, YouTube queue, pinned folders) with regenerated bindings and live integration test
+- [x] **Android MediaStore Channel (`MainActivity.kt`):** Wired `io.mediagallery.app/mediastore` `MethodChannel` with runtime media permissions (`READ_MEDIA_*` / `READ_EXTERNAL_STORAGE`) and JSON batch ingestion into Rust
+- [x] **Desktop & Android UX Upgrades:** Added real `Image.file` thumbnails & 2x2 folder mosaics, Home **Recent Media** strip, **Clean & Storage** dashboard (Duplicates, Large Files >50 MB, Recycle Bin restore/empty), **Bulk Rename** preview/undo, interactive **MediaViewerDialog**, **Devices & Backup** QR pairing (`qr_flutter`), **YouTube** download queue, S/M/L/List density & sort controls, and persistent **MiniPlayerBar**
