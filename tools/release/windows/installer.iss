@@ -2,10 +2,10 @@
 ; Invoked via: iscc /DAppVersion=0.2.0 /DStageDir=... /DOutputDir=... /DOutputBaseFilename=MediaGallery-0.2.0-windows-x64-setup installer.iss
 
 #ifndef AppVersion
-  #define AppVersion "0.2.0"
+  #define AppVersion "0.2.1"
 #endif
 #ifndef AppNumericVersion
-  #define AppNumericVersion "0.2.0.0"
+  #define AppNumericVersion "0.2.1.0"
 #endif
 #ifndef StageDir
   #define StageDir "..\..\..\dist\windows\stage"
