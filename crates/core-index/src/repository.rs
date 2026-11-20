@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use rusqlite::{params, types::Value, Connection, Row};
 use thiserror::Error;
@@ -39,7 +39,45 @@ pub fn now_ms() -> i64 {
 }
 
 pub fn normalize_db_path(raw: &str) -> String {
-    raw.replace('\\', "/")
+    let mut s = raw.replace('\\', "/");
+    if let Some(stripped) = s.strip_prefix("//?/") {
+        s = stripped.to_string();
+    }
+    // Preserve URI scheme prefix (e.g. content:// or file://) while collapsing duplicate slashes.
+    let (scheme, rest) = if let Some(idx) = s.find("://") {
+        (&s[..idx + 3], &s[idx + 3..])
+    } else {
+        ("", s.as_str())
+    };
+    let mut collapsed = String::with_capacity(s.len());
+    collapsed.push_str(scheme);
+    let mut prev_slash = false;
+    for ch in rest.chars() {
+        if ch == '/' {
+            if !prev_slash {
+                collapsed.push('/');
+            }
+            prev_slash = true;
+        } else {
+            collapsed.push(ch);
+            prev_slash = false;
+        }
+    }
+    // Trim trailing slash unless it's root "/" or Windows drive root "C:/".
+    let bytes = collapsed.as_bytes();
+    let is_drive_root = bytes.len() == 3 && bytes[1] == b':' && bytes[2] == b'/';
+    if collapsed.len() > 1 && !is_drive_root {
+        while collapsed.ends_with('/') {
+            collapsed.pop();
+        }
+    }
+    // Canonicalize Windows drive letter to uppercase (e.g. "c:/..." -> "C:/...").
+    let mut chars: Vec<char> = collapsed.chars().collect();
+    if chars.len() >= 2 && chars[1] == ':' && chars[0].is_ascii_lowercase() {
+        chars[0] = chars[0].to_ascii_uppercase();
+        return chars.into_iter().collect();
+    }
+    collapsed
 }
 
 fn exec_media_upsert_stmt(
@@ -206,6 +244,7 @@ pub struct MediaIndex {
 impl MediaIndex {
     pub fn open_in_memory() -> Result<Self, IndexError> {
         let conn = Connection::open_in_memory()?;
+        conn.busy_timeout(Duration::from_secs(5))?;
         conn.pragma_update(None, "synchronous", "NORMAL")?;
         run_migrations(&conn)?;
         Ok(Self {
@@ -218,6 +257,7 @@ impl MediaIndex {
             std::fs::create_dir_all(parent)?;
         }
         let conn = Connection::open(db_path)?;
+        conn.busy_timeout(Duration::from_secs(5))?;
         conn.pragma_update(None, "journal_mode", "WAL")?;
         conn.pragma_update(None, "synchronous", "NORMAL")?;
         run_migrations(&conn)?;
@@ -515,7 +555,9 @@ impl MediaIndex {
     ) -> Result<Option<MediaRecord>, IndexError> {
         let norm_path = normalize_db_path(file_path);
         let conn = self.lock()?;
-        let mut stmt = conn.prepare("SELECT * FROM media WHERE device_id = ?1 AND path = ?2")?;
+        let mut stmt = conn.prepare(
+            "SELECT * FROM media WHERE device_id = ?1 AND (path = ?2 OR LOWER(path) = LOWER(?2)) LIMIT 1",
+        )?;
         let mut rows = stmt.query(params![device_id, norm_path])?;
         if let Some(row) = rows.next()? {
             Ok(Some(map_media_row(row)?))
@@ -649,8 +691,11 @@ impl MediaIndex {
             list
         };
 
-        let mut summaries = Vec::with_capacity(folder_rows.len());
+        let mut deduped_map: HashMap<(String, String), FolderSummary> = HashMap::new();
+        let mut order: Vec<(String, String)> = Vec::new();
         for (folder_path, dev_id, item_count) in folder_rows {
+            let norm_folder = normalize_db_path(&folder_path);
+            let key = (dev_id.clone(), norm_folder.to_ascii_lowercase());
             let page = self.list_media(
                 &MediaFilter {
                     device_id: Some(dev_id.clone()),
@@ -662,26 +707,44 @@ impl MediaIndex {
                 None,
                 4,
             )?;
-            let preview_covers = page
+            let preview_covers: Vec<String> = page
                 .items
                 .into_iter()
                 .filter_map(|item| item.cover.map(|c| c.file_path))
                 .filter(|p| !p.is_empty())
                 .collect();
-            let name = folder_path
-                .replace('\\', "/")
-                .split('/')
-                .rfind(|s| !s.is_empty())
-                .unwrap_or(&folder_path)
-                .to_string();
 
-            summaries.push(FolderSummary {
-                path: folder_path,
-                name,
-                device_id: dev_id,
-                item_count,
-                preview_covers,
-            });
+            if let Some(existing) = deduped_map.get_mut(&key) {
+                existing.item_count += item_count;
+                for cov in preview_covers {
+                    if existing.preview_covers.len() < 4 && !existing.preview_covers.contains(&cov) {
+                        existing.preview_covers.push(cov);
+                    }
+                }
+            } else {
+                let name = norm_folder
+                    .split('/')
+                    .rfind(|s| !s.is_empty())
+                    .unwrap_or(&norm_folder)
+                    .to_string();
+                order.push(key.clone());
+                deduped_map.insert(
+                    key,
+                    FolderSummary {
+                        path: norm_folder,
+                        name,
+                        device_id: dev_id,
+                        item_count,
+                        preview_covers,
+                    },
+                );
+            }
+        }
+        let mut summaries = Vec::with_capacity(order.len());
+        for key in order {
+            if let Some(summary) = deduped_map.remove(&key) {
+                summaries.push(summary);
+            }
         }
         Ok(summaries)
     }
@@ -1029,7 +1092,16 @@ impl MediaIndex {
     }
 
     pub fn upsert_pinned_folder(&self, pf: &PinnedFolderRecord) -> Result<(), IndexError> {
+        let norm_path = normalize_db_path(&pf.path);
         let conn = self.lock()?;
+        let existing_id: Option<String> = conn
+            .query_row(
+                "SELECT id FROM pinned_folder WHERE device_id = ?1 AND LOWER(path) = LOWER(?2) AND id != ?3 LIMIT 1",
+                params![pf.device_id, norm_path, pf.id],
+                |r| r.get(0),
+            )
+            .ok();
+        let target_id = existing_id.as_deref().unwrap_or(&pf.id);
         conn.execute(
             "INSERT INTO pinned_folder (id, device_id, path, label, icon, position)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)
@@ -1039,7 +1111,7 @@ impl MediaIndex {
                label = excluded.label,
                icon = excluded.icon,
                position = excluded.position",
-            params![pf.id, pf.device_id, pf.path, pf.label, pf.icon, pf.position],
+            params![target_id, pf.device_id, norm_path, pf.label, pf.icon, pf.position],
         )?;
         Ok(())
     }
@@ -1518,8 +1590,9 @@ fn build_where_clause(filter: &MediaFilter) -> (String, Vec<Value>, bool) {
         params.push(Value::Text(sync.as_str().to_string()));
     }
     if let Some(ref folder) = filter.folder_path {
-        clauses.push("m.folder_path = ?".to_string());
-        params.push(Value::Text(folder.clone()));
+        let norm = normalize_db_path(folder);
+        clauses.push("LOWER(m.folder_path) = LOWER(?)".to_string());
+        params.push(Value::Text(norm));
     }
     if let Some(d_from) = filter.date_from {
         clauses.push("m.created_at >= ?".to_string());
