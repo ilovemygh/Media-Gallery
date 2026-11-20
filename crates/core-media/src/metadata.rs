@@ -65,9 +65,8 @@ pub fn extract_metadata_and_alias(
         }
         MediaType::Video => {
             if let Some(sc) = sidecar {
-                let vid_res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    sc.probe_video(path)
-                }));
+                let vid_res =
+                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| sc.probe_video(path)));
                 if let Ok(Ok(vm)) = vid_res {
                     probed.duration_ms = vm.duration_ms;
                     probed.width = vm.width;

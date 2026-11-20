@@ -717,7 +717,8 @@ impl MediaIndex {
             if let Some(existing) = deduped_map.get_mut(&key) {
                 existing.item_count += item_count;
                 for cov in preview_covers {
-                    if existing.preview_covers.len() < 4 && !existing.preview_covers.contains(&cov) {
+                    if existing.preview_covers.len() < 4 && !existing.preview_covers.contains(&cov)
+                    {
                         existing.preview_covers.push(cov);
                     }
                 }
@@ -1111,7 +1112,14 @@ impl MediaIndex {
                label = excluded.label,
                icon = excluded.icon,
                position = excluded.position",
-            params![target_id, pf.device_id, norm_path, pf.label, pf.icon, pf.position],
+            params![
+                target_id,
+                pf.device_id,
+                norm_path,
+                pf.label,
+                pf.icon,
+                pf.position
+            ],
         )?;
         Ok(())
     }
