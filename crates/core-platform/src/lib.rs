@@ -6,7 +6,7 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -14,6 +14,117 @@ use image::{ImageBuffer, Rgba};
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+
+/// Creates a `Command` that suppresses console window flashes on Windows (`CREATE_NO_WINDOW`)
+/// and detaches `stdin` so background sidecars never hang or open terminal windows.
+pub fn hidden_command<S: AsRef<std::ffi::OsStr>>(program: S) -> Command {
+    let mut cmd = Command::new(program);
+    cmd.stdin(Stdio::null());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    cmd
+}
+
+/// Registers or unregisters Media Gallery in Windows per-user startup (`HKCU\...\Run`)
+/// without flashing a console window. No-op on non-Windows platforms.
+pub fn set_windows_startup(enabled: bool) -> Result<(), PlatformError> {
+    #[cfg(windows)]
+    {
+        const RUN_KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
+        const VALUE_NAME: &str = "MediaGallery";
+        if enabled {
+            let exe = std::env::current_exe()?;
+            let exe_arg = format!("\"{}\"", exe.to_string_lossy());
+            let args = [
+                "add", RUN_KEY, "/v", VALUE_NAME, "/t", "REG_SZ", "/d", &exe_arg, "/f",
+            ];
+            let out = hidden_command("reg").args(args).output()?;
+            if !out.status.success() {
+                return Err(PlatformError::Sidecar(
+                    String::from_utf8_lossy(&out.stderr).to_string(),
+                ));
+            }
+        } else {
+            let args = ["delete", RUN_KEY, "/v", VALUE_NAME, "/f"];
+            let _ = hidden_command("reg").args(args).output();
+        }
+        Ok(())
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = enabled;
+        Ok(())
+    }
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_yt_format() -> String {
+    "mp4".to_string()
+}
+
+fn default_yt_quality() -> String {
+    "1080p".to_string()
+}
+
+/// Extended user preferences persisted as `user_prefs.json` alongside the SQLite database.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ExtendedUserPrefs {
+    pub open_at_startup: bool,
+    #[serde(default = "default_true")]
+    pub auto_scan_on_open: bool,
+    #[serde(default = "default_true")]
+    pub hide_duplicates_in_gallery: bool,
+    #[serde(default = "default_true")]
+    pub skip_system_folders: bool,
+    #[serde(default = "default_true")]
+    pub scan_videos: bool,
+    #[serde(default = "default_true")]
+    pub scan_images: bool,
+    #[serde(default = "default_true")]
+    pub scan_audio: bool,
+    pub enabled_extensions: Vec<String>,
+    #[serde(default = "default_yt_format")]
+    pub youtube_default_format: String,
+    #[serde(default = "default_yt_quality")]
+    pub youtube_default_quality: String,
+}
+
+impl Default for ExtendedUserPrefs {
+    fn default() -> Self {
+        Self {
+            open_at_startup: false,
+            auto_scan_on_open: true,
+            hide_duplicates_in_gallery: true,
+            skip_system_folders: true,
+            scan_videos: true,
+            scan_images: true,
+            scan_audio: true,
+            enabled_extensions: Vec::new(),
+            youtube_default_format: default_yt_format(),
+            youtube_default_quality: default_yt_quality(),
+        }
+    }
+}
+
+/// Loads `user_prefs.json` from the parent data directory of `cache_dir`, falling back to defaults.
+pub fn load_extended_prefs(cache_dir: &Path) -> ExtendedUserPrefs {
+    let Some(parent) = cache_dir.parent() else {
+        return ExtendedUserPrefs::default();
+    };
+    let prefs_path = parent.join("user_prefs.json");
+    let Ok(raw) = std::fs::read_to_string(prefs_path) else {
+        return ExtendedUserPrefs::default();
+    };
+    serde_json::from_str(&raw).unwrap_or_default()
+}
 
 /// Typed platform layer errors.
 #[derive(Debug, Error)]
@@ -171,7 +282,7 @@ impl ThumbnailSidecar for DesktopFfmpegSidecar {
             std::fs::create_dir_all(parent)?;
         }
         let seek_secs = format!("{:.3}", (frame_time_ms as f64) / 1000.0);
-        let output = Command::new(&self.ffmpeg_bin)
+        let output = hidden_command(&self.ffmpeg_bin)
             .args([
                 "-ss",
                 &seek_secs,
@@ -197,7 +308,7 @@ impl ThumbnailSidecar for DesktopFfmpegSidecar {
     }
 
     fn probe_video(&self, video_path: &Path) -> Result<ProbedVideoMeta, PlatformError> {
-        let out = Command::new(&self.ffprobe_bin)
+        let out = hidden_command(&self.ffprobe_bin)
             .args([
                 "-v",
                 "error",
@@ -435,16 +546,25 @@ impl YtDlpBackend for DesktopYtDlpBackend {
         args: &[String],
         on_progress: &(dyn Fn(f32, Option<String>) + Send + Sync),
     ) -> Result<Vec<PathBuf>, PlatformError> {
-        let output = Command::new(&self.yt_dlp_bin).args(args).output()?;
+        let output = hidden_command(&self.yt_dlp_bin).args(args).output()?;
         if !output.status.success() {
             return Err(PlatformError::Sidecar(
                 String::from_utf8_lossy(&output.stderr).to_string(),
             ));
         }
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let mut paths = Vec::new();
+        let mut paths: Vec<PathBuf> = Vec::new();
         for line in stdout.lines() {
             if let Some(rest) = line.strip_prefix("[download] ") {
+                if let Some(already) = rest.strip_suffix(" has already been downloaded") {
+                    let trimmed = already.trim().trim_matches('"');
+                    if !trimmed.is_empty() {
+                        let pb = PathBuf::from(trimmed);
+                        if !paths.contains(&pb) {
+                            paths.push(pb);
+                        }
+                    }
+                }
                 if let Some(pct_str) = rest.split('%').next() {
                     if let Ok(pct) = pct_str.trim().parse::<f32>() {
                         on_progress(pct, None);
@@ -459,7 +579,10 @@ impl YtDlpBackend for DesktopYtDlpBackend {
                 if let Some(idx) = line.find(prefix) {
                     let raw = line[idx + prefix.len()..].trim().trim_matches('"');
                     if !raw.is_empty() {
-                        paths.push(PathBuf::from(raw));
+                        let pb = PathBuf::from(raw);
+                        if !paths.contains(&pb) {
+                            paths.push(pb);
+                        }
                     }
                 }
             }
@@ -469,7 +592,7 @@ impl YtDlpBackend for DesktopYtDlpBackend {
     }
 
     fn run_update(&self) -> Result<String, PlatformError> {
-        let output = Command::new(&self.yt_dlp_bin).arg("-U").output()?;
+        let output = hidden_command(&self.yt_dlp_bin).arg("-U").output()?;
         let combined = format!(
             "{}{}",
             String::from_utf8_lossy(&output.stdout),
