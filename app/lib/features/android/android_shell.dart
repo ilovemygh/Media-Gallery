@@ -26,6 +26,10 @@ class _AndroidShellState extends ConsumerState<AndroidShell> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: const Padding(
+          padding: EdgeInsets.all(10),
+          child: MediaGalleryLogo(size: 28),
+        ),
         title: TextField(
           decoration: const InputDecoration(
             hintText: 'Search files, dates, places...',
@@ -56,14 +60,7 @@ class _AndroidShellState extends ConsumerState<AndroidShell> {
             icon: const Icon(Icons.settings_outlined),
             onPressed: () => ctrl.selectSection(NavSection.settings),
           ),
-          IconButton(
-            tooltip: 'Google Account',
-            icon: Icon(
-              Icons.account_circle,
-              color: ui.googleEmail != null ? Theme.of(context).colorScheme.primary : null,
-            ),
-            onPressed: ctrl.toggleGoogleSignIn,
-          ),
+          const ProfileAvatarButton(),
         ],
       ),
       body: Column(
@@ -86,6 +83,7 @@ class _AndroidShellState extends ConsumerState<AndroidShell> {
           Expanded(
             child: _buildBody(context, ui, ctrl),
           ),
+          const CompletedDownloadBar(),
           const MiniPlayerBar(),
         ],
       ),
@@ -138,7 +136,7 @@ class _AndroidShellState extends ConsumerState<AndroidShell> {
               onTapMedia: (m) => _showDetailsSheet(context, m),
             ),
           ),
-        if (_navIndex == 1)
+        if (_navIndex == 1 || _navIndex == 0)
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
@@ -147,25 +145,37 @@ class _AndroidShellState extends ConsumerState<AndroidShell> {
                 runSpacing: 6,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  ChoiceChip(
-                    label: const Text('All'),
-                    selected: ui.section == NavSection.home,
-                    onSelected: (_) => ctrl.selectSection(NavSection.home),
-                  ),
-                  ChoiceChip(
-                    label: const Text('Images'),
-                    selected: ui.section == NavSection.images,
-                    onSelected: (_) => ctrl.selectSection(NavSection.images),
-                  ),
-                  ChoiceChip(
-                    label: const Text('Videos'),
-                    selected: ui.section == NavSection.videos,
-                    onSelected: (_) => ctrl.selectSection(NavSection.videos),
-                  ),
-                  ChoiceChip(
-                    label: const Text('Audio'),
-                    selected: ui.section == NavSection.audio,
-                    onSelected: (_) => ctrl.selectSection(NavSection.audio),
+                  if (_navIndex == 1) ...[
+                    ChoiceChip(
+                      label: const Text('All'),
+                      selected: ui.section == NavSection.home,
+                      onSelected: (_) => ctrl.selectSection(NavSection.home),
+                    ),
+                    ChoiceChip(
+                      label: const Text('Images'),
+                      selected: ui.section == NavSection.images,
+                      onSelected: (_) => ctrl.selectSection(NavSection.images),
+                    ),
+                    ChoiceChip(
+                      label: const Text('Videos'),
+                      selected: ui.section == NavSection.videos,
+                      onSelected: (_) => ctrl.selectSection(NavSection.videos),
+                    ),
+                    ChoiceChip(
+                      label: const Text('Audio'),
+                      selected: ui.section == NavSection.audio,
+                      onSelected: (_) => ctrl.selectSection(NavSection.audio),
+                    ),
+                  ],
+                  if (ui.activeFolder != null)
+                    ActionChip(
+                      avatar: const Icon(Icons.arrow_back, size: 15),
+                      label: const Text('All folders'),
+                      onPressed: () => ctrl.openFolder(null),
+                    ),
+                  GridSizeViewDropdown(
+                    value: ui.gridDensity,
+                    onChanged: ctrl.setGridDensity,
                   ),
                   FilterChip(
                     label: const Text('Select'),
@@ -184,69 +194,101 @@ class _AndroidShellState extends ConsumerState<AndroidShell> {
           ),
         if (_navIndex == 2 || ui.section == NavSection.clean)
           const SliverToBoxAdapter(child: CleanerDashboardView()),
-        SliverPadding(
-          padding: const EdgeInsets.all(10),
-          sliver: SliverGrid(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 8,
-              crossAxisSpacing: 8,
-              childAspectRatio: 0.9,
-            ),
+        if (ui.gridDensity == GridDensity.list)
+          SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, idx) {
                 final item = ui.items[idx];
                 final isChecked = ui.selectedIds.contains(item.id);
-                return Card(
-                  shape: RoundedRectangleBorder(
-                    side: BorderSide(
-                      color: isChecked
-                          ? Theme.of(context).colorScheme.primary
-                          : Colors.transparent,
-                      width: 2,
-                    ),
-                    borderRadius: BorderRadius.circular(10),
+                return ListTile(
+                  leading: SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: MediaThumbnailWidget(item: item, cacheWidth: 140),
                   ),
-                  child: InkWell(
-                    onTap: () => ui.selectionMode
-                        ? ctrl.toggleItemSelected(item.id)
-                        : _showDetailsSheet(context, item),
-                    onLongPress: () => ctrl.toggleItemSelected(item.id),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(child: MediaThumbnailWidget(item: item, cacheWidth: 320)),
-                          const SizedBox(height: 6),
-                          Text(
-                            item.alias,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          Text(
-                            '${formatBytes(item.size)} · ${item.syncState.name}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                        ],
-                      ),
-                    ),
+                  title: Text(item.alias, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle: Text(
+                    '${item.fileName} · ${formatBytes(item.size)} · ${item.syncState.name}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
+                  selected: isChecked,
+                  onTap: () => ui.selectionMode
+                      ? ctrl.toggleItemSelected(item.id)
+                      : _showDetailsSheet(context, item),
+                  onLongPress: () => ctrl.toggleItemSelected(item.id),
                 );
               },
               childCount: ui.items.length,
             ),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.all(10),
+            sliver: SliverGrid(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: ui.gridDensity == GridDensity.small
+                    ? 3
+                    : (ui.gridDensity == GridDensity.large ? 1 : 2),
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: ui.gridDensity == GridDensity.large ? 1.35 : 0.9,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (context, idx) {
+                  final item = ui.items[idx];
+                  final isChecked = ui.selectedIds.contains(item.id);
+                  return Card(
+                    shape: RoundedRectangleBorder(
+                      side: BorderSide(
+                        color: isChecked
+                            ? Theme.of(context).colorScheme.primary
+                            : Colors.transparent,
+                        width: 2,
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: InkWell(
+                      onTap: () => ui.selectionMode
+                          ? ctrl.toggleItemSelected(item.id)
+                          : _showDetailsSheet(context, item),
+                      onLongPress: () => ctrl.toggleItemSelected(item.id),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(child: MediaThumbnailWidget(item: item, cacheWidth: 320)),
+                            const SizedBox(height: 6),
+                            Text(
+                              item.alias,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            Text(
+                              '${formatBytes(item.size)} · ${item.syncState.name}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+                childCount: ui.items.length,
+              ),
+            ),
           ),
-        ),
       ],
     );
   }
 
   void _showDetailsSheet(BuildContext context, MediaItem item) {
     final aliasCtrl = TextEditingController(text: item.alias);
+    final ctrl = ref.read(galleryControllerProvider.notifier);
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -269,60 +311,115 @@ class _AndroidShellState extends ConsumerState<AndroidShell> {
               ),
               const SizedBox(height: 10),
               Text(item.alias, style: Theme.of(sheetCtx).textTheme.titleMedium),
-              Text('${item.fileName} · ${formatBytes(item.size)} · ${item.syncState.name}'),
-              const SizedBox(height: 10),
-              TextField(
-                controller: aliasCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Alias / Rename',
-                  border: OutlineInputBorder(),
-                  isDense: true,
-                ),
-              ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
                   FilledButton.icon(
                     onPressed: () {
-                      if (item.type == MediaType.image) {
-                        Navigator.of(sheetCtx).pop();
-                        showMediaViewerDialog(context, ref, item);
-                      } else {
-                        ref.read(galleryControllerProvider.notifier).playTrack(item);
-                        Navigator.of(sheetCtx).pop();
-                      }
+                      Navigator.of(sheetCtx).pop();
+                      showMediaViewerDialog(context, ref, item);
                     },
                     icon: Icon(item.type == MediaType.image ? Icons.zoom_in : Icons.play_arrow),
-                    label: Text(item.type == MediaType.image ? 'View' : 'Play'),
-                  ),
-                  OutlinedButton(
-                    onPressed: () async {
-                      await ref
-                          .read(galleryControllerProvider.notifier)
-                          .saveAlias(item.id, aliasCtrl.text);
-                      if (sheetCtx.mounted) Navigator.of(sheetCtx).pop();
-                    },
-                    child: const Text('Save Alias'),
-                  ),
-                  OutlinedButton(
-                    onPressed: () async {
-                      await ref
-                          .read(galleryControllerProvider.notifier)
-                          .applyRealRename(item.id, aliasCtrl.text);
-                      if (sheetCtx.mounted) Navigator.of(sheetCtx).pop();
-                    },
-                    child: const Text('Rename File'),
+                    label: Text(item.type == MediaType.image ? 'View' : 'Open Player / Visualizer'),
                   ),
                   OutlinedButton.icon(
                     onPressed: () async {
-                      await ref.read(galleryControllerProvider.notifier).moveToTrash(item.id);
+                      await ctrl.moveToTrash(item.id);
                       if (sheetCtx.mounted) Navigator.of(sheetCtx).pop();
                     },
                     icon: const Icon(Icons.delete_outline),
                     label: const Text('Trash'),
                   ),
+                ],
+              ),
+              ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                title: const Text('Details & Size',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                subtitle: Text('${formatBytes(item.size)} · ${item.type.name.toUpperCase()}',
+                    style: const TextStyle(fontSize: 11)),
+                expandedCrossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('File: ${item.fileName}', style: const TextStyle(fontSize: 12)),
+                  Text('Size: ${formatBytes(item.size)} (${item.size} bytes)',
+                      style: const TextStyle(fontSize: 12)),
+                  if (item.width > 0 && item.height > 0)
+                    Text('Resolution: ${item.width} × ${item.height}',
+                        style: const TextStyle(fontSize: 12)),
+                  if (item.durationMs > 0)
+                    Text('Duration: ${formatDuration(item.durationMs)}',
+                        style: const TextStyle(fontSize: 12)),
+                  Text('Device: ${item.deviceName} · ${item.syncState.name}',
+                      style: const TextStyle(fontSize: 12)),
+                  Text('Folder: ${item.folderPath}', style: const TextStyle(fontSize: 12)),
+                ],
+              ),
+              ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                title: const Text('Rename & Alias',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                children: [
+                  TextField(
+                    controller: aliasCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Alias / Rename',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      FilledButton(
+                        onPressed: () async {
+                          await ctrl.saveAlias(item.id, aliasCtrl.text);
+                          if (sheetCtx.mounted) Navigator.of(sheetCtx).pop();
+                        },
+                        child: const Text('Save Alias'),
+                      ),
+                      OutlinedButton(
+                        onPressed: () async {
+                          await ctrl.applyRealRename(item.id, aliasCtrl.text);
+                          if (sheetCtx.mounted) Navigator.of(sheetCtx).pop();
+                        },
+                        child: const Text('Rename File'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                title: const Text('Crop aspect presets',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                expandedCrossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 6,
+                    children: [
+                      for (final preset in AspectPreset.values)
+                        ChoiceChip(
+                          label: Text(preset.name),
+                          selected: item.cover?.aspect == preset,
+                          onSelected: (_) => ctrl.updateCoverAspect(item.id, preset),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: () => pickCustomCoverForMedia(context, ref, item),
+                    icon: const Icon(Icons.photo_library_outlined, size: 16),
+                    label: const Text('Change Cover Image'),
+                  ),
+                  if (item.type == MediaType.video)
+                    OutlinedButton.icon(
+                      onPressed: () => ctrl.rerollVideoThumbnail(item.id),
+                      icon: const Icon(Icons.refresh, size: 16),
+                      label: const Text('Re-roll First-Third Frame'),
+                    ),
                 ],
               ),
             ],

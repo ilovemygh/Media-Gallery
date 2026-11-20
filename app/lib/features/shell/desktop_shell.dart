@@ -109,7 +109,9 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                                   tooltip: 'Collapse or expand sidebar',
                                   onPressed: ctrl.toggleSidebarCollapsed,
                                 ),
-                                if (!ui.settings.sidebarCollapsed)
+                                if (!ui.settings.sidebarCollapsed) ...[
+                                  const MediaGalleryLogo(size: 26),
+                                  const SizedBox(width: 8),
                                   const Expanded(
                                     child: Text(
                                       'Media Gallery',
@@ -117,6 +119,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
+                                ],
                               ],
                             ),
                           ),
@@ -364,11 +367,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                                 icon: const Icon(Icons.brightness_6),
                                 onPressed: ctrl.toggleTheme,
                               ),
-                              ActionChip(
-                                avatar: const Icon(Icons.account_circle, size: 18),
-                                label: Text(ui.googleEmail ?? 'Google'),
-                                onPressed: ctrl.toggleGoogleSignIn,
-                              ),
+                              const ProfileAvatarButton(),
                             ],
                           ),
                         ),
@@ -459,21 +458,9 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                                                   child: const Text('All folders'),
                                                 ),
                                               const SizedBox(width: 12),
-                                              SegmentedButton<GridDensity>(
-                                                segments: const [
-                                                  ButtonSegment(
-                                                      value: GridDensity.small, label: Text('S')),
-                                                  ButtonSegment(
-                                                      value: GridDensity.medium, label: Text('M')),
-                                                  ButtonSegment(
-                                                      value: GridDensity.large, label: Text('L')),
-                                                  ButtonSegment(
-                                                      value: GridDensity.list,
-                                                      icon: Icon(Icons.view_list, size: 16)),
-                                                ],
-                                                selected: {ui.gridDensity},
-                                                onSelectionChanged: (s) =>
-                                                    ctrl.setGridDensity(s.first),
+                                              GridSizeViewDropdown(
+                                                value: ui.gridDensity,
+                                                onChanged: ctrl.setGridDensity,
                                               ),
                                               DropdownButton<SortField>(
                                                 value: ui.sortField,
@@ -814,82 +801,141 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                                         icon: const Icon(Icons.open_in_full, size: 16),
                                         label: const Text('Open Viewer / Player'),
                                       ),
-                                      const SizedBox(height: 10),
-                                      TextField(
-                                        controller: _aliasCtrl,
-                                        decoration: const InputDecoration(
-                                          labelText: 'Alias / New Name',
-                                          isDense: true,
-                                          border: OutlineInputBorder(),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Wrap(
-                                        spacing: 6,
-                                        runSpacing: 6,
-                                        children: [
-                                          FilledButton(
-                                            onPressed: () =>
-                                                ctrl.saveAlias(selected.id, _aliasCtrl.text),
-                                            child: const Text('Save Alias'),
-                                          ),
-                                          OutlinedButton(
-                                            onPressed: () =>
-                                                ctrl.applyRealRename(selected.id, _aliasCtrl.text),
-                                            child: const Text('Apply Real Rename'),
-                                          ),
-                                          TextButton.icon(
-                                            onPressed: () => ctrl.undoLastRename(selected.id),
-                                            icon: const Icon(Icons.undo, size: 15),
-                                            label: const Text('Undo Rename'),
-                                          ),
-                                        ],
-                                      ),
-                                      const Divider(height: 22),
-                                      const Text('Crop aspect presets'),
                                       const SizedBox(height: 6),
-                                      Wrap(
-                                        spacing: 6,
-                                        children: [
-                                          for (final preset in AspectPreset.values)
-                                            ChoiceChip(
-                                              label: Text(preset.name),
-                                              selected: selected.cover?.aspect == preset,
-                                              onSelected: (_) =>
-                                                  ctrl.updateCoverAspect(selected.id, preset),
-                                            ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 10),
-                                      OutlinedButton.icon(
-                                        onPressed: () =>
-                                            pickCustomCoverForMedia(context, ref, selected),
-                                        icon: const Icon(Icons.photo_library_outlined, size: 16),
-                                        label: const Text('Change Cover Image'),
-                                      ),
-                                      if (selected.type == MediaType.video) ...[
-                                        const SizedBox(height: 8),
-                                        OutlinedButton.icon(
-                                          onPressed: () => ctrl.rerollVideoThumbnail(selected.id),
-                                          icon: const Icon(Icons.refresh, size: 16),
-                                          label: const Text('Re-roll First-Third Frame'),
+
+                                      // Collapsible Dropdown 1: Details & Size
+                                      ExpansionTile(
+                                        tilePadding: EdgeInsets.zero,
+                                        title: const Text(
+                                          'Details & Size',
+                                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                                         ),
-                                        if (selected.durationMs > 0) ...[
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            'Frame time: ${formatDuration(selected.cover?.frameTimeMs ?? 0)}',
-                                            style: const TextStyle(fontSize: 12),
+                                        subtitle: Text(
+                                          '${formatBytes(selected.size)} · ${selected.type.name.toUpperCase()}',
+                                          style: const TextStyle(fontSize: 11),
+                                        ),
+                                        childrenPadding: const EdgeInsets.only(bottom: 8),
+                                        expandedCrossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text('File: ${selected.fileName}',
+                                              style: const TextStyle(fontSize: 12)),
+                                          Text('Size: ${formatBytes(selected.size)} (${selected.size} bytes)',
+                                              style: const TextStyle(fontSize: 12)),
+                                          if (selected.width > 0 && selected.height > 0)
+                                            Text('Resolution: ${selected.width} × ${selected.height}',
+                                                style: const TextStyle(fontSize: 12)),
+                                          if (selected.durationMs > 0)
+                                            Text('Duration: ${formatDuration(selected.durationMs)}',
+                                                style: const TextStyle(fontSize: 12)),
+                                          Text('Device: ${selected.deviceName} (${selected.syncState.name})',
+                                              style: const TextStyle(fontSize: 12)),
+                                          Text('Folder: ${selected.folderPath}',
+                                              style: const TextStyle(fontSize: 12)),
+                                          if (selected.place != null)
+                                            Text('Location: ${selected.place}',
+                                                style: const TextStyle(fontSize: 12)),
+                                          if (selected.artist != null)
+                                            Text('Artist: ${selected.artist}',
+                                                style: const TextStyle(fontSize: 12)),
+                                        ],
+                                      ),
+
+                                      // Collapsible Dropdown 2: Rename & Alias
+                                      ExpansionTile(
+                                        tilePadding: EdgeInsets.zero,
+                                        title: const Text(
+                                          'Rename & Alias',
+                                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                        ),
+                                        childrenPadding: const EdgeInsets.only(bottom: 8),
+                                        children: [
+                                          TextField(
+                                            controller: _aliasCtrl,
+                                            decoration: const InputDecoration(
+                                              labelText: 'Alias / New Name',
+                                              isDense: true,
+                                              border: OutlineInputBorder(),
+                                            ),
                                           ),
-                                          Slider(
-                                            value: ((selected.cover?.frameTimeMs ?? 0)
-                                                    .clamp(0, selected.durationMs))
-                                                .toDouble(),
-                                            max: selected.durationMs.toDouble(),
-                                            onChanged: (v) =>
-                                                ctrl.pickVideoFrame(selected.id, v.round()),
+                                          const SizedBox(height: 8),
+                                          Wrap(
+                                            spacing: 6,
+                                            runSpacing: 6,
+                                            children: [
+                                              FilledButton(
+                                                onPressed: () =>
+                                                    ctrl.saveAlias(selected.id, _aliasCtrl.text),
+                                                child: const Text('Save Alias'),
+                                              ),
+                                              OutlinedButton(
+                                                onPressed: () =>
+                                                    ctrl.applyRealRename(selected.id, _aliasCtrl.text),
+                                                child: const Text('Apply Real Rename'),
+                                              ),
+                                              TextButton.icon(
+                                                onPressed: () => ctrl.undoLastRename(selected.id),
+                                                icon: const Icon(Icons.undo, size: 15),
+                                                label: const Text('Undo Rename'),
+                                              ),
+                                            ],
                                           ),
                                         ],
-                                      ],
+                                      ),
+
+                                      // Collapsible Dropdown 3: Crop aspect presets & Cover
+                                      ExpansionTile(
+                                        tilePadding: EdgeInsets.zero,
+                                        title: const Text(
+                                          'Crop aspect presets',
+                                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                        ),
+                                        childrenPadding: const EdgeInsets.only(bottom: 8),
+                                        expandedCrossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Wrap(
+                                            spacing: 6,
+                                            children: [
+                                              for (final preset in AspectPreset.values)
+                                                ChoiceChip(
+                                                  label: Text(preset.name),
+                                                  selected: selected.cover?.aspect == preset,
+                                                  onSelected: (_) =>
+                                                      ctrl.updateCoverAspect(selected.id, preset),
+                                                ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 10),
+                                          OutlinedButton.icon(
+                                            onPressed: () =>
+                                                pickCustomCoverForMedia(context, ref, selected),
+                                            icon: const Icon(Icons.photo_library_outlined, size: 16),
+                                            label: const Text('Change Cover Image'),
+                                          ),
+                                          if (selected.type == MediaType.video) ...[
+                                            const SizedBox(height: 8),
+                                            OutlinedButton.icon(
+                                              onPressed: () => ctrl.rerollVideoThumbnail(selected.id),
+                                              icon: const Icon(Icons.refresh, size: 16),
+                                              label: const Text('Re-roll First-Third Frame'),
+                                            ),
+                                            if (selected.durationMs > 0) ...[
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                'Frame time: ${formatDuration(selected.cover?.frameTimeMs ?? 0)}',
+                                                style: const TextStyle(fontSize: 12),
+                                              ),
+                                              Slider(
+                                                value: ((selected.cover?.frameTimeMs ?? 0)
+                                                        .clamp(0, selected.durationMs))
+                                                    .toDouble(),
+                                                max: selected.durationMs.toDouble(),
+                                                onChanged: (v) =>
+                                                    ctrl.pickVideoFrame(selected.id, v.round()),
+                                              ),
+                                            ],
+                                          ],
+                                        ],
+                                      ),
                                       if (ui.devices.any((d) => !d.isSelf)) ...[
                                         const SizedBox(height: 8),
                                         PopupMenuButton<String>(
@@ -936,6 +982,9 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                 ],
               ),
             ),
+
+            // Openable Completed YouTube Download Bar at bottom
+            const CompletedDownloadBar(),
 
             // Persistent Mini Music Player Bar when playing
             const MiniPlayerBar(),
@@ -1008,9 +1057,12 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
   }
 
   void _showYouTubeModal(BuildContext context) {
+    final s = ref.read(galleryControllerProvider).settings;
     final urlCtrl = TextEditingController();
-    String format = 'mp4';
-    String quality = '1080p';
+    String format = s.youtubeDefaultFormat == 'mp3' ? 'mp3' : 'mp4';
+    String quality = s.youtubeDefaultQuality.isNotEmpty
+        ? s.youtubeDefaultQuality
+        : (format == 'mp3' ? '320kbps' : '1080p');
     showDialog<void>(
       context: context,
       builder: (_) => StatefulBuilder(
@@ -1059,14 +1111,11 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
             ),
             FilledButton(
               onPressed: () async {
-                await ref.read(bridgeProvider).enqueueYoutubeDownload(
+                await ref.read(galleryControllerProvider.notifier).startYoutubeDownload(
                       url: urlCtrl.text,
                       format: format,
                       quality: quality,
-                      destinationFolder:
-                          format == 'mp3' ? 'Music/YouTube' : 'Videos/YouTube',
                     );
-                await ref.read(galleryControllerProvider.notifier).refresh();
                 if (ctx.mounted) Navigator.of(ctx).pop();
               },
               child: const Text('Download'),
