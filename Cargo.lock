@@ -447,7 +447,7 @@ dependencies = [
 
 [[package]]
 name = "core-api"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "core-index",
  "core-media",
@@ -482,7 +482,7 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
 name = "core-index"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "blake3",
  "chrono",
@@ -499,7 +499,7 @@ dependencies = [
 
 [[package]]
 name = "core-media"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "blake3",
  "chrono",
@@ -518,7 +518,7 @@ dependencies = [
 
 [[package]]
 name = "core-net"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "blake3",
  "bytes",
@@ -535,7 +535,7 @@ dependencies = [
 
 [[package]]
 name = "core-platform"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "blake3",
  "image",
@@ -548,7 +548,7 @@ dependencies = [
 
 [[package]]
 name = "core-sync"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "base64 0.22.1",
  "core-index",
@@ -561,7 +561,7 @@ dependencies = [
 
 [[package]]
 name = "core-ytdl"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "chrono",
  "core-index",
@@ -2810,7 +2810,7 @@ dependencies = [
 
 [[package]]
 name = "parity-runner"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "core-api",
