@@ -75,21 +75,19 @@ const SYSTEM_SKIP_DIR_NAMES: &[&str] = &[
 ];
 
 fn is_reparse_or_symlink(entry: &DirEntry) -> bool {
-    if entry.file_type().is_symlink() {
-        return true;
-    }
     #[cfg(windows)]
     {
         use std::os::windows::fs::MetadataExt;
         const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0400;
-        if entry
-            .metadata()
-            .is_ok_and(|meta| (meta.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT) != 0)
-        {
-            return true;
-        }
+        entry.file_type().is_symlink()
+            || entry
+                .metadata()
+                .is_ok_and(|meta| (meta.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT) != 0)
     }
-    false
+    #[cfg(not(windows))]
+    {
+        entry.file_type().is_symlink()
+    }
 }
 
 fn is_excluded_entry(
@@ -200,7 +198,7 @@ where
             path: path.clone(),
             path_str,
             media_type: *mt,
-            mime: *mime,
+            mime,
             size,
             fs_created: created_at,
             modified_at,
