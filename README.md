@@ -208,3 +208,5 @@ For signing configuration, automated GitHub Releases, and maintainer checklists,
   - Avoided linking `libheif` (LGPLv3); HEIC decodes through OS platform APIs or an out-of-process LGPL `ffmpeg` sidecar.
   - Isolated `youtubedl-android` (GPLv3) behind a modular Kotlin plugin adapter so proprietary APK builds can toggle or omit it via Gradle flavor.
 - **Security Policy Change:** Legacy pairing/OAuth secrets are **never** copied in plain text during migration; `ImportWizardDialog` explicitly requires re-pairing / Google re-login (`auth_relogin_required = true`).
+
+Made with Love <3
