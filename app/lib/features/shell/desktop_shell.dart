@@ -761,13 +761,14 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                                   width: 320,
                                   padding: const EdgeInsets.all(14),
                                   decoration: BoxDecoration(
-                                    color: Theme.of(context).colorScheme.surfaceContainerLow,
                                     border: Border(
                                       left: BorderSide(color: Theme.of(context).dividerColor),
                                     ),
                                   ),
-                                  child: ListView(
-                                    children: [
+                                  child: Material(
+                                    color: Theme.of(context).colorScheme.surfaceContainerLow,
+                                    child: ListView(
+                                      children: [
                                       Row(
                                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
@@ -970,7 +971,8 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                                         icon: const Icon(Icons.delete_outline, size: 16),
                                         label: const Text('Move to Recycle Bin'),
                                       ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
                             ],
