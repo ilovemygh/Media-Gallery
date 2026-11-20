@@ -47,6 +47,20 @@ class MainActivity : FlutterActivity() {
                         }.start()
                     }
                 }
+                "scanMediaStoreSilent" -> {
+                    if (!hasMediaPermission()) {
+                        result.success("[]")
+                    } else {
+                        Thread {
+                            try {
+                                val json = queryMediaStoreJson()
+                                runOnUiThread { result.success(json) }
+                            } catch (_: Exception) {
+                                runOnUiThread { result.success("[]") }
+                            }
+                        }.start()
+                    }
+                }
                 else -> result.notImplemented()
             }
         }
