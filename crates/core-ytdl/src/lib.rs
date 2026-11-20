@@ -5,9 +5,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use core_index::{
-    classify_extension, compute_partial_blake3, now_ms, stable_media_id, DownloadFormat,
-    DownloadJobRecord, DownloadStatus, IndexError, MediaIndex, MediaRecord, MediaTags, MediaType,
-    SyncState,
+    classify_extension, compute_partial_blake3, now_ms, repository::normalize_db_path,
+    stable_media_id, DownloadFormat, DownloadJobRecord, DownloadStatus, IndexError, MediaIndex,
+    MediaRecord, MediaTags, MediaType, SyncState,
 };
 use core_media::{MediaOpError, ThumbnailManager};
 use core_platform::{PlatformError, ThumbnailSidecar, YtDlpBackend};
@@ -151,8 +151,22 @@ impl YoutubeDownloader {
     where
         F: FnMut(&DownloadJobRecord),
     {
-        let dest_dir = Path::new(&req.destination_folder);
-        std::fs::create_dir_all(dest_dir)?;
+        let resolved_dest = {
+            let p = Path::new(&req.destination_folder);
+            if p.is_relative() {
+                if let Ok(home) = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")) {
+                    PathBuf::from(home).join(p)
+                } else {
+                    p.to_path_buf()
+                }
+            } else {
+                p.to_path_buf()
+            }
+        };
+        std::fs::create_dir_all(&resolved_dest)?;
+        let resolved_dest_str = normalize_db_path(&resolved_dest.to_string_lossy());
+        let mut effective_req = req.clone();
+        effective_req.destination_folder = resolved_dest_str.clone();
 
         let mut job = DownloadJobRecord {
             id: Uuid::new_v4().to_string(),
@@ -161,7 +175,7 @@ impl YoutubeDownloader {
             format: req.format,
             quality: req.quality.clone(),
             destination_device_id: req.destination_device_id.clone(),
-            destination_folder: req.destination_folder.replace('\\', "/"),
+            destination_folder: resolved_dest_str.clone(),
             status: DownloadStatus::Downloading,
             progress: 0.0,
             output_media_id: None,
@@ -172,11 +186,46 @@ impl YoutubeDownloader {
         self.index.upsert_download_job(&job)?;
         on_job(&job);
 
-        let args = build_yt_dlp_args(req);
+        let started_at = std::time::SystemTime::now();
+        let args = build_yt_dlp_args(&effective_req);
         let run_res = self.backend.run_download(&args, &|_pct, _title| {});
 
         match run_res {
-            Ok(paths) => {
+            Ok(mut paths) => {
+                let expected_ext = match req.format {
+                    DownloadFormat::Mp3 => "mp3",
+                    DownloadFormat::Mp4 => "mp4",
+                };
+                // Fallback: if yt-dlp merged/renamed without printing the final path, pick newly written matching files.
+                let has_expected = paths.iter().any(|p| {
+                    p.exists()
+                        && p.extension()
+                            .and_then(|e| e.to_str())
+                            .is_some_and(|e| e.eq_ignore_ascii_case(expected_ext))
+                });
+                if !has_expected {
+                    if let Ok(entries) = std::fs::read_dir(&resolved_dest) {
+                        for entry in entries.flatten() {
+                            let p = entry.path();
+                            let matches_ext = p
+                                .extension()
+                                .and_then(|e| e.to_str())
+                                .is_some_and(|e| e.eq_ignore_ascii_case(expected_ext));
+                            if !matches_ext || !p.is_file() {
+                                continue;
+                            }
+                            let is_recent = entry
+                                .metadata()
+                                .ok()
+                                .and_then(|m| m.modified().ok())
+                                .is_none_or(|m| m >= started_at);
+                            if is_recent && !paths.contains(&p) {
+                                paths.push(p);
+                            }
+                        }
+                    }
+                }
+
                 let mut imported = Vec::new();
                 let thumb_mgr = ThumbnailManager {
                     index: &self.index,
@@ -191,10 +240,6 @@ impl YoutubeDownloader {
                         .and_then(|e| e.to_str())
                         .unwrap_or("")
                         .to_ascii_lowercase();
-                    let expected_ext = match req.format {
-                        DownloadFormat::Mp3 => "mp3",
-                        DownloadFormat::Mp4 => "mp4",
-                    };
                     if ext != expected_ext || !path.exists() {
                         continue;
                     }
@@ -209,16 +254,33 @@ impl YoutubeDownloader {
                         .file_stem()
                         .map(|s| s.to_string_lossy().replace('_', " "))
                         .unwrap_or_else(|| file_name.clone());
-                    let path_str = path.to_string_lossy().replace('\\', "/");
+                    let path_str = normalize_db_path(&path.to_string_lossy());
+                    let folder_str = path
+                        .parent()
+                        .map(|p| normalize_db_path(&p.to_string_lossy()))
+                        .unwrap_or_else(|| resolved_dest_str.clone());
                     let size = std::fs::metadata(&path)?.len();
                     let partial_hash = compute_partial_blake3(&path).unwrap_or_default();
                     let ts = now_ms();
+                    let (duration_ms, width, height) = if mt == MediaType::Video {
+                        let vm = self.sidecar.probe_video(&path).unwrap_or_default();
+                        let dur = if vm.duration_ms > 0 {
+                            vm.duration_ms
+                        } else {
+                            180_000
+                        };
+                        let w = if vm.width > 0 { vm.width } else { 1920 };
+                        let h = if vm.height > 0 { vm.height } else { 1080 };
+                        (dur, w, h)
+                    } else {
+                        (180_000, 0, 0)
+                    };
 
                     let rec = MediaRecord {
                         id: stable_media_id(&req.destination_device_id, &path_str),
                         device_id: req.destination_device_id.clone(),
                         path: path_str,
-                        folder_path: req.destination_folder.replace('\\', "/"),
+                        folder_path: folder_str,
                         file_name,
                         media_type: mt,
                         mime: mime.to_string(),
@@ -227,9 +289,9 @@ impl YoutubeDownloader {
                         partial_hash,
                         created_at: ts,
                         modified_at: ts,
-                        duration_ms: 180_000,
-                        width: if mt == MediaType::Video { 1920 } else { 0 },
-                        height: if mt == MediaType::Video { 1080 } else { 0 },
+                        duration_ms,
+                        width,
+                        height,
                         gps_lat: None,
                         gps_lon: None,
                         place: None,

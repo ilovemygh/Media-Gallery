@@ -124,10 +124,16 @@ impl<'a> ThumbnailManager<'a> {
             }
             MediaType::Image => {
                 let target = self.cache_dir.join(format!("{stem}.jpg"));
-                if let Ok(img) = image::open(&media.path) {
-                    let thumb = img.thumbnail(480, 480);
-                    if thumb.save(&target).is_ok() {
-                        return Ok(target);
+                let file_size = std::fs::metadata(&media.path).map(|m| m.len()).unwrap_or(0);
+                if file_size > 0 && file_size <= 100 * 1024 * 1024 {
+                    let decoded = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        image::open(&media.path)
+                    }));
+                    if let Ok(Ok(img)) = decoded {
+                        let thumb = img.thumbnail(480, 480);
+                        if thumb.save(&target).is_ok() {
+                            return Ok(target);
+                        }
                     }
                 }
                 write_deterministic_png(
@@ -137,7 +143,10 @@ impl<'a> ThumbnailManager<'a> {
                 )
             }
             MediaType::Audio => {
-                if let Ok(tagged) = Probe::open(&media.path).and_then(|p| p.read()) {
+                let probed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    Probe::open(&media.path).and_then(|p| p.read())
+                }));
+                if let Ok(Ok(tagged)) = probed {
                     if let Some(pic) = tagged
                         .primary_tag()
                         .or_else(|| tagged.first_tag())

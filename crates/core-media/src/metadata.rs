@@ -26,13 +26,19 @@ pub fn extract_metadata_and_alias(
 
     match media_type {
         MediaType::Image => {
-            if let Ok((w, h)) = image::image_dimensions(path) {
+            let dims = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                image::image_dimensions(path)
+            }));
+            if let Ok(Ok((w, h))) = dims {
                 probed.width = w;
                 probed.height = h;
             }
             if let Ok(file) = File::open(path) {
                 let mut reader = BufReader::new(file);
-                if let Ok(exif) = Reader::new().read_from_container(&mut reader) {
+                let exif_res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    Reader::new().read_from_container(&mut reader)
+                }));
+                if let Ok(Ok(exif)) = exif_res {
                     probed.created_at = parse_exif_datetime(&exif);
                     if let (Some(lat), Some(lon)) = parse_exif_gps(&exif) {
                         probed.gps_lat = Some(lat);
@@ -42,7 +48,10 @@ pub fn extract_metadata_and_alias(
             }
         }
         MediaType::Audio => {
-            if let Ok(tagged) = Probe::open(path).and_then(|p| p.read()) {
+            let audio_res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                Probe::open(path).and_then(|p| p.read())
+            }));
+            if let Ok(Ok(tagged)) = audio_res {
                 probed.duration_ms = tagged.properties().duration().as_millis() as u64;
                 if let Some(tag) = tagged.primary_tag().or_else(|| tagged.first_tag()) {
                     probed.tags = MediaTags {
@@ -56,7 +65,10 @@ pub fn extract_metadata_and_alias(
         }
         MediaType::Video => {
             if let Some(sc) = sidecar {
-                if let Ok(vm) = sc.probe_video(path) {
+                let vid_res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    sc.probe_video(path)
+                }));
+                if let Ok(Ok(vm)) = vid_res {
                     probed.duration_ms = vm.duration_ms;
                     probed.width = vm.width;
                     probed.height = vm.height;

@@ -779,9 +779,37 @@ impl MediaGalleryCore {
     pub fn scan_now(
         &self,
         roots: Vec<PathBuf>,
-        excluded_folders: Vec<PathBuf>,
+        mut excluded_folders: Vec<PathBuf>,
     ) -> Result<u64, ApiError> {
         let template = self.index.get_app_settings()?.alias_template;
+        let prefs = core_platform::load_extended_prefs(&self.cache_dir);
+        if !prefs.scan_videos {
+            excluded_folders.push(PathBuf::from("__mg_disable_type__:video"));
+        }
+        if !prefs.scan_images {
+            excluded_folders.push(PathBuf::from("__mg_disable_type__:image"));
+        }
+        if !prefs.scan_audio {
+            excluded_folders.push(PathBuf::from("__mg_disable_type__:audio"));
+        }
+        if !prefs.skip_system_folders {
+            excluded_folders.push(PathBuf::from("__mg_allow_system_dirs__"));
+        }
+        if !prefs.enabled_extensions.is_empty() {
+            let enabled: std::collections::HashSet<String> = prefs
+                .enabled_extensions
+                .iter()
+                .map(|e| e.trim_start_matches('.').to_ascii_lowercase())
+                .collect();
+            for ext in [
+                "mp4", "mkv", "webm", "mov", "avi", "mp3", "m4a", "flac", "wav", "ogg", "png",
+                "jpg", "jpeg", "gif", "webp", "heic",
+            ] {
+                if !enabled.contains(ext) {
+                    excluded_folders.push(PathBuf::from(format!("__mg_disable_ext__:{ext}")));
+                }
+            }
+        }
         let _watch_res = self.watcher.watch_roots(&roots, |_paths| {});
         let req = ScanRequest {
             operation_id: Uuid::new_v4().to_string(),
@@ -790,7 +818,7 @@ impl MediaGalleryCore {
             roots,
             excluded_folders,
             compute_hashes: true,
-            batch_size: 200,
+            batch_size: 128,
             cancel: None,
         };
         let mut last_total = 0u64;
@@ -2301,7 +2329,10 @@ pub async fn frb_save_settings(settings: FrbAppSettings) -> Result<(), ApiError>
         current.alias_template = settings.alias_template;
         current.scan_folders = settings.scan_folders;
         current.excluded_folders = settings.excluded_folders;
-        core.save_settings(&current)
+        core.save_settings(&current)?;
+        let prefs = core_platform::load_extended_prefs(&core.cache_dir);
+        let _ = core_platform::set_windows_startup(prefs.open_at_startup);
+        Ok(())
     })
     .await
     .map_err(|e| ApiError {
@@ -2312,7 +2343,7 @@ pub async fn frb_save_settings(settings: FrbAppSettings) -> Result<(), ApiError>
 
 #[flutter_rust_bridge::frb(sync)]
 pub fn frb_health_check() -> String {
-    "core-api v0.2.0 ready".to_string()
+    "core-api v0.2.1 ready".to_string()
 }
 
 #[flutter_rust_bridge::frb(sync)]
