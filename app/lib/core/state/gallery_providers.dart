@@ -58,8 +58,10 @@ class GalleryUiState {
     this.shuffle = false,
     this.repeatOne = false,
     this.isScanning = false,
+    this.isBackgroundScanning = false,
     this.statusBanner,
     this.lastBulkBatchId,
+    this.lastCompletedDownload,
   });
 
   final NavSection section;
@@ -96,8 +98,10 @@ class GalleryUiState {
   final bool shuffle;
   final bool repeatOne;
   final bool isScanning;
+  final bool isBackgroundScanning;
   final String? statusBanner;
   final String? lastBulkBatchId;
+  final DownloadJobItem? lastCompletedDownload;
 
   MediaItem? get selectedMedia {
     if (detailsHiddenForSession || selectedMediaId == null) return null;
@@ -141,7 +145,7 @@ class GalleryUiState {
     List<DuplicateGroupItem>? duplicateGroups,
     List<MusicGroupItem>? musicGroups,
     List<TransferItem>? transfers,
-    List<AutoSyncRuleItem>? autoSyncRules,
+    List<AutoSyncRuleItem> ? autoSyncRules,
     List<SavedSearchItem>? savedSearches,
     String? googleEmail,
     bool clearGoogle = false,
@@ -151,10 +155,13 @@ class GalleryUiState {
     bool? shuffle,
     bool? repeatOne,
     bool? isScanning,
+    bool? isBackgroundScanning,
     String? statusBanner,
     bool clearBanner = false,
     String? lastBulkBatchId,
     bool clearBulkBatch = false,
+    DownloadJobItem? lastCompletedDownload,
+    bool clearCompletedDownload = false,
   }) =>
       GalleryUiState(
         section: section ?? this.section,
@@ -193,10 +200,17 @@ class GalleryUiState {
         shuffle: shuffle ?? this.shuffle,
         repeatOne: repeatOne ?? this.repeatOne,
         isScanning: isScanning ?? this.isScanning,
+        isBackgroundScanning: isBackgroundScanning ?? this.isBackgroundScanning,
         statusBanner: clearBanner ? null : (statusBanner ?? this.statusBanner),
         lastBulkBatchId: clearBulkBatch ? null : (lastBulkBatchId ?? this.lastBulkBatchId),
+        lastCompletedDownload: clearCompletedDownload
+            ? null
+            : (lastCompletedDownload ?? this.lastCompletedDownload),
       );
 }
+
+String _normPathKey(String raw) =>
+    raw.replaceAll('\\', '/').replaceAll(RegExp(r'/+$'), '').toLowerCase();
 
 class GalleryController extends StateNotifier<GalleryUiState> {
   GalleryController(this._bridge) : super(const GalleryUiState()) {
@@ -216,17 +230,40 @@ class GalleryController extends StateNotifier<GalleryUiState> {
   }
 
   Future<void> _bootstrap() async {
+    // 1. Load persisted SQLite library immediately on open without rescanning everything.
     await refresh();
-    if (_bridge is LiveCoreBridge && state.stats.totalFiles == 0) {
-      await runInitialScan();
+    // 2. If auto-scan on open is enabled, run incremental scan quietly in the background
+    //    with zero banners, zero dialogs, and zero UI interruption.
+    if (_bridge is LiveCoreBridge && state.settings.autoScanOnOpen) {
+      unawaited(runSilentBackgroundScan());
+    }
+  }
+
+  /// Runs an incremental background scan on open without banners or user interruption.
+  Future<void> runSilentBackgroundScan() async {
+    final bridge = _bridge;
+    if (bridge is! LiveCoreBridge || state.isScanning || state.isBackgroundScanning) return;
+    state = state.copyWith(isBackgroundScanning: true);
+    try {
+      await bridge.runDefaultInitialScan(silent: true);
+      if (mounted) {
+        await refresh();
+      }
+    } catch (_) {
+      // Background auto-scan must never disturb the user.
+    } finally {
+      if (mounted) {
+        state = state.copyWith(isBackgroundScanning: false);
+      }
     }
   }
 
   Future<void> runInitialScan() async {
-    if (_bridge is! LiveCoreBridge) return;
+    final bridge = _bridge;
+    if (bridge is! LiveCoreBridge) return;
     state = state.copyWith(isScanning: true, statusBanner: 'Scanning local media...');
     try {
-      final count = await _bridge.runDefaultInitialScan();
+      final count = await bridge.runDefaultInitialScan(silent: false);
       await refresh();
       state = state.copyWith(
         isScanning: false,
@@ -241,7 +278,13 @@ class GalleryController extends StateNotifier<GalleryUiState> {
     if (roots.isEmpty) return;
     state = state.copyWith(isScanning: true, statusBanner: 'Scanning selected folders...');
     try {
-      final merged = {...state.settings.scanFolders, ...roots}.toList();
+      final seen = <String>{};
+      final merged = <String>[];
+      for (final p in [...state.settings.scanFolders, ...roots]) {
+        if (seen.add(_normPathKey(p))) {
+          merged.add(p);
+        }
+      }
       final nextSettings = state.settings.copyWith(scanFolders: merged);
       await _bridge.saveSettings(nextSettings);
       final count = await _bridge.scanFolders(
@@ -271,6 +314,29 @@ class GalleryController extends StateNotifier<GalleryUiState> {
     }
   }
 
+  List<MediaItem> _deduplicateMediaList(
+    List<MediaItem> input,
+    Set<String> hiddenDuplicateIds,
+    bool hideDuplicates,
+  ) {
+    final seenPaths = <String>{};
+    final seenContentKeys = <String>{};
+    final out = <MediaItem>[];
+    for (final item in input) {
+      final pathKey = '${item.deviceId}::${_normPathKey(item.path)}';
+      if (!seenPaths.add(pathKey)) continue;
+      if (hideDuplicates) {
+        if (hiddenDuplicateIds.contains(item.id)) continue;
+        if (item.isDuplicate) {
+          final contentKey = '${item.type.name}::${item.size}::${item.fileName.toLowerCase()}';
+          if (!seenContentKeys.add(contentKey)) continue;
+        }
+      }
+      out.add(item);
+    }
+    return out;
+  }
+
   Future<void> refresh() async {
     final mt = _sectionMediaType(state.section);
     final isClean = state.section == NavSection.clean;
@@ -291,11 +357,11 @@ class GalleryController extends StateNotifier<GalleryUiState> {
       filter: const MediaFilter(),
       sortBy: SortField.date,
       sortDir: SortDir.desc,
-      limit: 12,
+      limit: 16,
     );
-    final folders = await _bridge.listFolders(mediaType: mt);
+    final rawFolders = await _bridge.listFolders(mediaType: mt);
     final devices = await _bridge.listDevices();
-    final pinned = await _bridge.listPinnedFolders();
+    final rawPinned = await _bridge.listPinnedFolders();
     final settings = await _bridge.getSettings();
     final stats = await _bridge.getStorageStats();
     final jobs = await _bridge.listDownloadJobs();
@@ -307,12 +373,45 @@ class GalleryController extends StateNotifier<GalleryUiState> {
     final syncRules = await _bridge.listAutoSyncRules();
     final savedSearches = await _bridge.listSavedSearches();
 
+    // Build set of redundant duplicate IDs (keep 1 primary representative per duplicate group).
+    final hiddenDupIds = <String>{};
+    for (final grp in dupGroups) {
+      for (final extra in grp.items.skip(1)) {
+        hiddenDupIds.add(extra.id);
+      }
+    }
+    final hideDups =
+        settings.hideDuplicatesInGallery && !state.onlyDuplicates && !state.trashedOnly;
+    final dedupedItems = _deduplicateMediaList(page.items, hiddenDupIds, hideDups);
+    final dedupedRecent =
+        _deduplicateMediaList(recentPage.items, hiddenDupIds, settings.hideDuplicatesInGallery)
+            .take(12)
+            .toList();
+
+    // Deduplicate folders by normalized path so the same folder never appears twice.
+    final seenFolders = <String>{};
+    final dedupedFolders = <FolderSummary>[];
+    for (final f in rawFolders) {
+      if (seenFolders.add('${f.deviceId}::${_normPathKey(f.path)}')) {
+        dedupedFolders.add(f);
+      }
+    }
+
+    // Deduplicate pinned folder shortcuts by normalized path.
+    final seenPins = <String>{};
+    final dedupedPinned = <PinnedFolderItem>[];
+    for (final p in rawPinned) {
+      if (seenPins.add('${p.deviceId}::${_normPathKey(p.path)}')) {
+        dedupedPinned.add(p);
+      }
+    }
+
     state = state.copyWith(
-      items: page.items,
-      recentItems: recentPage.items,
-      folders: folders,
+      items: dedupedItems,
+      recentItems: dedupedRecent,
+      folders: dedupedFolders,
       devices: devices,
-      pinnedFolders: pinned,
+      pinnedFolders: dedupedPinned,
       settings: settings,
       stats: stats,
       downloadJobs: jobs,
@@ -695,6 +794,10 @@ class GalleryController extends StateNotifier<GalleryUiState> {
   }
 
   Future<void> addPinnedFolder(String folderPath) async {
+    final normTarget = _normPathKey(folderPath);
+    if (state.pinnedFolders.any((p) => _normPathKey(p.path) == normTarget)) {
+      return;
+    }
     final label = folderPath
             .replaceAll('\\', '/')
             .split('/')
@@ -711,6 +814,75 @@ class GalleryController extends StateNotifier<GalleryUiState> {
       ),
     );
     await refresh();
+  }
+
+  Future<DownloadJobItem?> startYoutubeDownload({
+    required String url,
+    required String format,
+    required String quality,
+    String? destinationFolder,
+  }) async {
+    final dest = destinationFolder ??
+        (format == 'mp3' ? 'Music/YouTube' : 'Videos/YouTube');
+    await _bridge.enqueueYoutubeDownload(
+      url: url,
+      format: format,
+      quality: quality,
+      destinationFolder: dest,
+    );
+    await refresh();
+    final completed = state.downloadJobs
+        .where((j) => j.status == 'completed')
+        .firstOrNull;
+    if (completed != null) {
+      state = state.copyWith(lastCompletedDownload: completed);
+    }
+    return completed;
+  }
+
+  void clearCompletedDownload() {
+    state = state.copyWith(clearCompletedDownload: true);
+  }
+
+  Future<MediaItem?> resolveMediaForDownloadJob(DownloadJobItem job) async {
+    MediaItem? matchIn(List<MediaItem> list) {
+      for (final m in list) {
+        if (m.id == job.id) return m;
+        if (job.title != null &&
+            job.title!.isNotEmpty &&
+            (m.alias.toLowerCase() == job.title!.toLowerCase() ||
+                m.fileName.toLowerCase().contains(job.title!.toLowerCase()))) {
+          return m;
+        }
+      }
+      final jobFolder = _normPathKey(job.destinationFolder);
+      for (final m in list) {
+        if (_normPathKey(m.folderPath) == jobFolder) {
+          return m;
+        }
+      }
+      return null;
+    }
+
+    var found = matchIn(state.items) ?? matchIn(state.recentItems);
+    if (found != null) return found;
+
+    final folderPage = await _bridge.listMedia(
+      filter: MediaFilter(folderPath: job.destinationFolder),
+      sortBy: SortField.date,
+      sortDir: SortDir.desc,
+      limit: 20,
+    );
+    found = matchIn(folderPage.items) ?? folderPage.items.firstOrNull;
+    if (found != null) return found;
+
+    final allPage = await _bridge.listMedia(
+      filter: const MediaFilter(),
+      sortBy: SortField.date,
+      sortDir: SortDir.desc,
+      limit: 30,
+    );
+    return matchIn(allPage.items) ?? allPage.items.firstOrNull;
   }
 
   Future<void> renamePinnedFolder(String id, String newLabel) async {

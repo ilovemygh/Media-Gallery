@@ -267,6 +267,25 @@ class MediaPage {
 
 @immutable
 class AppSettings {
+  static const List<String> allSupportedExtensions = [
+    'mp4',
+    'mkv',
+    'webm',
+    'mov',
+    'avi',
+    'jpg',
+    'jpeg',
+    'png',
+    'gif',
+    'webp',
+    'heic',
+    'mp3',
+    'm4a',
+    'flac',
+    'wav',
+    'ogg',
+  ];
+
   const AppSettings({
     this.sidebarWidth = 248.0,
     this.sidebarCollapsed = false,
@@ -275,6 +294,16 @@ class AppSettings {
     this.aliasTemplate = '{date} {place} {name}',
     this.scanFolders = const [],
     this.excludedFolders = const [],
+    this.openAtStartup = false,
+    this.autoScanOnOpen = true,
+    this.hideDuplicatesInGallery = true,
+    this.skipSystemFolders = true,
+    this.scanVideos = true,
+    this.scanImages = true,
+    this.scanAudio = true,
+    this.enabledExtensions = const [],
+    this.youtubeDefaultFormat = 'mp4',
+    this.youtubeDefaultQuality = '1080p',
   });
 
   final double sidebarWidth;
@@ -284,6 +313,64 @@ class AppSettings {
   final String aliasTemplate;
   final List<String> scanFolders;
   final List<String> excludedFolders;
+  final bool openAtStartup;
+  final bool autoScanOnOpen;
+  final bool hideDuplicatesInGallery;
+  final bool skipSystemFolders;
+  final bool scanVideos;
+  final bool scanImages;
+  final bool scanAudio;
+  final List<String> enabledExtensions;
+  final String youtubeDefaultFormat;
+  final String youtubeDefaultQuality;
+
+  Set<String> get effectiveExtensions => enabledExtensions.isEmpty
+      ? allSupportedExtensions.toSet()
+      : enabledExtensions.map((e) => e.toLowerCase()).toSet();
+
+  Map<String, dynamic> toExtendedPrefsJson() => {
+        'open_at_startup': openAtStartup,
+        'auto_scan_on_open': autoScanOnOpen,
+        'hide_duplicates_in_gallery': hideDuplicatesInGallery,
+        'skip_system_folders': skipSystemFolders,
+        'scan_videos': scanVideos,
+        'scan_images': scanImages,
+        'scan_audio': scanAudio,
+        'enabled_extensions': enabledExtensions,
+        'youtube_default_format': youtubeDefaultFormat,
+        'youtube_default_quality': youtubeDefaultQuality,
+      };
+
+  AppSettings withExtendedPrefsJson(Map<String, dynamic> json) {
+    final rawExts = json['enabled_extensions'];
+    final exts = rawExts is List
+        ? rawExts.map((e) => e.toString().toLowerCase()).toList()
+        : enabledExtensions;
+    return copyWith(
+      openAtStartup: json['open_at_startup'] is bool
+          ? json['open_at_startup'] as bool
+          : openAtStartup,
+      autoScanOnOpen: json['auto_scan_on_open'] is bool
+          ? json['auto_scan_on_open'] as bool
+          : autoScanOnOpen,
+      hideDuplicatesInGallery: json['hide_duplicates_in_gallery'] is bool
+          ? json['hide_duplicates_in_gallery'] as bool
+          : hideDuplicatesInGallery,
+      skipSystemFolders: json['skip_system_folders'] is bool
+          ? json['skip_system_folders'] as bool
+          : skipSystemFolders,
+      scanVideos: json['scan_videos'] is bool ? json['scan_videos'] as bool : scanVideos,
+      scanImages: json['scan_images'] is bool ? json['scan_images'] as bool : scanImages,
+      scanAudio: json['scan_audio'] is bool ? json['scan_audio'] as bool : scanAudio,
+      enabledExtensions: exts,
+      youtubeDefaultFormat: json['youtube_default_format'] is String
+          ? json['youtube_default_format'] as String
+          : youtubeDefaultFormat,
+      youtubeDefaultQuality: json['youtube_default_quality'] is String
+          ? json['youtube_default_quality'] as String
+          : youtubeDefaultQuality,
+    );
+  }
 
   AppSettings copyWith({
     double? sidebarWidth,
@@ -294,6 +381,16 @@ class AppSettings {
     String? aliasTemplate,
     List<String>? scanFolders,
     List<String>? excludedFolders,
+    bool? openAtStartup,
+    bool? autoScanOnOpen,
+    bool? hideDuplicatesInGallery,
+    bool? skipSystemFolders,
+    bool? scanVideos,
+    bool? scanImages,
+    bool? scanAudio,
+    List<String>? enabledExtensions,
+    String? youtubeDefaultFormat,
+    String? youtubeDefaultQuality,
   }) =>
       AppSettings(
         sidebarWidth: sidebarWidth ?? this.sidebarWidth,
@@ -305,6 +402,16 @@ class AppSettings {
         aliasTemplate: aliasTemplate ?? this.aliasTemplate,
         scanFolders: scanFolders ?? this.scanFolders,
         excludedFolders: excludedFolders ?? this.excludedFolders,
+        openAtStartup: openAtStartup ?? this.openAtStartup,
+        autoScanOnOpen: autoScanOnOpen ?? this.autoScanOnOpen,
+        hideDuplicatesInGallery: hideDuplicatesInGallery ?? this.hideDuplicatesInGallery,
+        skipSystemFolders: skipSystemFolders ?? this.skipSystemFolders,
+        scanVideos: scanVideos ?? this.scanVideos,
+        scanImages: scanImages ?? this.scanImages,
+        scanAudio: scanAudio ?? this.scanAudio,
+        enabledExtensions: enabledExtensions ?? this.enabledExtensions,
+        youtubeDefaultFormat: youtubeDefaultFormat ?? this.youtubeDefaultFormat,
+        youtubeDefaultQuality: youtubeDefaultQuality ?? this.youtubeDefaultQuality,
       );
 }
 

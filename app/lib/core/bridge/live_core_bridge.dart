@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/services.dart';
 import '../../src/rust/api.dart' as rust;
@@ -8,6 +9,7 @@ import 'core_bridge.dart';
 /// Live FFI-backed bridge connecting Flutter directly to `crates/core-api` (Rust + SQLite + iroh).
 class LiveCoreBridge implements CoreBridge {
   LiveCoreBridge._({
+    required this.dataDir,
     required this.dbPath,
     required this.cacheDir,
     required this.selfDeviceId,
@@ -16,10 +18,13 @@ class LiveCoreBridge implements CoreBridge {
 
   static const MethodChannel _androidChannel = MethodChannel('io.mediagallery.app/mediastore');
 
+  final String dataDir;
   final String dbPath;
   final String cacheDir;
   final String selfDeviceId;
   final String selfDeviceName;
+
+  File get _extendedPrefsFile => File('$dataDir/user_prefs.json');
 
   static Future<LiveCoreBridge> initialize() async {
     await RustLib.init();
@@ -62,6 +67,7 @@ class LiveCoreBridge implements CoreBridge {
     );
 
     return LiveCoreBridge._(
+      dataDir: dataDir,
       dbPath: dbPath,
       cacheDir: thumbCache,
       selfDeviceId: deviceId,
@@ -70,9 +76,11 @@ class LiveCoreBridge implements CoreBridge {
   }
 
   /// Discovers default user media folders on desktop or queries Android MediaStore.
-  Future<int> runDefaultInitialScan() async {
+  /// When [silent] is true, runs in the background without prompting for Android permissions.
+  Future<int> runDefaultInitialScan({bool silent = false}) async {
     if (Platform.isAndroid) {
-      final rowsJson = await _androidChannel.invokeMethod<String>('scanMediaStore');
+      final method = silent ? 'scanMediaStoreSilent' : 'scanMediaStore';
+      final rowsJson = await _androidChannel.invokeMethod<String>(method);
       if (rowsJson != null && rowsJson.isNotEmpty && rowsJson != '[]') {
         return ingestAndroidMediaStore(selfDeviceId, selfDeviceName, rowsJson);
       }
@@ -95,7 +103,7 @@ class LiveCoreBridge implements CoreBridge {
       }
     }
     if (roots.isEmpty) return 0;
-    return scanFolders(roots);
+    return scanFolders(roots, excluded: settings.excludedFolders);
   }
 
   @override
@@ -205,7 +213,7 @@ class LiveCoreBridge implements CoreBridge {
   @override
   Future<AppSettings> getSettings() async {
     final s = await rust.frbGetSettings();
-    return AppSettings(
+    var merged = AppSettings(
       sidebarWidth: s.sidebarWidth.toDouble(),
       sidebarCollapsed: s.sidebarCollapsed,
       darkMode: s.darkMode,
@@ -215,10 +223,27 @@ class LiveCoreBridge implements CoreBridge {
       scanFolders: s.scanFolders,
       excludedFolders: s.excludedFolders,
     );
+    try {
+      if (_extendedPrefsFile.existsSync()) {
+        final raw = await _extendedPrefsFile.readAsString();
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) {
+          merged = merged.withExtendedPrefsJson(decoded);
+        }
+      }
+    } catch (_) {
+      // Ignore malformed prefs file and fall back to defaults.
+    }
+    return merged;
   }
 
   @override
   Future<void> saveSettings(AppSettings settings) async {
+    try {
+      await _extendedPrefsFile.writeAsString(jsonEncode(settings.toExtendedPrefsJson()));
+    } catch (_) {
+      // Non-fatal: still persist core settings in SQLite.
+    }
     await rust.frbSaveSettings(
       settings: rust.FrbAppSettings(
         sidebarWidth: settings.sidebarWidth.round(),
@@ -575,11 +600,26 @@ class LiveCoreBridge implements CoreBridge {
     required String quality,
     required String destinationFolder,
   }) async {
+    var resolvedDest = destinationFolder;
+    final isRelative =
+        !resolvedDest.startsWith('/') && !RegExp(r'^[A-Za-z]:[/\\]').hasMatch(resolvedDest);
+    if (isRelative) {
+      if (Platform.isAndroid) {
+        resolvedDest = '$dataDir/$resolvedDest';
+      } else {
+        final home = Platform.isWindows
+            ? Platform.environment['USERPROFILE']
+            : Platform.environment['HOME'];
+        if (home != null && home.isNotEmpty) {
+          resolvedDest = '$home/$resolvedDest';
+        }
+      }
+    }
     await rust.frbEnqueueYoutubeDownload(
       url: url,
       format: format,
       quality: quality,
-      destinationFolder: destinationFolder,
+      destinationFolder: resolvedDest,
     );
   }
 
