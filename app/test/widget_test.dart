@@ -81,16 +81,23 @@ void main() {
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
     expect(find.text('Library Folders & Exclusions'), findsOneWidget);
+    expect(find.text('Open at Startup'), findsOneWidget);
+    expect(find.text('Auto-Scan in Background on Open'), findsOneWidget);
+    expect(find.text('Media Formats & YouTube Defaults'), findsOneWidget);
 
-    // Open Audio view with Unified Music grouping chips & MiniPlayerBar
+    // Open Audio view with Unified Music grouping chips, Sound Wave Visualizer & MiniPlayerBar
     await tester.tap(find.text('Audio'));
     await tester.pumpAndSettle();
     expect(find.text('Group Music:'), findsOneWidget);
+    expect(find.byKey(const Key('grid_size_dropdown')), findsOneWidget);
+    expect(find.byKey(const Key('profile_avatar_button')), findsOneWidget);
     await tester.tap(find.text('Nova Drift - Midnight Echoes').first);
     await tester.pumpAndSettle();
     expect(find.text('DETAILS'), findsOneWidget);
+    expect(find.text('Details & Size'), findsOneWidget);
     await tester.tap(find.text('Open Viewer / Player'));
     await tester.pumpAndSettle();
+    expect(find.byKey(const Key('audio_waveform_visualizer')), findsOneWidget);
     await tester.tap(find.byTooltip('Close').last);
     await tester.pumpAndSettle();
     expect(find.byTooltip('Shuffle'), findsOneWidget);
