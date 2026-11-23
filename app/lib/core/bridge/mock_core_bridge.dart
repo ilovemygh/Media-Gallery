@@ -725,7 +725,23 @@ class MockCoreBridge implements CoreBridge {
         )
         .toList();
     if (tracks.isEmpty) return const [];
-    return [MusicGroupItem(groupName: 'All Tracks', tracks: tracks)];
+    if (groupBy == MusicGroupBy.all) {
+      return [MusicGroupItem(groupName: 'All Tracks', tracks: tracks)];
+    }
+    final grouped = <String, List<UnifiedTrackItem>>{};
+    for (final tr in tracks) {
+      final key = switch (groupBy) {
+        MusicGroupBy.artist => tr.artist,
+        MusicGroupBy.album => tr.album,
+        MusicGroupBy.folder => tr.primary.folderPath,
+        MusicGroupBy.device => tr.primary.deviceName,
+        MusicGroupBy.all => 'All Tracks',
+      };
+      grouped.putIfAbsent(key, () => []).add(tr);
+    }
+    return grouped.entries
+        .map((e) => MusicGroupItem(groupName: e.key, tracks: e.value))
+        .toList();
   }
 
   @override
