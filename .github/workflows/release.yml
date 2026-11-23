@@ -319,7 +319,7 @@ jobs:
       - name: Install Linux desktop & AppImage dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libsecret-1-dev libjsoncpp-dev libmpv-dev mpv desktop-file-utils file xz-utils
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libsecret-1-dev libjsoncpp-dev libmpv-dev mpv libasound2-dev desktop-file-utils file xz-utils
       - name: Build, bundle sidecars, and package Linux portable tarball & AppImage
         shell: bash
         run: |
