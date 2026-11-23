@@ -51,3 +51,10 @@
 - [x] **Openable YouTube Downloads:** Resolved completed `yt-dlp` jobs to indexed `MediaItem` records and added an openable bottom `CompletedDownloadBar` plus `Open` actions on completed queue items (`6331cd8`, `280bd78`, `b5c0628`)
 - [x] **Audio Sound-Wave Visualizer, Profile Avatar, Dropdowns & New Logo:** Added interactive `AudioWaveformVisualizer` and `MiniSoundWaveIndicator`, replaced the Google chip with `ProfileAvatarButton`, converted grid/view size and Details sidebar sections into dropdowns (`GridSizeViewDropdown` + collapsible `Details & Size`), redesigned Windows `.ico` / Android launcher icons / vector `MediaGalleryLogo`, expanded Settings (Open at Startup, Auto-Scan, Media Types, File Formats, YouTube Defaults) on desktop and Android, and bumped version to `v0.2.1` (`5e30728`, `b5c0628`, `a0bcf12`)
 
+---
+
+## PART F: Universal Linux Support, Sorting & Feature Wiring Fixes (v0.2.2)
+- [x] **No auto-rescan loop & thumbnail safety:** Persisted `initial_scan_done` in `user_prefs.json`, changed `autoScanOnOpen` default to `false` after initial index creation, tracked `_attemptedThumbIds` per session, and verified on-disk thumbnail existence in `ThumbnailManager::ensure_thumbnail`
+- [x] **Sorting, Audio Grouping & Action Wiring:** Updated `SortField::Date` SQL to `MAX(m.modified_at, m.created_at)`, stopped overriding Sort inside `Recent`, added Sort & Audio Grouping controls to Android Library, rendered `ui.musicGroups` in Audio view, wired YouTube Upload/Channel/Studio browser launch + Reveal in Folder + directory picker for Pin Folder + shuffle track skip + user Home resolution for relative YouTube downloads
+- [x] **Universal Linux & Arch Linux Builds:** Added `app/linux/` CMake runner bundling `libcore_api.so`, `media_kit_libs_linux`, pinned Linux LGPL `ffmpeg`/`ffprobe` + `yt-dlp` checksums in `tools/release/sidecars.lock`, `tools/release/linux/stage-linux.sh` (`.AppImage` + portable `.tar.gz` + `install.sh`), and `linux-build` / `build-linux` CI & Release jobs
+

@@ -305,14 +305,51 @@ jobs:
             ${{ runner.temp }}/dist-android/MediaGallery-${{ needs.prepare.outputs.version }}-android-universal.apk
           if-no-files-found: error
 
+  build-linux:
+    needs: [prepare, ci-gate]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.100.0
+      - uses: Swatinem/rust-cache@v2
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.50.0'
+          channel: stable
+      - name: Install Linux desktop & AppImage dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libsecret-1-dev libjsoncpp-dev libmpv-dev mpv desktop-file-utils file xz-utils
+      - name: Build, bundle sidecars, and package Linux portable tarball & AppImage
+        shell: bash
+        run: |
+          DIST_DIR="${RUNNER_TEMP}/dist-linux"
+          CACHE_DIR="${RUNNER_TEMP}/sidecar-cache"
+          chmod +x "${GITHUB_WORKSPACE}/tools/release/linux/stage-linux.sh"
+          "${GITHUB_WORKSPACE}/tools/release/linux/stage-linux.sh" \
+            --version "${{ needs.prepare.outputs.version }}" \
+            --output-dir "$DIST_DIR" \
+            --cache-dir "$CACHE_DIR"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-release-assets
+          path: |
+            ${{ runner.temp }}/dist-linux/MediaGallery-${{ needs.prepare.outputs.version }}-linux-x86_64.AppImage
+            ${{ runner.temp }}/dist-linux/MediaGallery-${{ needs.prepare.outputs.version }}-linux-x64-portable.tar.gz
+          if-no-files-found: error
+
   publish:
-    needs: [prepare, build-windows, build-android]
+    needs: [prepare, build-windows, build-linux, build-android]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: windows-release-assets
+          path: release-assets
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-release-assets
           path: release-assets
       - uses: actions/download-artifact@v4
         with:
@@ -326,6 +363,8 @@ jobs:
           EXPECTED=(
             "MediaGallery-${V}-windows-x64-setup.exe"
             "MediaGallery-${V}-windows-x64-portable.zip"
+            "MediaGallery-${V}-linux-x86_64.AppImage"
+            "MediaGallery-${V}-linux-x64-portable.tar.gz"
             "MediaGallery-${V}-android-arm64-v8a.apk"
             "MediaGallery-${V}-android-armeabi-v7a.apk"
             "MediaGallery-${V}-android-universal.apk"
@@ -376,15 +415,17 @@ jobs:
           |---|---|---|
           | **Windows x64 Installer** | `MediaGallery-{v}-windows-x64-setup.exe` | Recommended for Windows 10/11 (Start Menu shortcuts, clean uninstaller, bundled sidecars) |
           | **Windows x64 Portable** | `MediaGallery-{v}-windows-x64-portable.zip` | Extract and run `media_gallery.exe` with zero installation |
+          | **Linux Universal AppImage** | `MediaGallery-{v}-linux-x86_64.AppImage` | Single-file executable for Arch, Ubuntu, Debian, Fedora, Mint & SteamOS (`chmod +x` and run) |
+          | **Linux x64 Portable** | `MediaGallery-{v}-linux-x64-portable.tar.gz` | Extract & run `./media_gallery` or `./install.sh` with bundled FFmpeg & yt-dlp |
           | **Android (64-bit ARM)** | `MediaGallery-{v}-android-arm64-v8a.apk` | Recommended for modern Android devices (2018+) |
           | **Android (32-bit ARM)** | `MediaGallery-{v}-android-armeabi-v7a.apk` | Older 32-bit ARM devices |
           | **Android (Universal)** | `MediaGallery-{v}-android-universal.apk` | Multi-ABI APK (`arm64-v8a`, `armeabi-v7a`, `x86_64`) |
           | **Checksums** | `SHA256SUMS.txt` | Verify download integrity |
 
-          ### Included Windows Sidecars & Licenses
+          ### Included Sidecars & Licenses (Windows & Linux)
           - **FFmpeg / ffprobe (LGPL v2.1+):** `{ffmpeg_ver}` (built without `--enable-gpl`)
           - **yt-dlp (Unlicense):** `{ytdlp_ver}`
-          - See `THIRD_PARTY_LICENSES.txt` inside the Windows distribution and [`README.md`](https://github.com/ilovemygh/Media-Gallery#install) for SmartScreen, Android sideload, and SHA-256 verification guides.
+          - See `THIRD_PARTY_LICENSES.txt` inside the desktop distributions and [`README.md`](https://github.com/ilovemygh/Media-Gallery#install) for SmartScreen, Linux AppImage/Arch usage, Android sideload, and SHA-256 verification guides.
 
           ### SHA-256 Checksums
           ```text
@@ -414,8 +455,8 @@ jobs:
           gh release upload "$TAG" release-assets/* --clobber
 
           ASSET_COUNT="$(gh release view "$TAG" --json assets -q '.assets | length')"
-          if [[ "$ASSET_COUNT" -ne 6 ]]; then
-            echo "Expected 6 uploaded assets on draft release $TAG, found $ASSET_COUNT" >&2
+          if [[ "$ASSET_COUNT" -ne 8 ]]; then
+            echo "Expected 8 uploaded assets on draft release $TAG, found $ASSET_COUNT" >&2
             exit 1
           fi
 

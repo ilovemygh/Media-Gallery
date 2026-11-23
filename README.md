@@ -2,10 +2,10 @@
 
 [![CI](https://github.com/ilovemygh/Media-Gallery/actions/workflows/ci.yml/badge.svg)](https://github.com/ilovemygh/Media-Gallery/actions/workflows/ci.yml)
 [![Latest Release](https://img.shields.io/github/v/release/ilovemygh/Media-Gallery?include_prereleases&label=release)](https://github.com/ilovemygh/Media-Gallery/releases)
-[![Platforms](https://img.shields.io/badge/platforms-Windows%20x64%20%7C%20Android-blue)](#install)
+[![Platforms](https://img.shields.io/badge/platforms-Windows%20x64%20%7C%20Linux%20x64%20(AppImage)%20%7C%20Android-blue)](#install)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-green)](#third-party-notices)
 
-**Media Gallery** is a fast, visual cross-platform media explorer, serverless device-to-device sync engine ("serverless Google Drive"), unified PC + Phone music library, and built-in `yt-dlp` YouTube downloader for **Windows Desktop** and **Android**.
+**Media Gallery** is a fast, visual cross-platform media explorer, serverless device-to-device sync engine ("serverless Google Drive"), unified PC + Phone music library, and built-in `yt-dlp` YouTube downloader for **Windows Desktop**, **Linux (Arch, Ubuntu, Fedora, Debian & universal AppImage)**, and **Android**.
 
 - **Device-owned storage:** Every device keeps its own files and SQLite index; **no media file contents are ever uploaded to the cloud**.
 - **Offline-first & cross-network sync:** Direct peer-to-peer pairing, metadata/thumbnail index sync, and resumable **BLAKE3**-verified file transfers over **`iroh` QUIC** (LAN, wired USB/ADB, NAT hole punching, relay fallback, or Bluetooth).
@@ -23,6 +23,8 @@ Download prebuilt binaries directly from **[GitHub Releases](https://github.com/
 |---|---|---|
 | **Windows 10/11 (64-bit) Installer** | `MediaGallery-<version>-windows-x64-setup.exe` | Most Windows users — installs shortcuts, sidecars (`ffmpeg`, `ffprobe`, `yt-dlp`), VC++ runtime, and clean uninstaller (no admin required) |
 | **Windows 10/11 (64-bit) Portable** | `MediaGallery-<version>-windows-x64-portable.zip` | No-install / USB drive use — extract the whole folder and run `media_gallery.exe` |
+| **Linux Universal AppImage** | `MediaGallery-<version>-linux-x86_64.AppImage` | Single-file executable for Arch Linux, Ubuntu, Debian, Fedora, Mint & SteamOS (`chmod +x` and run) |
+| **Linux (64-bit) Portable** | `MediaGallery-<version>-linux-x64-portable.tar.gz` | Extract & run `./media_gallery` or `./install.sh` (installs desktop entry + bundled `ffmpeg`/`ffprobe`/`yt-dlp`) |
 | **Android (Modern 64-bit Phones)** | `MediaGallery-<version>-android-arm64-v8a.apk` | Smaller download for virtually all phones released since 2018 (Pixel, Samsung Galaxy, Xiaomi, OnePlus, etc.) |
 | **Android (Older 32-bit Phones)** | `MediaGallery-<version>-android-armeabi-v7a.apk` | Older 32-bit ARM Android devices |
 | **Android (Universal Fallback)** | `MediaGallery-<version>-android-universal.apk` | Works on every supported Android ABI (`arm64-v8a`, `armeabi-v7a`, `x86_64`) if unsure |
@@ -39,6 +41,24 @@ Download prebuilt binaries directly from **[GitHub Releases](https://github.com/
    2. Confirm the filename matches the release you verified against `SHA256SUMS.txt`.
    3. Click **Run anyway**.
 4. Choose per-user install (no administrator UAC prompt required) or system-wide install, then launch **Media Gallery**.
+
+---
+
+### Linux Installation (Arch Linux & All Distros)
+
+1. **Universal AppImage (Recommended):**
+   ```bash
+   chmod +x MediaGallery-<version>-linux-x86_64.AppImage
+   ./MediaGallery-<version>-linux-x86_64.AppImage
+   ```
+   *(On Ubuntu 22.04/24.04 if FUSE2 is not installed, run `sudo apt install libfuse2` or `--appimage-extract-and-run`.)*
+2. **Portable Tarball + Desktop Installer:**
+   ```bash
+   tar -xzf MediaGallery-<version>-linux-x64-portable.tar.gz
+   cd MediaGallery-<version>-linux-x64
+   ./install.sh   # or run ./media_gallery directly
+   ```
+   - Includes bundled `libcore_api.so`, `ffmpeg`, `ffprobe`, and `yt-dlp`. Ensure `gtk3` and `mpv` are installed on your system (`sudo pacman -S gtk3 mpv` on Arch, `sudo apt install libgtk-3-0 libmpv2` on Ubuntu/Debian, `sudo dnf install gtk3 mpv-libs` on Fedora).
 
 ---
 
