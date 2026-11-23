@@ -591,10 +591,18 @@ impl MediaIndex {
             SortField::Name => format!(
                 "LOWER(COALESCE(NULLIF(m.alias, ''), m.file_name)) {dir}, LOWER(m.file_name) {dir}, m.id ASC"
             ),
-            SortField::Date => format!("m.created_at {dir}, m.id ASC"),
-            SortField::Size => format!("m.size {dir}, m.id ASC"),
-            SortField::Duration => format!("m.duration_ms {dir}, m.id ASC"),
-            SortField::Type => format!("m.type {dir}, m.id ASC"),
+            SortField::Date => {
+                format!("MAX(m.modified_at, m.created_at) {dir}, m.created_at {dir}, m.id ASC")
+            }
+            SortField::Size => {
+                format!("m.size {dir}, MAX(m.modified_at, m.created_at) DESC, m.id ASC")
+            }
+            SortField::Duration => {
+                format!("m.duration_ms {dir}, MAX(m.modified_at, m.created_at) DESC, m.id ASC")
+            }
+            SortField::Type => {
+                format!("m.type {dir}, MAX(m.modified_at, m.created_at) DESC, m.id ASC")
+            }
         };
 
         let conn = self.lock()?;

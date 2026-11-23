@@ -46,7 +46,9 @@ impl<'a> ThumbnailManager<'a> {
     ) -> Result<CoverRecord, MediaOpError> {
         let resolved_media_id = if let Some(existing) = self.index.get_media_by_id(&media.id)? {
             if let Some(cov) = existing.cover {
-                return Ok(cov);
+                if !cov.file_path.is_empty() && Path::new(&cov.file_path).exists() {
+                    return Ok(cov);
+                }
             }
             existing.media.id
         } else if let Some(by_path) = self
@@ -54,12 +56,16 @@ impl<'a> ThumbnailManager<'a> {
             .get_media_by_path(&media.device_id, &media.path)?
         {
             if let Some(cov) = self.index.get_cover_by_media_id(&by_path.id)? {
-                return Ok(cov);
+                if !cov.file_path.is_empty() && Path::new(&cov.file_path).exists() {
+                    return Ok(cov);
+                }
             }
             by_path.id
         } else {
             if let Some(cov) = self.index.get_cover_by_media_id(&media.id)? {
-                return Ok(cov);
+                if !cov.file_path.is_empty() && Path::new(&cov.file_path).exists() {
+                    return Ok(cov);
+                }
             }
             media.id.clone()
         };

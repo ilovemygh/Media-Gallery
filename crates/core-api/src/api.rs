@@ -2226,13 +2226,25 @@ pub async fn frb_enqueue_youtube_download(
     } else {
         DownloadFormat::Mp4
     };
+    let resolved_dest = {
+        let p = PathBuf::from(&destination_folder);
+        if p.is_relative() {
+            let home = std::env::var_os("USERPROFILE")
+                .or_else(|| std::env::var_os("HOME"))
+                .map(PathBuf::from)
+                .unwrap_or_else(std::env::temp_dir);
+            home.join(p).to_string_lossy().to_string()
+        } else {
+            destination_folder
+        }
+    };
     tokio::task::spawn_blocking(move || {
         let req = YoutubeDownloadRequest {
             url,
             format: fmt,
             quality,
             destination_device_id: core.self_device_id.clone(),
-            destination_folder,
+            destination_folder: resolved_dest,
             allow_playlist: false,
             ffmpeg_bin: None,
         };

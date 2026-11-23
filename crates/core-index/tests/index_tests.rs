@@ -466,3 +466,81 @@ fn upsert_media_idempotency_after_scan_and_multi_device_isolation() {
 
     let _ = std::fs::remove_dir_all(root);
 }
+
+#[test]
+fn recent_date_and_size_sorting_orders_correctly() {
+    let idx = setup_index_with_self();
+    let make = |id: &str, size: u64, created_at: i64, modified_at: i64| MediaRecord {
+        id: id.into(),
+        device_id: "pc-1".into(),
+        path: format!("C:/Media/{id}.mp4"),
+        folder_path: "C:/Media".into(),
+        file_name: format!("{id}.mp4"),
+        media_type: MediaType::Video,
+        mime: "video/mp4".into(),
+        size,
+        blake3: id.into(),
+        partial_hash: id.into(),
+        created_at,
+        modified_at,
+        duration_ms: 1000,
+        width: 1920,
+        height: 1080,
+        gps_lat: None,
+        gps_lon: None,
+        place: None,
+        tags: MediaTags::default(),
+        alias: id.into(),
+        auto_alias: id.into(),
+        cover_id: None,
+        sync_state: SyncState::Local,
+        is_duplicate: false,
+        duplicate_group_id: None,
+        is_trashed: false,
+        trashed_path: None,
+        updated_at: modified_at,
+    };
+
+    idx.upsert_media_batch(&[
+        make("old", 300, 1_000_000, 1_000_000),
+        make("redownloaded", 100, 1_100_000, 5_000_000),
+        make("mid", 200, 2_000_000, 2_000_000),
+    ])
+    .unwrap();
+
+    let recent_desc = idx
+        .list_media(
+            &MediaFilter::default(),
+            SortSpec {
+                field: core_index::SortField::Date,
+                dir: core_index::SortDir::Desc,
+            },
+            None,
+            10,
+        )
+        .unwrap();
+    let recent_ids: Vec<&str> = recent_desc
+        .items
+        .iter()
+        .map(|i| i.media.id.as_str())
+        .collect();
+    assert_eq!(recent_ids, vec!["redownloaded", "mid", "old"]);
+
+    let size_desc = idx
+        .list_media(
+            &MediaFilter::default(),
+            SortSpec {
+                field: core_index::SortField::Size,
+                dir: core_index::SortDir::Desc,
+            },
+            None,
+            10,
+        )
+        .unwrap();
+    let size_ids: Vec<&str> = size_desc
+        .items
+        .iter()
+        .map(|i| i.media.id.as_str())
+        .collect();
+    assert_eq!(size_ids, vec!["old", "mid", "redownloaded"]);
+}
