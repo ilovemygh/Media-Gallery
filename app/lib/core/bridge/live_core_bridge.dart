@@ -78,7 +78,9 @@ class LiveCoreBridge implements CoreBridge {
   /// Discovers default user media folders on desktop or queries Android MediaStore.
   /// When [silent] is true, runs in the background without prompting for Android permissions.
   Future<int> runDefaultInitialScan({bool silent = false}) async {
+    final settings = await getSettings();
     if (Platform.isAndroid) {
+      await saveSettings(settings.copyWith(initialScanDone: true));
       final method = silent ? 'scanMediaStoreSilent' : 'scanMediaStore';
       final rowsJson = await _androidChannel.invokeMethod<String>(method);
       if (rowsJson != null && rowsJson.isNotEmpty && rowsJson != '[]') {
@@ -87,7 +89,6 @@ class LiveCoreBridge implements CoreBridge {
       return 0;
     }
 
-    final settings = await getSettings();
     final roots = <String>[...settings.scanFolders];
     if (roots.isEmpty) {
       final home = Platform.isWindows
@@ -102,6 +103,12 @@ class LiveCoreBridge implements CoreBridge {
         }
       }
     }
+    await saveSettings(
+      settings.copyWith(
+        scanFolders: roots,
+        initialScanDone: true,
+      ),
+    );
     if (roots.isEmpty) return 0;
     return scanFolders(roots, excluded: settings.excludedFolders);
   }

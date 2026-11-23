@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:desktop_drop/desktop_drop.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import '../../core/models/media_models.dart';
+import '../../core/services/os_actions.dart';
 import '../../core/state/gallery_providers.dart';
 import '../shared/media_widgets.dart';
 
@@ -62,6 +64,21 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
         return 320;
       case GridDensity.list:
         return 240;
+    }
+  }
+
+  String _sortLabel(SortField field) {
+    switch (field) {
+      case SortField.date:
+        return 'Recent / Date';
+      case SortField.size:
+        return 'Size';
+      case SortField.name:
+        return 'Name';
+      case SortField.duration:
+        return 'Duration';
+      case SortField.type:
+        return 'Type';
     }
   }
 
@@ -336,11 +353,27 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                               const SizedBox(width: 8),
                               PopupMenuButton<String>(
                                 tooltip: 'YouTube',
-                                onSelected: (action) {
+                                onSelected: (action) async {
                                   if (action == 'download') {
                                     _showYouTubeModal(context);
                                   } else if (action == 'queue') {
                                     ctrl.selectSection(NavSection.youtube);
+                                  } else if (action == 'upload') {
+                                    final ok =
+                                        await openExternalUrl('https://www.youtube.com/upload');
+                                    ctrl.setStatusBanner(ok
+                                        ? 'Opened YouTube Upload in browser'
+                                        : 'Could not open browser for YouTube Upload');
+                                  } else if (action == 'channel') {
+                                    final ok = await openExternalUrl('https://www.youtube.com');
+                                    ctrl.setStatusBanner(ok
+                                        ? 'Opened YouTube in browser'
+                                        : 'Could not open browser for YouTube');
+                                  } else if (action == 'studio') {
+                                    final ok = await openExternalUrl('https://studio.youtube.com');
+                                    ctrl.setStatusBanner(ok
+                                        ? 'Opened YouTube Studio in browser'
+                                        : 'Could not open browser for YouTube Studio');
                                   }
                                 },
                                 itemBuilder: (_) => const [
@@ -467,7 +500,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                                                 items: SortField.values
                                                     .map((f) => DropdownMenuItem(
                                                           value: f,
-                                                          child: Text('Sort: ${f.name}'),
+                                                          child: Text('Sort: ${_sortLabel(f)}'),
                                                         ))
                                                     .toList(),
                                                 onChanged: (f) {
@@ -580,8 +613,72 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                                         ),
                                       ),
 
-                                    // Main Media Grid or List
-                                    if (ui.section != NavSection.devices &&
+                                    // Main Media Grid, Grouped Unified Music, or List
+                                    if (ui.section == NavSection.audio &&
+                                        ui.musicGroupBy != MusicGroupBy.all &&
+                                        ui.musicGroups.isNotEmpty)
+                                      SliverPadding(
+                                        padding: const EdgeInsets.all(14),
+                                        sliver: SliverList(
+                                          delegate: SliverChildBuilderDelegate(
+                                            (context, gIdx) {
+                                              final grp = ui.musicGroups[gIdx];
+                                              return Card(
+                                                margin: const EdgeInsets.only(bottom: 10),
+                                                child: Padding(
+                                                  padding: const EdgeInsets.all(10),
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Row(
+                                                        children: [
+                                                          const Icon(Icons.library_music, size: 18),
+                                                          const SizedBox(width: 8),
+                                                          Expanded(
+                                                            child: Text(
+                                                              '${grp.groupName} (${grp.tracks.length})',
+                                                              style: const TextStyle(
+                                                                  fontWeight: FontWeight.w600),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      const Divider(height: 12),
+                                                      for (final tr in grp.tracks)
+                                                        ListTile(
+                                                          dense: true,
+                                                          leading: IconButton(
+                                                            tooltip: 'Play track',
+                                                            icon: const Icon(Icons.play_arrow),
+                                                            onPressed: () =>
+                                                                ctrl.playTrack(tr.primary),
+                                                          ),
+                                                          title: Text(
+                                                            tr.title,
+                                                            maxLines: 1,
+                                                            overflow: TextOverflow.ellipsis,
+                                                          ),
+                                                          subtitle: Text(
+                                                            '${tr.artist} · ${tr.album} · ${tr.sourceDevices.join(" · ")}',
+                                                            maxLines: 1,
+                                                            overflow: TextOverflow.ellipsis,
+                                                          ),
+                                                          trailing: Text(
+                                                              formatDuration(tr.durationMs)),
+                                                          selected: selected?.id == tr.primary.id,
+                                                          onTap: () =>
+                                                              ctrl.selectMedia(tr.primary.id),
+                                                        ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                            childCount: ui.musicGroups.length,
+                                          ),
+                                        ),
+                                      )
+                                    else if (ui.section != NavSection.devices &&
                                         ui.section != NavSection.youtube &&
                                         ui.section != NavSection.settings)
                                       if (ui.gridDensity == GridDensity.list)
@@ -797,11 +894,30 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                                         style: const TextStyle(fontSize: 12),
                                       ),
                                       const SizedBox(height: 8),
-                                      FilledButton.tonalIcon(
-                                        onPressed: () => showMediaViewerDialog(
-                                            context, ref, selected),
-                                        icon: const Icon(Icons.open_in_full, size: 16),
-                                        label: const Text('Open Viewer / Player'),
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        children: [
+                                          FilledButton.tonalIcon(
+                                            onPressed: () => showMediaViewerDialog(
+                                                context, ref, selected),
+                                            icon: const Icon(Icons.open_in_full, size: 16),
+                                            label: const Text('Open Viewer / Player'),
+                                          ),
+                                          if (!selected.path.startsWith('content://'))
+                                            OutlinedButton.icon(
+                                              onPressed: () async {
+                                                final ok =
+                                                    await revealFileInOsManager(selected.path);
+                                                if (!ok) {
+                                                  ctrl.setStatusBanner(
+                                                      'Could not open folder for ${selected.fileName}');
+                                                }
+                                              },
+                                              icon: const Icon(Icons.folder_open, size: 16),
+                                              label: const Text('Reveal'),
+                                            ),
+                                        ],
                                       ),
                                       const SizedBox(height: 6),
 
@@ -1048,8 +1164,14 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                   ActionChip(
                     avatar: const Icon(Icons.add, size: 16),
                     label: const Text('Pin folder'),
-                    onPressed: () =>
-                        ctrl.addPinnedFolder(ui.activeFolder ?? 'C:/Media/Favorites'),
+                    onPressed: () async {
+                      final target = ui.activeFolder ??
+                          await FilePicker.platform
+                              .getDirectoryPath(dialogTitle: 'Select folder to pin');
+                      if (target != null && target.isNotEmpty) {
+                        await ctrl.addPinnedFolder(target);
+                      }
+                    },
                   ),
                 ],
               ),

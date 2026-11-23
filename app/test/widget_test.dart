@@ -95,6 +95,23 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('DETAILS'), findsOneWidget);
     expect(find.text('Details & Size'), findsOneWidget);
+
+    // Grouping by ARTIST switches into Unified Music group view cleanly
+    await tester.tap(find.text('ARTIST'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Nova Drift ('), findsOneWidget);
+    await tester.tap(find.text('ALL'));
+    await tester.pumpAndSettle();
+
+    // Switching to Recent & Sort dropdown works smoothly
+    await tester.tap(find.text('Recent'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sort: Recent / Date'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sort: Size').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Sort: Size'), findsOneWidget);
+
     await tester.tap(find.text('Open Viewer / Player'));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('audio_waveform_visualizer')), findsOneWidget);

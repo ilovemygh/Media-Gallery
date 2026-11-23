@@ -177,6 +177,30 @@ class _AndroidShellState extends ConsumerState<AndroidShell> {
                     value: ui.gridDensity,
                     onChanged: ctrl.setGridDensity,
                   ),
+                  DropdownButton<SortField>(
+                    value: ui.sortField,
+                    isDense: true,
+                    items: SortField.values
+                        .map((f) => DropdownMenuItem(
+                              value: f,
+                              child: Text('Sort: ${f == SortField.date ? 'recent' : f.name}'),
+                            ))
+                        .toList(),
+                    onChanged: (f) {
+                      if (f != null) ctrl.setSort(f, ui.sortDir);
+                    },
+                  ),
+                  IconButton(
+                    tooltip: ui.sortDir == SortDir.desc ? 'Descending' : 'Ascending',
+                    icon: Icon(
+                      ui.sortDir == SortDir.desc ? Icons.arrow_downward : Icons.arrow_upward,
+                      size: 18,
+                    ),
+                    onPressed: () => ctrl.setSort(
+                      ui.sortField,
+                      ui.sortDir == SortDir.desc ? SortDir.asc : SortDir.desc,
+                    ),
+                  ),
                   FilterChip(
                     label: const Text('Select'),
                     selected: ui.selectionMode,
@@ -187,6 +211,26 @@ class _AndroidShellState extends ConsumerState<AndroidShell> {
                       onPressed: () =>
                           showBulkRenameDialog(context, ref, ui.selectedIds.toList()),
                       child: Text('Rename (${ui.selectedIds.length})'),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        if (_navIndex == 1 && ui.section == NavSection.audio)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  const Text('Group:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                  for (final gb in MusicGroupBy.values)
+                    ChoiceChip(
+                      label: Text(gb.name.toUpperCase(), style: const TextStyle(fontSize: 11)),
+                      selected: ui.musicGroupBy == gb,
+                      onSelected: (_) => ctrl.setMusicGroupBy(gb),
                     ),
                 ],
               ),

@@ -295,7 +295,8 @@ class AppSettings {
     this.scanFolders = const [],
     this.excludedFolders = const [],
     this.openAtStartup = false,
-    this.autoScanOnOpen = true,
+    this.autoScanOnOpen = false,
+    this.initialScanDone = false,
     this.hideDuplicatesInGallery = true,
     this.skipSystemFolders = true,
     this.scanVideos = true,
@@ -315,6 +316,7 @@ class AppSettings {
   final List<String> excludedFolders;
   final bool openAtStartup;
   final bool autoScanOnOpen;
+  final bool initialScanDone;
   final bool hideDuplicatesInGallery;
   final bool skipSystemFolders;
   final bool scanVideos;
@@ -331,6 +333,7 @@ class AppSettings {
   Map<String, dynamic> toExtendedPrefsJson() => {
         'open_at_startup': openAtStartup,
         'auto_scan_on_open': autoScanOnOpen,
+        'initial_scan_done': initialScanDone,
         'hide_duplicates_in_gallery': hideDuplicatesInGallery,
         'skip_system_folders': skipSystemFolders,
         'scan_videos': scanVideos,
@@ -353,6 +356,9 @@ class AppSettings {
       autoScanOnOpen: json['auto_scan_on_open'] is bool
           ? json['auto_scan_on_open'] as bool
           : autoScanOnOpen,
+      initialScanDone: json['initial_scan_done'] is bool
+          ? json['initial_scan_done'] as bool
+          : initialScanDone,
       hideDuplicatesInGallery: json['hide_duplicates_in_gallery'] is bool
           ? json['hide_duplicates_in_gallery'] as bool
           : hideDuplicatesInGallery,
@@ -383,6 +389,7 @@ class AppSettings {
     List<String>? excludedFolders,
     bool? openAtStartup,
     bool? autoScanOnOpen,
+    bool? initialScanDone,
     bool? hideDuplicatesInGallery,
     bool? skipSystemFolders,
     bool? scanVideos,
@@ -404,6 +411,7 @@ class AppSettings {
         excludedFolders: excludedFolders ?? this.excludedFolders,
         openAtStartup: openAtStartup ?? this.openAtStartup,
         autoScanOnOpen: autoScanOnOpen ?? this.autoScanOnOpen,
+        initialScanDone: initialScanDone ?? this.initialScanDone,
         hideDuplicatesInGallery: hideDuplicatesInGallery ?? this.hideDuplicatesInGallery,
         skipSystemFolders: skipSystemFolders ?? this.skipSystemFolders,
         scanVideos: scanVideos ?? this.scanVideos,

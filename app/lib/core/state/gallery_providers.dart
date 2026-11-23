@@ -219,6 +219,7 @@ class GalleryController extends StateNotifier<GalleryUiState> {
   }
 
   final CoreBridge _bridge;
+  final Set<String> _attemptedThumbIds = {};
 
   void _handleTrackCompleted() {
     if (!mounted || state.playingTrack == null) return;
@@ -232,10 +233,17 @@ class GalleryController extends StateNotifier<GalleryUiState> {
   Future<void> _bootstrap() async {
     // 1. Load persisted SQLite library immediately on open without rescanning everything.
     await refresh();
-    // 2. If auto-scan on open is enabled, run incremental scan quietly in the background
-    //    with zero banners, zero dialogs, and zero UI interruption.
-    if (_bridge is LiveCoreBridge && state.settings.autoScanOnOpen) {
-      unawaited(runSilentBackgroundScan());
+    // 2. Auto-scan ONLY once on brand-new empty DB, or when user explicitly enables autoScanOnOpen.
+    if (_bridge is LiveCoreBridge) {
+      if (!state.settings.initialScanDone && state.stats.totalFiles == 0) {
+        unawaited(runSilentBackgroundScan());
+      } else if (!state.settings.initialScanDone && state.stats.totalFiles > 0) {
+        final next = state.settings.copyWith(initialScanDone: true);
+        await _bridge.saveSettings(next);
+        if (mounted) state = state.copyWith(settings: next);
+      } else if (state.settings.autoScanOnOpen) {
+        unawaited(runSilentBackgroundScan());
+      }
     }
   }
 
@@ -261,6 +269,7 @@ class GalleryController extends StateNotifier<GalleryUiState> {
   Future<void> runInitialScan() async {
     final bridge = _bridge;
     if (bridge is! LiveCoreBridge) return;
+    _attemptedThumbIds.clear();
     state = state.copyWith(isScanning: true, statusBanner: 'Scanning local media...');
     try {
       final count = await bridge.runDefaultInitialScan(silent: false);
@@ -276,6 +285,7 @@ class GalleryController extends StateNotifier<GalleryUiState> {
 
   Future<void> scanFolderPaths(List<String> roots) async {
     if (roots.isEmpty) return;
+    _attemptedThumbIds.clear();
     state = state.copyWith(isScanning: true, statusBanner: 'Scanning selected folders...');
     try {
       final seen = <String>{};
@@ -285,7 +295,10 @@ class GalleryController extends StateNotifier<GalleryUiState> {
           merged.add(p);
         }
       }
-      final nextSettings = state.settings.copyWith(scanFolders: merged);
+      final nextSettings = state.settings.copyWith(
+        scanFolders: merged,
+        initialScanDone: true,
+      );
       await _bridge.saveSettings(nextSettings);
       final count = await _bridge.scanFolders(
         roots,
@@ -350,8 +363,8 @@ class GalleryController extends StateNotifier<GalleryUiState> {
         onlyDuplicates: state.onlyDuplicates,
         trashedOnly: isClean && state.trashedOnly,
       ),
-      sortBy: state.section == NavSection.recent ? SortField.date : state.sortField,
-      sortDir: state.section == NavSection.recent ? SortDir.desc : state.sortDir,
+      sortBy: state.sortField,
+      sortDir: state.sortDir,
     );
     final recentPage = await _bridge.listMedia(
       filter: const MediaFilter(),
@@ -422,15 +435,20 @@ class GalleryController extends StateNotifier<GalleryUiState> {
       savedSearches: savedSearches,
     );
 
-    // Lazily populate missing thumbnails in background batches so grids load fast.
+    // Lazily populate missing thumbnails once per item in background batches so grids load fast.
     if (_bridge.isLiveCore) {
       final missingIds = <String>{
         for (final m in page.items.take(40))
-          if (m.cover == null || m.cover!.filePath.isEmpty) m.id,
+          if ((m.cover == null || m.cover!.filePath.isEmpty) &&
+              !_attemptedThumbIds.contains(m.id))
+            m.id,
         for (final m in recentPage.items)
-          if (m.cover == null || m.cover!.filePath.isEmpty) m.id,
+          if ((m.cover == null || m.cover!.filePath.isEmpty) &&
+              !_attemptedThumbIds.contains(m.id))
+            m.id,
       }.toList();
       if (missingIds.isNotEmpty) {
+        _attemptedThumbIds.addAll(missingIds);
         unawaited(_populateThumbnails(missingIds));
       }
     }
@@ -471,6 +489,8 @@ class GalleryController extends StateNotifier<GalleryUiState> {
       onlyDuplicates: section == NavSection.clean ? state.onlyDuplicates : false,
       trashedOnly: section == NavSection.clean ? state.trashedOnly : false,
       clearMinSize: section != NavSection.clean,
+      sortField: section == NavSection.recent ? SortField.date : state.sortField,
+      sortDir: section == NavSection.recent ? SortDir.desc : state.sortDir,
     );
     await refresh();
   }
@@ -644,28 +664,45 @@ class GalleryController extends StateNotifier<GalleryUiState> {
   }
 
   Future<void> moveToFolder(String mediaId, String targetFolder) async {
-    await _bridge.moveMediaToFolder(mediaId, targetFolder);
-    await refresh();
+    try {
+      await _bridge.moveMediaToFolder(mediaId, targetFolder);
+      await refresh();
+      state = state.copyWith(statusBanner: 'Moved to $targetFolder');
+    } catch (e) {
+      state = state.copyWith(statusBanner: 'Move failed: $e');
+    }
   }
 
   Future<void> saveAlias(String mediaId, String alias) async {
-    await _bridge.setAlias(mediaId, alias);
-    await refresh();
-    state = state.copyWith(statusBanner: 'Alias saved');
+    try {
+      await _bridge.setAlias(mediaId, alias);
+      await refresh();
+      state = state.copyWith(statusBanner: 'Alias saved');
+    } catch (e) {
+      state = state.copyWith(statusBanner: 'Save alias failed: $e');
+    }
   }
 
   Future<void> applyRealRename(String mediaId, String newName) async {
-    await _bridge.applyRealRename(mediaId, newName);
-    await refresh();
-    state = state.copyWith(statusBanner: 'File renamed on disk');
+    try {
+      await _bridge.applyRealRename(mediaId, newName);
+      await refresh();
+      state = state.copyWith(statusBanner: 'File renamed on disk');
+    } catch (e) {
+      state = state.copyWith(statusBanner: 'Rename failed: $e');
+    }
   }
 
   Future<void> undoLastRename(String? mediaId) async {
-    final ok = await _bridge.undoLastRename(mediaId);
-    await refresh();
-    state = state.copyWith(
-      statusBanner: ok ? 'Rename undone' : 'Nothing to undo',
-    );
+    try {
+      final ok = await _bridge.undoLastRename(mediaId);
+      await refresh();
+      state = state.copyWith(
+        statusBanner: ok ? 'Rename undone' : 'Nothing to undo',
+      );
+    } catch (e) {
+      state = state.copyWith(statusBanner: 'Undo rename failed: $e');
+    }
   }
 
   Future<BulkRenameResult> applyBulkRename(List<String> mediaIds, String template) async {
@@ -683,27 +720,43 @@ class GalleryController extends StateNotifier<GalleryUiState> {
   Future<void> undoLastBulkRename() async {
     final batchId = state.lastBulkBatchId;
     if (batchId == null) return;
-    final count = await _bridge.undoBulkRename(batchId);
-    await refresh();
-    state = state.copyWith(
-      clearBulkBatch: true,
-      statusBanner: 'Undid bulk rename ($count files)',
-    );
+    try {
+      final count = await _bridge.undoBulkRename(batchId);
+      await refresh();
+      state = state.copyWith(
+        clearBulkBatch: true,
+        statusBanner: 'Undid bulk rename ($count files)',
+      );
+    } catch (e) {
+      state = state.copyWith(statusBanner: 'Undo failed: $e');
+    }
   }
 
   Future<void> updateCoverAspect(String mediaId, AspectPreset preset) async {
-    await _bridge.updateCoverAspect(mediaId, preset);
-    await refresh();
+    try {
+      await _bridge.updateCoverAspect(mediaId, preset);
+      await refresh();
+    } catch (e) {
+      state = state.copyWith(statusBanner: 'Cover aspect update failed: $e');
+    }
   }
 
   Future<void> rerollVideoThumbnail(String mediaId) async {
-    await _bridge.rerollVideoThumbnail(mediaId);
-    await refresh();
+    try {
+      await _bridge.rerollVideoThumbnail(mediaId);
+      await refresh();
+    } catch (e) {
+      state = state.copyWith(statusBanner: 'Thumbnail reroll failed: $e');
+    }
   }
 
   Future<void> pickVideoFrame(String mediaId, int frameTimeMs) async {
-    await _bridge.pickVideoFrame(mediaId, frameTimeMs);
-    await refresh();
+    try {
+      await _bridge.pickVideoFrame(mediaId, frameTimeMs);
+      await refresh();
+    } catch (e) {
+      state = state.copyWith(statusBanner: 'Frame extract failed: $e');
+    }
   }
 
   Future<void> setCustomCover(
@@ -711,33 +764,53 @@ class GalleryController extends StateNotifier<GalleryUiState> {
     String imagePath,
     AspectPreset preset,
   ) async {
-    await _bridge.setCustomCover(mediaId, imagePath, preset);
-    await refresh();
-    state = state.copyWith(statusBanner: 'Custom cover saved');
+    try {
+      await _bridge.setCustomCover(mediaId, imagePath, preset);
+      await refresh();
+      state = state.copyWith(statusBanner: 'Custom cover saved');
+    } catch (e) {
+      state = state.copyWith(statusBanner: 'Custom cover failed: $e');
+    }
   }
 
   Future<void> downloadRemote(String mediaId) async {
-    await _bridge.downloadRemoteMedia(mediaId);
-    await refresh();
-    state = state.copyWith(statusBanner: 'Download queued');
+    try {
+      await _bridge.downloadRemoteMedia(mediaId);
+      await refresh();
+      state = state.copyWith(statusBanner: 'Download queued');
+    } catch (e) {
+      state = state.copyWith(statusBanner: 'Download failed: $e');
+    }
   }
 
   Future<void> sendToDevice(String mediaId, String targetDeviceId) async {
-    await _bridge.sendMediaToDevice(mediaId, targetDeviceId);
-    await refresh();
-    state = state.copyWith(statusBanner: 'Transfer queued');
+    try {
+      await _bridge.sendMediaToDevice(mediaId, targetDeviceId);
+      await refresh();
+      state = state.copyWith(statusBanner: 'Transfer queued');
+    } catch (e) {
+      state = state.copyWith(statusBanner: 'Send failed: $e');
+    }
   }
 
   Future<void> backupToDevice(String targetDeviceId) async {
-    final count = await _bridge.backupLocalMediaToDevice(targetDeviceId);
-    await refresh();
-    state = state.copyWith(statusBanner: 'Queued $count file(s) for backup');
+    try {
+      final count = await _bridge.backupLocalMediaToDevice(targetDeviceId);
+      await refresh();
+      state = state.copyWith(statusBanner: 'Queued $count file(s) for backup');
+    } catch (e) {
+      state = state.copyWith(statusBanner: 'Backup failed: $e');
+    }
   }
 
   Future<void> pairWithDevice(String payloadOrPin, {String? peerName}) async {
-    final dev = await _bridge.pairWithDevice(payloadOrPin, peerName: peerName);
-    await refresh();
-    state = state.copyWith(statusBanner: 'Paired with ${dev.name}');
+    try {
+      final dev = await _bridge.pairWithDevice(payloadOrPin, peerName: peerName);
+      await refresh();
+      state = state.copyWith(statusBanner: 'Paired with ${dev.name}');
+    } catch (e) {
+      state = state.copyWith(statusBanner: 'Pairing failed: $e');
+    }
   }
 
   Future<void> pauseTransfer(String transferId) async {
@@ -944,9 +1017,19 @@ class GalleryController extends StateNotifier<GalleryUiState> {
     final audioItems = state.items.where((m) => m.type == MediaType.audio).toList();
     if (audioItems.isEmpty || state.playingTrack == null) return;
     final idx = audioItems.indexWhere((m) => m.id == state.playingTrack!.id);
+    if (state.shuffle && audioItems.length > 1) {
+      final step = (DateTime.now().microsecondsSinceEpoch % (audioItems.length - 1)) + 1;
+      final base = idx < 0 ? 0 : idx;
+      await playTrack(audioItems[(base + step) % audioItems.length]);
+      return;
+    }
     final nextIdx = idx < 0 ? 0 : (idx + delta) % audioItems.length;
     final target = audioItems[nextIdx < 0 ? audioItems.length - 1 : nextIdx];
     await playTrack(target);
+  }
+
+  void setStatusBanner(String msg) {
+    state = state.copyWith(statusBanner: msg);
   }
 
   void clearStatusBanner() {
