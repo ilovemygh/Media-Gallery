@@ -1,4 +1,4 @@
-# Media Gallery v0.2
+<h1 align='center'>Media Gallery v0.2</h1>
 
 [![CI](https://github.com/ilovemygh/Media-Gallery/actions/workflows/ci.yml/badge.svg)](https://github.com/ilovemygh/Media-Gallery/actions/workflows/ci.yml)
 [![Latest Release](https://img.shields.io/github/v/release/ilovemygh/Media-Gallery?include_prereleases&label=release)](https://github.com/ilovemygh/Media-Gallery/releases)
