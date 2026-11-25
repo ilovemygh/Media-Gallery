@@ -154,6 +154,7 @@ fn cursor_paging_fts5_and_mediastore_batch_ingestion_work() {
             size: 100_000 + i as u64,
             date_added_sec: 1_773_489_600 + i as i64,
             date_modified_sec: 1_773_489_600 + i as i64,
+            date_taken_ms: None,
             duration_ms: 0,
             width: 4000,
             height: 3000,
@@ -213,6 +214,87 @@ fn cursor_paging_fts5_and_mediastore_batch_ingestion_work() {
         .unwrap();
     assert_eq!(beach_hits.total_count, 1);
     assert_eq!(beach_hits.items[0].media.file_name, "IMG_20260314_2.jpg");
+}
+
+#[test]
+fn android_media_store_uses_capture_date_when_available() {
+    let idx = setup_index_with_self();
+    idx.upsert_device(&DeviceRecord {
+        id: "phone-1".into(),
+        name: "Pixel 9".into(),
+        device_type: DeviceType::Phone,
+        public_key: "pk-phone".into(),
+        last_seen: 1_700_000_000_000,
+        transports: vec![TransportKind::WifiLan],
+        host: None,
+        port: None,
+        is_self: false,
+        is_online: true,
+        paired_at: Some(1_700_000_000_000),
+    })
+    .unwrap();
+    let captured_at_ms = 1_600_000_000_000_i64;
+    let row: AndroidMediaStoreRow = serde_json::from_value(serde_json::json!({
+        "uri": "content://media/external/images/media/42",
+        "display_name": "IMG_20201001.jpg",
+        "relative_path": "DCIM/Camera/",
+        "mime_type": "image/jpeg",
+        "size": 2048,
+        "date_added_sec": 1_770_000_000_i64,
+        "date_modified_sec": 1_770_000_001_i64,
+        "date_taken_ms": captured_at_ms,
+        "duration_ms": 0,
+        "width": 1920,
+        "height": 1080
+    }))
+    .unwrap();
+
+    ingest_android_mediastore_batch(&idx, "phone-1", "Pixel 9", &[row], &|_, _, _| {
+        ("2020-09-13 Home IMG_20201001.jpg".into(), None)
+    })
+    .unwrap();
+
+    let media = idx
+        .get_media_by_path("phone-1", "content://media/external/images/media/42")
+        .unwrap()
+        .unwrap();
+    assert_eq!(media.created_at, captured_at_ms);
+}
+
+#[test]
+fn android_media_store_falls_back_when_capture_date_is_unavailable() {
+    let row: AndroidMediaStoreRow = serde_json::from_value(serde_json::json!({
+        "uri": "content://media/external/images/media/43",
+        "display_name": "IMG_20201001.jpg",
+        "relative_path": "DCIM/Camera/",
+        "mime_type": "image/jpeg",
+        "size": 2048,
+        "date_added_sec": 1_700_000_000_i64,
+        "date_modified_sec": 1_700_000_001_i64,
+        "date_taken_ms": 0,
+        "duration_ms": 0,
+        "width": 1920,
+        "height": 1080
+    }))
+    .unwrap();
+
+    assert_eq!(row.created_at_ms(), 1_700_000_001_000);
+
+    let legacy_row: AndroidMediaStoreRow = serde_json::from_value(serde_json::json!({
+        "uri": "content://media/external/images/media/44",
+        "display_name": "IMG_20201002.jpg",
+        "relative_path": "DCIM/Camera/",
+        "mime_type": "image/jpeg",
+        "size": 2048,
+        "date_added_sec": 1_700_000_000_i64,
+        "date_modified_sec": 1_700_000_001_i64,
+        "duration_ms": 0,
+        "width": 1920,
+        "height": 1080
+    }))
+    .unwrap();
+
+    assert_eq!(legacy_row.created_at_ms(), 1_700_000_001_000);
 }
 
 #[test]

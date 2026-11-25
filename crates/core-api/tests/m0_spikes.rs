@@ -104,6 +104,7 @@ async fn spike_bcd_frb_streams_sidecar_thumbnail_and_mediastore_ingest() {
         size: 3_500_000,
         date_added_sec: 1_773_489_600,
         date_modified_sec: 1_773_489_600,
+        date_taken_ms: None,
         duration_ms: 0,
         width: 4032,
         height: 3024,

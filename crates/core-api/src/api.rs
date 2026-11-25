@@ -439,7 +439,7 @@ impl MediaGalleryCore {
                     album: r.album.clone(),
                     ..Default::default()
                 };
-                let ts = r.date_added_sec.max(r.date_modified_sec) * 1000;
+                let ts = r.created_at_ms();
                 generate_auto_alias(&AutoAliasInput {
                     file_name: &r.display_name,
                     media_type: mt,

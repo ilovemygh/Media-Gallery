@@ -151,6 +151,8 @@ pub struct AndroidMediaStoreRow {
     pub size: u64,
     pub date_added_sec: i64,
     pub date_modified_sec: i64,
+    #[serde(default)]
+    pub date_taken_ms: Option<i64>,
     pub duration_ms: u64,
     pub width: u32,
     pub height: u32,
@@ -159,6 +161,14 @@ pub struct AndroidMediaStoreRow {
     pub artist: Option<String>,
     pub album: Option<String>,
     pub title: Option<String>,
+}
+
+impl AndroidMediaStoreRow {
+    pub fn created_at_ms(&self) -> i64 {
+        self.date_taken_ms
+            .filter(|timestamp| *timestamp > 0)
+            .unwrap_or_else(|| self.date_added_sec.max(self.date_modified_sec) * 1000)
+    }
 }
 
 /// Basic probed metadata returned by `ffprobe` or OS media APIs.

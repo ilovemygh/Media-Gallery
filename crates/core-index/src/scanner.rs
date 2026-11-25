@@ -483,7 +483,7 @@ where
             row.relative_path.trim_end_matches('/')
         ));
         let (auto_alias, place) = alias_fn(row, media_type, device_name);
-        let created_at = row.date_added_sec.max(row.date_modified_sec) * 1000;
+        let created_at = row.created_at_ms();
         let modified_at = row.date_modified_sec * 1000;
 
         records.push(MediaRecord {
