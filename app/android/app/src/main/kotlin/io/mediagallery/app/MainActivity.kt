@@ -133,6 +133,7 @@ class MainActivity : FlutterActivity() {
         )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             cols.add(MediaStore.Files.FileColumns.RELATIVE_PATH)
+            cols.add(MediaStore.MediaColumns.DATE_TAKEN)
         }
 
         val selection = "${MediaStore.Files.FileColumns.MEDIA_TYPE} IN (?, ?, ?)"
@@ -158,6 +159,7 @@ class MainActivity : FlutterActivity() {
             val durIdx = cursor.getColumnIndex(MediaStore.MediaColumns.DURATION)
             val wIdx = cursor.getColumnIndex(MediaStore.MediaColumns.WIDTH)
             val hIdx = cursor.getColumnIndex(MediaStore.MediaColumns.HEIGHT)
+            val takenIdx = cursor.getColumnIndex(MediaStore.MediaColumns.DATE_TAKEN)
             val relIdx = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 cursor.getColumnIndex(MediaStore.Files.FileColumns.RELATIVE_PATH)
             } else {
@@ -176,6 +178,7 @@ class MainActivity : FlutterActivity() {
                 obj.put("size", if (sizeIdx >= 0) cursor.getLong(sizeIdx).coerceAtLeast(0L) else 0L)
                 obj.put("date_added_sec", if (addedIdx >= 0) cursor.getLong(addedIdx) else 0L)
                 obj.put("date_modified_sec", if (modIdx >= 0) cursor.getLong(modIdx) else 0L)
+                obj.put("date_taken_ms", if (takenIdx >= 0) cursor.getLong(takenIdx).takeIf { it > 0 } else null)
                 obj.put("duration_ms", if (durIdx >= 0) cursor.getLong(durIdx).coerceAtLeast(0L) else 0L)
                 obj.put("width", if (wIdx >= 0) cursor.getInt(wIdx).coerceAtLeast(0) else 0)
                 obj.put("height", if (hIdx >= 0) cursor.getInt(hIdx).coerceAtLeast(0) else 0)
