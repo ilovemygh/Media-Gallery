@@ -2048,8 +2048,11 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text('Media Formats & YouTube Defaults',
                           style: Theme.of(context).textTheme.titleMedium),
@@ -2168,6 +2171,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                   ),
                   DropdownButtonFormField<TransportKind?>(
                     initialValue: s.manualTransportOverride,
+                    isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Transfer Path Preference',
                       border: OutlineInputBorder(),
@@ -2176,7 +2180,10 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                     items: [
                       const DropdownMenuItem<TransportKind?>(
                         value: null,
-                        child: Text('Auto (LAN / Wired > Hole-Punch > Relay)'),
+                        child: Text(
+                          'Auto (LAN / Wired > Hole-Punch > Relay)',
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                       for (final kind in TransportKind.values)
                         DropdownMenuItem<TransportKind?>(

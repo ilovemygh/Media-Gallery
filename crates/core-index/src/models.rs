@@ -397,7 +397,7 @@ impl Default for AppSettings {
         Self {
             sidebar_width: 248,
             sidebar_collapsed: false,
-            theme: "dark".to_string(),
+            theme: "light".to_string(),
             transport_priority: vec![
                 TransportKind::Wired,
                 TransportKind::WifiLan,

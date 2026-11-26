@@ -6,8 +6,38 @@ import 'package:media_gallery/core/state/gallery_providers.dart';
 import 'package:media_gallery/features/android/android_shell.dart';
 import 'package:media_gallery/features/migration/import_wizard_dialog.dart';
 import 'package:media_gallery/features/shell/desktop_shell.dart';
+import 'package:media_gallery/main.dart' as app;
 
 void main() {
+  testWidgets('Media Gallery uses calm light and dark surfaces',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [bridgeProvider.overrideWithValue(MockCoreBridge())],
+        child: const app.MediaGalleryApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    var materialApp = tester.widget<MaterialApp>(find.byType(MaterialApp));
+    expect(materialApp.theme!.colorScheme.surface, const Color(0xFFFCFAF7));
+
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Dark Theme'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Dark Theme'));
+    await tester.pumpAndSettle();
+
+    materialApp = tester.widget<MaterialApp>(find.byType(MaterialApp));
+    expect(materialApp.theme!.brightness, Brightness.dark);
+    expect(materialApp.theme!.colorScheme.surface, const Color(0xFF17191B));
+  });
+
   testWidgets('DesktopShell collapses left sidebar, searches "2026 beach", and shows details sidebar',
       (WidgetTester tester) async {
     tester.view.physicalSize = const Size(1400, 900);
@@ -120,7 +150,7 @@ void main() {
     expect(find.byTooltip('Shuffle'), findsOneWidget);
   });
 
-  testWidgets('AndroidShell renders Home, Clean, and Devices tabs cleanly',
+  testWidgets('AndroidShell keeps the selected tab aligned with the visible section',
       (WidgetTester tester) async {
     tester.view.physicalSize = const Size(420, 840);
     tester.view.devicePixelRatio = 1.0;
@@ -137,14 +167,44 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Recent Media'), findsOneWidget);
+    var nav = tester.widget<NavigationBar>(find.byType(NavigationBar));
+    expect(nav.destinations.map((d) => (d as NavigationDestination).label),
+        ['Home', 'Library', 'YouTube', 'Devices']);
+    expect(nav.selectedIndex, 0);
 
-    await tester.tap(find.text('Clean'));
+    await tester.tap(find.text('Library'));
     await tester.pumpAndSettle();
-    expect(find.text('Storage & Smart Cleanup'), findsOneWidget);
+    expect(find.text('All'), findsOneWidget);
+    expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex, 1);
+
+    await tester.tap(find.text('YouTube').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Download from YouTube'), findsOneWidget);
+    expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex, 2);
+
+    await tester.tap(find.text('Home'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('YouTube Downloader'));
+    await tester.pumpAndSettle();
+    expect(find.text('Download from YouTube'), findsOneWidget);
+    expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex, 2);
+
+    await tester.tap(find.byTooltip('Settings'));
+    await tester.pumpAndSettle();
+    expect(find.text('Library Folders & Exclusions'), findsOneWidget);
+    expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex, 2);
 
     await tester.tap(find.text('Devices'));
     await tester.pumpAndSettle();
     expect(find.text('Pair Phone & PC (Serverless P2P)'), findsOneWidget);
+    nav = tester.widget<NavigationBar>(find.byType(NavigationBar));
+    expect(nav.selectedIndex, 3);
+
+    await tester.tap(find.text('Home'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Clean ('));
+    await tester.pumpAndSettle();
+    expect(find.text('Storage & Smart Cleanup'), findsOneWidget);
   });
 
   testWidgets('ImportWizardDialog imports legacy data and displays re-login notice',

@@ -289,7 +289,7 @@ class AppSettings {
   const AppSettings({
     this.sidebarWidth = 248.0,
     this.sidebarCollapsed = false,
-    this.darkMode = true,
+    this.darkMode = false,
     this.manualTransportOverride,
     this.aliasTemplate = '{date} {place} {name}',
     this.scanFolders = const [],

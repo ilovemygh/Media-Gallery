@@ -5,8 +5,8 @@ import '../../core/state/gallery_providers.dart';
 import '../shared/media_widgets.dart';
 
 /// Android mobile layout implementing PRD Section 10.8 + Google Files ergonomics:
-/// - BottomNavigationBar: Home (Recent & Quick Actions), Library (Videos/Images/Audio),
-///   Clean (Duplicates, Large Files, Recycle Bin), Devices (QR Pair, Backup & YouTube)
+/// - Bottom navigation follows the PRD: Home, Library, YouTube, Devices
+/// - Clean remains a Home quick action so it is one tap away without displacing YouTube
 /// - Top bar: search, Scan/Refresh, YouTube, Connect chip, Google account
 /// - Details bottom sheet (Rename, Alias, Cover Crop, Custom Cover, Play, Send, Trash) + Mini Player
 class AndroidShell extends ConsumerStatefulWidget {
@@ -17,7 +17,45 @@ class AndroidShell extends ConsumerStatefulWidget {
 }
 
 class _AndroidShellState extends ConsumerState<AndroidShell> {
-  int _navIndex = 0;
+  int _lastNavIndex = 0;
+
+  int _selectedNavIndex(NavSection section) {
+    switch (section) {
+      case NavSection.videos:
+      case NavSection.images:
+      case NavSection.audio:
+        return 1;
+      case NavSection.youtube:
+        return 2;
+      case NavSection.devices:
+        return 3;
+      case NavSection.settings:
+        return _lastNavIndex;
+      case NavSection.home:
+      case NavSection.recent:
+      case NavSection.clean:
+        return 0;
+    }
+  }
+
+  void _selectNavDestination(int index, GalleryController ctrl) {
+    setState(() => _lastNavIndex = index);
+    switch (index) {
+      case 0:
+        ctrl.selectSection(NavSection.home);
+      case 1:
+        ctrl.selectSection(NavSection.images);
+      case 2:
+        ctrl.selectSection(NavSection.youtube);
+      case 3:
+        ctrl.selectSection(NavSection.devices);
+    }
+  }
+
+  void _openYouTube(GalleryController ctrl) {
+    setState(() => _lastNavIndex = 2);
+    ctrl.selectSection(NavSection.youtube);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,10 +88,7 @@ class _AndroidShellState extends ConsumerState<AndroidShell> {
           IconButton(
             tooltip: 'YouTube Downloader',
             icon: const Icon(Icons.smart_display, color: Colors.red),
-            onPressed: () {
-              setState(() => _navIndex = 3);
-              ctrl.selectSection(NavSection.youtube);
-            },
+            onPressed: () => _openYouTube(ctrl),
           ),
           IconButton(
             tooltip: 'Settings',
@@ -88,20 +123,14 @@ class _AndroidShellState extends ConsumerState<AndroidShell> {
         ],
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _navIndex,
-        onDestinationSelected: (idx) {
-          setState(() => _navIndex = idx);
-          if (idx == 0) ctrl.selectSection(NavSection.home);
-          if (idx == 1) ctrl.selectSection(NavSection.images);
-          if (idx == 2) ctrl.openCleanerMode(duplicates: true);
-          if (idx == 3) ctrl.selectSection(NavSection.devices);
-        },
+        selectedIndex: _selectedNavIndex(ui.section),
+        onDestinationSelected: (idx) => _selectNavDestination(idx, ctrl),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
           NavigationDestination(
               icon: Icon(Icons.photo_library_outlined), selectedIcon: Icon(Icons.photo_library), label: 'Library'),
           NavigationDestination(
-              icon: Icon(Icons.cleaning_services_outlined), selectedIcon: Icon(Icons.cleaning_services), label: 'Clean'),
+              icon: Icon(Icons.smart_display_outlined), selectedIcon: Icon(Icons.smart_display), label: 'YouTube'),
           NavigationDestination(icon: Icon(Icons.devices_outlined), selectedIcon: Icon(Icons.devices), label: 'Devices'),
         ],
       ),
@@ -115,28 +144,33 @@ class _AndroidShellState extends ConsumerState<AndroidShell> {
     if (ui.section == NavSection.youtube) {
       return const SingleChildScrollView(child: YouTubeDownloadView());
     }
-    if (_navIndex == 3 || ui.section == NavSection.devices) {
+    if (ui.section == NavSection.devices) {
       return const SingleChildScrollView(child: DevicesBackupView());
     }
 
+    final isHome = ui.section == NavSection.home || ui.section == NavSection.recent;
+    final isLibrary = ui.section == NavSection.videos ||
+        ui.section == NavSection.images ||
+        ui.section == NavSection.audio;
+
     return CustomScrollView(
       slivers: [
-        if (_navIndex == 0)
+        if (isHome)
           SliverToBoxAdapter(
             child: _AndroidHomeHeader(
               ui: ui,
               onOpenClean: () {
-                setState(() => _navIndex = 2);
+                setState(() => _lastNavIndex = 0);
                 ctrl.openCleanerMode(duplicates: true);
               },
               onOpenBackup: () {
-                setState(() => _navIndex = 3);
+                setState(() => _lastNavIndex = 3);
                 ctrl.selectSection(NavSection.devices);
               },
               onTapMedia: (m) => _showDetailsSheet(context, m),
             ),
           ),
-        if (_navIndex == 1 || _navIndex == 0)
+        if (isLibrary || isHome)
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
@@ -145,7 +179,7 @@ class _AndroidShellState extends ConsumerState<AndroidShell> {
                 runSpacing: 6,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  if (_navIndex == 1) ...[
+                  if (isLibrary) ...[
                     ChoiceChip(
                       label: const Text('All'),
                       selected: ui.section == NavSection.home,
@@ -216,7 +250,7 @@ class _AndroidShellState extends ConsumerState<AndroidShell> {
               ),
             ),
           ),
-        if (_navIndex == 1 && ui.section == NavSection.audio)
+        if (ui.section == NavSection.audio)
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
@@ -236,7 +270,7 @@ class _AndroidShellState extends ConsumerState<AndroidShell> {
               ),
             ),
           ),
-        if (_navIndex == 2 || ui.section == NavSection.clean)
+        if (ui.section == NavSection.clean)
           const SliverToBoxAdapter(child: CleanerDashboardView()),
         if (ui.gridDensity == GridDensity.list)
           SliverList(

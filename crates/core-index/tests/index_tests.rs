@@ -3,9 +3,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use core_index::{
     compute_file_blake3, compute_partial_blake3, import_legacy_sqlite,
-    ingest_android_mediastore_batch, scan_folders, AspectPreset, CoverRecord, CoverSource,
-    DeviceRecord, DeviceType, MediaFilter, MediaIndex, MediaRecord, MediaTags, MediaType,
-    ProbedMediaMetadata, ScanRequest, SortSpec, SyncState, TransportKind,
+    ingest_android_mediastore_batch, scan_folders, AppSettings, AspectPreset, CoverRecord,
+    CoverSource, DeviceRecord, DeviceType, MediaFilter, MediaIndex, MediaRecord, MediaTags,
+    MediaType, ProbedMediaMetadata, ScanRequest, SortSpec, SyncState, TransportKind,
 };
 use core_platform::AndroidMediaStoreRow;
 
@@ -17,6 +17,11 @@ fn temp_dir(prefix: &str) -> std::path::PathBuf {
     let dir = std::env::temp_dir().join(format!("{prefix}-{nanos}"));
     std::fs::create_dir_all(&dir).unwrap();
     dir
+}
+
+#[test]
+fn fresh_settings_default_to_light_theme() {
+    assert_eq!(AppSettings::default().theme, "light");
 }
 
 fn setup_index_with_self() -> MediaIndex {
