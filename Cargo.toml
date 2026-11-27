@@ -60,5 +60,5 @@ debug = 0
 [profile.release]
 lto = "thin"
 strip = "symbols"
-codegen-units = 1
+codegen-units = 4
 opt-level = 3

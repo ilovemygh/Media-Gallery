@@ -124,7 +124,16 @@ jobs:
         with:
           flutter-version: '3.50.0'
           channel: stable
+          cache: true
       - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: windows-desktop
+      - name: Cache Windows sidecar downloads
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/sidecar-cache
+          key: sidecars-windows-${{ hashFiles('tools/release/sidecars.lock') }}
+          restore-keys: sidecars-windows-
       - name: Ensure Inno Setup 6 is available
         shell: pwsh
         run: |
@@ -168,28 +177,32 @@ jobs:
 
   build-android:
     needs: [prepare, ci-gate]
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.100.0
         with:
           targets: aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android
-      - uses: actions/setup-java@v4
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: android-ndk
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
+          cache: 'gradle'
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.50.0'
           channel: stable
-      - name: Cache Cargo NDK & Registry
+          cache: true
+      - name: Cache Cargo NDK & Android NDK 28.2.13676358
         uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/bin/cargo-ndk*
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-          key: release-ndk-${{ runner.os }}-v1
+            ${{ env.ANDROID_HOME }}/ndk/28.2.13676358
+          key: android-ndk-${{ runner.os }}-28.2.13676358-v1
       - name: Configure Android release signing policy
         shell: pwsh
         env:
@@ -220,27 +233,7 @@ jobs:
             "EXPECT_RELEASE_SIGNED=false" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           }
       - name: Build Android Rust native libraries
-        shell: pwsh
-        run: |
-          if (-not (Get-Command cargo-ndk -ErrorAction SilentlyContinue)) {
-            cargo install cargo-ndk --locked
-          }
-          $sdkRoot = if ($env:ANDROID_SDK_ROOT) { $env:ANDROID_SDK_ROOT } else { $env:ANDROID_HOME }
-          $ndkVersion = "28.2.13676358"
-          $ndkDir = Join-Path $sdkRoot "ndk\$ndkVersion"
-          if (-not (Test-Path $ndkDir)) {
-            $sdkMgr = Get-ChildItem "$sdkRoot\cmdline-tools" -Recurse -Filter "sdkmanager.bat" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
-            if (-not $sdkMgr) {
-              throw "sdkmanager.bat not found under $sdkRoot\cmdline-tools"
-            }
-            "y`ny`ny`ny`ny`ny`ny`ny`ny`ny" | & $sdkMgr --licenses | Out-Null
-            & $sdkMgr "ndk;$ndkVersion"
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
-          $env:ANDROID_NDK_HOME = $ndkDir
-          cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 -o app/android/app/src/main/jniLibs build --release -p core-api
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "target"
+        run: bash tools/release/android/build-rust-ndk.sh
       - name: Build split and universal Android APKs
         shell: pwsh
         env:
@@ -251,7 +244,7 @@ jobs:
           $version = "${{ needs.prepare.outputs.version }}"
           $apkOutDir = Join-Path $env:RUNNER_TEMP "dist-android"
           New-Item -ItemType Directory -Force -Path $apkOutDir | Out-Null
-          $flutterApkDir = Join-Path $env:GITHUB_WORKSPACE "app\build\app\outputs\flutter-apk"
+          $flutterApkDir = Join-Path $env:GITHUB_WORKSPACE "app/build/app/outputs/flutter-apk"
 
           Push-Location (Join-Path $env:GITHUB_WORKSPACE "app")
           try {
@@ -276,9 +269,10 @@ jobs:
           $appVersion = "${{ needs.prepare.outputs.app_version }}"
           $versionCode = "${{ needs.prepare.outputs.version_code }}"
           $apkOutDir = Join-Path $env:RUNNER_TEMP "dist-android"
+          $verifyScript = Join-Path $env:GITHUB_WORKSPACE "tools/release/android/verify-apks.ps1"
 
           $verifyArgs = @(
-            "-File", "$env:GITHUB_WORKSPACE\tools\release\android\verify-apks.ps1",
+            "-File", $verifyScript,
             "-ApkDir", $apkOutDir,
             "-Version", $version,
             "-AppVersion", $appVersion,
@@ -312,14 +306,23 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.100.0
       - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: linux-desktop
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.50.0'
           channel: stable
+          cache: true
+      - name: Cache Linux sidecars & appimagetool
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/sidecar-cache
+          key: sidecars-linux-${{ hashFiles('tools/release/sidecars.lock') }}-v1
+          restore-keys: sidecars-linux-
       - name: Install Linux desktop & AppImage dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libsecret-1-dev libjsoncpp-dev libmpv-dev mpv libasound2-dev desktop-file-utils file xz-utils
+          sudo apt-get install -y --no-install-recommends clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libsecret-1-dev libjsoncpp-dev libmpv-dev mpv libasound2-dev desktop-file-utils file xz-utils
       - name: Build, bundle sidecars, and package Linux portable tarball & AppImage
         shell: bash
         run: |

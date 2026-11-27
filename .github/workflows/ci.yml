@@ -19,6 +19,8 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: rust-core-${{ runner.os }}
       - name: Format check
         run: cargo fmt --all -- --check
       - name: Clippy lint check
@@ -26,34 +28,31 @@ jobs:
       - name: Workspace tests & spikes
         run: cargo test --workspace
       - name: Parity & 100k benchmark runner
-        run: cargo run --release -p parity-runner -- --benchmark-100k
+        run: cargo run --release --locked -p parity-runner -- --benchmark-100k
 
-  flutter-and-bindings:
+  flutter-and-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.100.0
         with:
           components: rustfmt, clippy
-          targets: x86_64-pc-windows-msvc, aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android
-      - uses: actions/setup-java@v4
+          targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
         with:
-          distribution: temurin
-          java-version: '17'
+          shared-key: windows-desktop
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.50.0'
           channel: stable
+          cache: true
       - name: Cache FRB & Cargo tools
         uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/bin/flutter_rust_bridge_codegen*
             ~/.cargo/bin/cargo-expand*
-            ~/.cargo/bin/cargo-ndk*
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-          key: frb-tools-${{ runner.os }}-2.11.1-v2
+          key: frb-tools-${{ runner.os }}-2.11.1-v3
       - name: Install FRB codegen & verify bindings up to date
         shell: bash
         run: |
@@ -103,50 +102,46 @@ jobs:
       - name: Flutter analyze & widget/golden tests
         working-directory: app
         run: |
-          flutter pub get
           flutter analyze
           flutter test
       - name: Windows release build
         working-directory: app
         run: flutter build windows --release
+
+  android-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.100.0
+        with:
+          targets: aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: android-ndk
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: 'gradle'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.50.0'
+          channel: stable
+          cache: true
+      - name: Cache Cargo NDK & Android NDK 28.2.13676358
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/cargo-ndk*
+            ${{ env.ANDROID_HOME }}/ndk/28.2.13676358
+          key: android-ndk-${{ runner.os }}-28.2.13676358-v1
       - name: Build Android Rust native libraries
-        shell: pwsh
-        run: |
-          if (-not (Get-Command cargo-ndk -ErrorAction SilentlyContinue)) {
-            cargo install cargo-ndk --locked
-          }
-          $sdkRoot = if ($env:ANDROID_SDK_ROOT) { $env:ANDROID_SDK_ROOT } else { $env:ANDROID_HOME }
-          $ndkVersion = "28.2.13676358"
-          $ndkDir = Join-Path $sdkRoot "ndk\$ndkVersion"
-          if (-not (Test-Path $ndkDir)) {
-            $sdkMgr = Get-ChildItem "$sdkRoot\cmdline-tools" -Recurse -Filter "sdkmanager.bat" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
-            if (-not $sdkMgr) {
-              throw "sdkmanager.bat not found under $sdkRoot\cmdline-tools"
-            }
-            "y`ny`ny`ny`ny`ny`ny`ny`ny`ny" | & $sdkMgr --licenses | Out-Null
-            & $sdkMgr "ndk;$ndkVersion"
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
-          $env:ANDROID_NDK_HOME = $ndkDir
-          cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 -o app/android/app/src/main/jniLibs build --release -p core-api
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          # Free Windows + NDK Rust intermediate target artifacts (~8-10 GB) now that .so libs are in jniLibs
-          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "target", "app/build/windows"
+        run: bash tools/release/android/build-rust-ndk.sh
       - name: Android release APK build
-        shell: pwsh
+        working-directory: app
         run: |
-          Push-Location app
-          try {
-            $logPath = Join-Path $env:RUNNER_TEMP "apk-build.log"
-            flutter build apk --release 2>&1 | Tee-Object -FilePath $logPath
-            if ($LASTEXITCODE -ne 0) {
-              $tail = (Get-Content -Path $logPath -Tail 50 -ErrorAction SilentlyContinue) -join "%0A"
-              Write-Output "::error::flutter build apk --release failed:%0A$tail"
-              exit 1
-            }
-          } finally {
-            Pop-Location
-          }
+          flutter pub get
+          flutter build apk --release
 
   linux-build:
     runs-on: ubuntu-22.04
@@ -154,14 +149,17 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.100.0
       - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: linux-desktop
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.50.0'
           channel: stable
+          cache: true
       - name: Install Linux desktop build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libsecret-1-dev libjsoncpp-dev libmpv-dev mpv libasound2-dev
+          sudo apt-get install -y --no-install-recommends clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libsecret-1-dev libjsoncpp-dev libmpv-dev mpv libasound2-dev
       - name: Linux release build
         working-directory: app
         run: |

@@ -79,7 +79,7 @@ get_filename_component(REPO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
 find_program(CARGO_EXECUTABLE cargo)
 if(CARGO_EXECUTABLE)
   add_custom_target(rust_core_api
-    COMMAND "${CARGO_EXECUTABLE}" build $<IF:$<CONFIG:Debug>,--color=auto,--release> -p core-api
+    COMMAND "${CARGO_EXECUTABLE}" build --locked $<IF:$<CONFIG:Debug>,--color=auto,--release> -p core-api
     WORKING_DIRECTORY "${REPO_ROOT}"
     COMMENT "Building Rust libcore_api.so ($<CONFIG>)"
     VERBATIM
