@@ -65,3 +65,10 @@
 - [x] **Playback Speed, Mute Toggle, Slideshow & Keyboard Cockpit:** Added `MediaPlaybackService.setRate`, speed menu (`0.5x–2.0x`) + volume mute button in `MiniPlayerBar`, 3s **Slideshow** auto-advance in `_MediaViewerDialog`, and desktop keyboard shortcuts (`Ctrl+F` search focus, `←`/`→` navigate items, `Space` play/view, `Delete` trash)
 - [x] **Duplicate Visual Compare & Linux Native Integration:** Added **Storage Breakdown Bar** + **Compare Copies & Pick Keeper** (`Keep Only This`) cards in `CleanerDashboardView`, XDG `~/.config/autostart/media-gallery.desktop` support for `Open at Startup` on Linux, default `auto_scan_on_open = false` consistency in `core-platform`, and PNG `.DirIcon` fix for `appimagetool`
 
+---
+
+## PART H: Build Speed Optimization & Universal Linux Runtime Compatibility (v0.2.4)
+- [x] **Universal Linux `libmpv.so.2` Compatibility (`stage-linux.sh`, `core-platform`):** Added unified `media-gallery` runtime launcher wrapper with dynamic `libmpv.so.1 -> libmpv.so.2` shim for Arch Linux, Ubuntu 24.04+, Debian 12+, and Fedora 39+, delegated `AppRun` and `install.sh` to it, and preferred `APPIMAGE` or sibling `media-gallery` in Linux autostart `.desktop` entries
+- [x] **Parallelized & Cached CI/Release Pipeline:** Extracted shared `tools/release/android/build-rust-ndk.sh`, moved Android NDK + APK builds from `windows-latest` to `ubuntu-latest` with shared `Swatinem/rust-cache@v2` keys, `setup-java@v5` Gradle caching, Android NDK/Flutter SDK/sidecar caching, `codegen-units = 4` release compilation, Gradle parallel/caching flags, and `--locked` CMake builds (reducing full CI from ~41m to ~14m)
+
+
