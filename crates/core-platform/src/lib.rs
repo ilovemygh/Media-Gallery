@@ -70,10 +70,21 @@ pub fn set_windows_startup(enabled: bool) -> Result<(), PlatformError> {
         let desktop_file = autostart_dir.join("media-gallery.desktop");
         if enabled {
             std::fs::create_dir_all(&autostart_dir)?;
-            let exe = std::env::current_exe()?;
+            let launch_target = std::env::var_os("APPIMAGE")
+                .map(PathBuf::from)
+                .filter(|p| p.exists())
+                .unwrap_or_else(|| {
+                    let exe =
+                        std::env::current_exe().unwrap_or_else(|_| PathBuf::from("media-gallery"));
+                    let sibling_wrapper = exe
+                        .parent()
+                        .map(|dir| dir.join("media-gallery"))
+                        .filter(|p| p.is_file());
+                    sibling_wrapper.unwrap_or(exe)
+                });
             let entry = format!(
                 "[Desktop Entry]\nType=Application\nName=Media Gallery\nExec=\"{}\"\nIcon=media-gallery\nX-GNOME-Autostart-enabled=true\n",
-                exe.display()
+                launch_target.display()
             );
             std::fs::write(&desktop_file, entry)?;
         } else if desktop_file.exists() {

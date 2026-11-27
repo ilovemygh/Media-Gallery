@@ -141,6 +141,31 @@ if [[ -f "$PNG_ICON" ]]; then
   cp -f "$PNG_ICON" "${STAGE_DIR}/media-gallery.png"
 fi
 
+cat > "${STAGE_DIR}/media-gallery" <<'LAUNCHER'
+#!/usr/bin/env bash
+set -euo pipefail
+HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+export PATH="${HERE}/sidecars:${PATH}"
+export LD_LIBRARY_PATH="${HERE}/lib:${LD_LIBRARY_PATH:-}"
+
+# Ubuntu 22.04 builds link DT_NEEDED libmpv.so.1; modern distros (Arch, Ubuntu 24.04+,
+# Debian 12+, Fedora 39+) ship ABI-compatible libmpv.so.2. Provide a runtime shim if needed.
+if [[ ! -e "${HERE}/lib/libmpv.so.1" ]] && ! ldconfig -p 2>/dev/null | grep -q 'libmpv\.so\.1'; then
+  for cand in /usr/lib/libmpv.so.2 /usr/lib64/libmpv.so.2 /usr/lib/x86_64-linux-gnu/libmpv.so.2 /lib/x86_64-linux-gnu/libmpv.so.2; do
+    if [[ -e "$cand" ]]; then
+      SHIM_DIR="${XDG_RUNTIME_DIR:-/tmp}/media-gallery-mpv-shim"
+      mkdir -p "$SHIM_DIR"
+      ln -sf "$cand" "${SHIM_DIR}/libmpv.so.1"
+      export LD_LIBRARY_PATH="${SHIM_DIR}:${LD_LIBRARY_PATH}"
+      break
+    fi
+  done
+fi
+
+exec "${HERE}/media_gallery" "$@"
+LAUNCHER
+chmod +x "${STAGE_DIR}/media-gallery"
+
 cat > "${STAGE_DIR}/install.sh" <<'INSTALL'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -154,12 +179,20 @@ ICON_PNG_DIR="${HOME}/.local/share/icons/hicolor/256x256/apps"
 mkdir -p "$INSTALL_DIR" "$BIN_DIR" "$APP_DIR" "$ICON_DIR" "$ICON_PNG_DIR"
 rm -rf "${INSTALL_DIR:?}/"*
 cp -a "${SRC_DIR}/." "$INSTALL_DIR/"
-ln -sf "${INSTALL_DIR}/media_gallery" "${BIN_DIR}/media-gallery"
+if [[ ! -e "${INSTALL_DIR}/lib/libmpv.so.1" ]] && ! ldconfig -p 2>/dev/null | grep -q 'libmpv\.so\.1'; then
+  for cand in /usr/lib/libmpv.so.2 /usr/lib64/libmpv.so.2 /usr/lib/x86_64-linux-gnu/libmpv.so.2 /lib/x86_64-linux-gnu/libmpv.so.2; do
+    if [[ -e "$cand" ]]; then
+      ln -sf "$cand" "${INSTALL_DIR}/lib/libmpv.so.1"
+      break
+    fi
+  done
+fi
+ln -sf "${INSTALL_DIR}/media-gallery" "${BIN_DIR}/media-gallery"
 cp -f "${INSTALL_DIR}/media-gallery.svg" "${ICON_DIR}/media-gallery.svg"
 if [[ -f "${INSTALL_DIR}/media-gallery.png" ]]; then
   cp -f "${INSTALL_DIR}/media-gallery.png" "${ICON_PNG_DIR}/media-gallery.png"
 fi
-sed "s|^Exec=.*|Exec=${INSTALL_DIR}/media_gallery %U|" \
+sed "s|^Exec=.*|Exec=${INSTALL_DIR}/media-gallery %U|" \
   "${INSTALL_DIR}/media-gallery.desktop" > "${APP_DIR}/media-gallery.desktop"
 command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$APP_DIR" || true
 echo "Installed Media Gallery to ${INSTALL_DIR}"
@@ -192,9 +225,7 @@ if [[ "$BUILD_APPIMAGE" == "true" ]]; then
   cat > "${APPDIR}/AppRun" <<'APPRUN'
 #!/usr/bin/env bash
 HERE="$(dirname "$(readlink -f "$0")")"
-export PATH="${HERE}/sidecars:${PATH}"
-export LD_LIBRARY_PATH="${HERE}/lib:${LD_LIBRARY_PATH:-}"
-exec "${HERE}/media_gallery" "$@"
+exec "${HERE}/media-gallery" "$@"
 APPRUN
   chmod +x "${APPDIR}/AppRun"
 
