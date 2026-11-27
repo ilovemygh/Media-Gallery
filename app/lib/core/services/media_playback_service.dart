@@ -19,6 +19,7 @@ class MediaPlaybackService {
   final ValueNotifier<Duration> duration = ValueNotifier(Duration.zero);
   final ValueNotifier<bool> playing = ValueNotifier(false);
   final ValueNotifier<double> volume = ValueNotifier(100.0);
+  final ValueNotifier<double> playbackRate = ValueNotifier(1.0);
 
   StreamSubscription<Duration>? _posSub;
   StreamSubscription<Duration>? _durSub;
@@ -63,8 +64,23 @@ class MediaPlaybackService {
     if (player == null || item.path.isEmpty) return;
     try {
       await player.open(Media(item.path), play: true);
+      if (playbackRate.value != 1.0) {
+        await player.setRate(playbackRate.value);
+      }
+      if (volume.value != 100.0) {
+        await player.setVolume(volume.value);
+      }
     } catch (_) {
       // Ignore invalid mock paths in non-file scenarios.
+    }
+  }
+
+  Future<void> setRate(double rate) async {
+    final clamped = rate.clamp(0.25, 3.0);
+    playbackRate.value = clamped;
+    final player = _player;
+    if (player != null) {
+      await player.setRate(clamped);
     }
   }
 

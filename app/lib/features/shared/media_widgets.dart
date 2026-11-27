@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:file_picker/file_picker.dart';
@@ -37,11 +38,7 @@ class _MediaGalleryLogoPainter extends CustomPainter {
       ..shader = const LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [
-          Color(0xFF17154E),
-          Color(0xFF4F46E5),
-          Color(0xFF06B6D4),
-        ],
+        colors: [Color(0xFF17154E), Color(0xFF4F46E5), Color(0xFF06B6D4)],
         stops: [0.0, 0.52, 1.0],
       ).createShader(rect);
     canvas.drawRRect(rrect, bgPaint);
@@ -54,7 +51,10 @@ class _MediaGalleryLogoPainter extends CustomPainter {
       Rect.fromCenter(center: Offset.zero, width: s * 0.58, height: s * 0.46),
       Radius.circular(s * 0.09),
     );
-    canvas.drawRRect(backRect, Paint()..color = Colors.white.withValues(alpha: 0.28));
+    canvas.drawRRect(
+      backRect,
+      Paint()..color = Colors.white.withValues(alpha: 0.28),
+    );
     canvas.restore();
 
     // Front frosted media frame
@@ -62,7 +62,10 @@ class _MediaGalleryLogoPainter extends CustomPainter {
       Rect.fromLTWH(s * 0.19, s * 0.23, s * 0.62, s * 0.52),
       Radius.circular(s * 0.10),
     );
-    canvas.drawRRect(frontRect, Paint()..color = Colors.white.withValues(alpha: 0.95));
+    canvas.drawRRect(
+      frontRect,
+      Paint()..color = Colors.white.withValues(alpha: 0.95),
+    );
 
     // Inner dark-indigo viewport
     final vpRect = Rect.fromLTWH(s * 0.235, s * 0.275, s * 0.53, s * 0.43);
@@ -88,7 +91,11 @@ class _MediaGalleryLogoPainter extends CustomPainter {
       final bx = startX + i * step + (step - barW) / 2;
       final by = vpRect.bottom - bh;
       final t = i / (heights.length - 1);
-      final color = Color.lerp(const Color(0xFF22D3EE), const Color(0xFFE879F9), t)!;
+      final color = Color.lerp(
+        const Color(0xFF22D3EE),
+        const Color(0xFFE879F9),
+        t,
+      )!;
       canvas.drawRRect(
         RRect.fromRectAndRadius(
           Rect.fromLTWH(bx, by, barW, bh),
@@ -100,7 +107,10 @@ class _MediaGalleryLogoPainter extends CustomPainter {
 
     // Glowing sky lens dot
     canvas.drawCircle(
-      Offset(vpRect.left + vpRect.width * 0.16, vpRect.top + vpRect.height * 0.22),
+      Offset(
+        vpRect.left + vpRect.width * 0.16,
+        vpRect.top + vpRect.height * 0.22,
+      ),
       s * 0.032,
       Paint()..color = const Color(0xFF38BDF8),
     );
@@ -151,7 +161,9 @@ class ProfileAvatarButton extends ConsumerWidget {
             children: [
               CircleAvatar(
                 radius: 16,
-                backgroundColor: signedIn ? colors.primary : colors.surfaceContainerHighest,
+                backgroundColor: signedIn
+                    ? colors.primary
+                    : colors.surfaceContainerHighest,
                 child: signedIn
                     ? Text(
                         initial!,
@@ -160,7 +172,11 @@ class ProfileAvatarButton extends ConsumerWidget {
                           fontWeight: FontWeight.bold,
                         ),
                       )
-                    : Icon(Icons.person, size: 18, color: colors.onSurfaceVariant),
+                    : Icon(
+                        Icons.person,
+                        size: 18,
+                        color: colors.onSurfaceVariant,
+                      ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -170,7 +186,10 @@ class ProfileAvatarButton extends ConsumerWidget {
                   children: [
                     Text(
                       signedIn ? email : 'Local Profile',
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
@@ -212,7 +231,9 @@ class ProfileAvatarButton extends ConsumerWidget {
           children: [
             CircleAvatar(
               radius: 16,
-              backgroundColor: signedIn ? colors.primary : colors.surfaceContainerHighest,
+              backgroundColor: signedIn
+                  ? colors.primary
+                  : colors.surfaceContainerHighest,
               child: signedIn
                   ? Text(
                       initial!,
@@ -222,7 +243,11 @@ class ProfileAvatarButton extends ConsumerWidget {
                         fontSize: 13,
                       ),
                     )
-                  : Icon(Icons.person_rounded, size: 19, color: colors.onSurfaceVariant),
+                  : Icon(
+                      Icons.person_rounded,
+                      size: 19,
+                      color: colors.onSurfaceVariant,
+                    ),
             ),
             if (signedIn)
               Positioned(
@@ -327,7 +352,8 @@ class AudioWaveformVisualizer extends StatefulWidget {
   final double height;
 
   @override
-  State<AudioWaveformVisualizer> createState() => _AudioWaveformVisualizerState();
+  State<AudioWaveformVisualizer> createState() =>
+      _AudioWaveformVisualizerState();
 }
 
 class _AudioWaveformVisualizerState extends State<AudioWaveformVisualizer> {
@@ -342,7 +368,8 @@ class _AudioWaveformVisualizerState extends State<AudioWaveformVisualizer> {
   @override
   void didUpdateWidget(covariant AudioWaveformVisualizer oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.item.id != widget.item.id || oldWidget.barCount != widget.barCount) {
+    if (oldWidget.item.id != widget.item.id ||
+        oldWidget.barCount != widget.barCount) {
       _peaks = _computePeaks();
     }
   }
@@ -351,7 +378,8 @@ class _AudioWaveformVisualizerState extends State<AudioWaveformVisualizer> {
     final count = widget.barCount.clamp(16, 120);
     // Sample real audio bytes from disk when available so each file has an authentic waveform contour.
     try {
-      if (widget.item.path.isNotEmpty && !widget.item.path.startsWith('content://')) {
+      if (widget.item.path.isNotEmpty &&
+          !widget.item.path.startsWith('content://')) {
         final file = File(widget.item.path);
         if (file.existsSync()) {
           final len = file.lengthSync();
@@ -366,7 +394,11 @@ class _AudioWaveformVisualizerState extends State<AudioWaveformVisualizer> {
               for (var i = 0; i < count; i++) {
                 final pos = headerSkip + (i * step);
                 raf.setPositionSync(pos.clamp(0, len - 1));
-                final n = raf.readIntoSync(buf, 0, math.min(buf.length, len - pos));
+                final n = raf.readIntoSync(
+                  buf,
+                  0,
+                  math.min(buf.length, len - pos),
+                );
                 if (n <= 0) {
                   out.add(0.35);
                   continue;
@@ -376,7 +408,10 @@ class _AudioWaveformVisualizerState extends State<AudioWaveformVisualizer> {
                   sum += (buf[j] - 128).abs() / 128.0;
                 }
                 final avg = (sum / n).clamp(0.08, 1.0);
-                final shaped = (0.18 + 0.82 * math.pow(avg, 0.75)).clamp(0.14, 1.0);
+                final shaped = (0.18 + 0.82 * math.pow(avg, 0.75)).clamp(
+                  0.14,
+                  1.0,
+                );
                 out.add(shaped);
               }
               return out;
@@ -390,7 +425,8 @@ class _AudioWaveformVisualizerState extends State<AudioWaveformVisualizer> {
       // Fallback to deterministic musical contour below.
     }
 
-    final seed = '${widget.item.id}:${widget.item.alias}:${widget.item.size}'.codeUnits;
+    final seed =
+        '${widget.item.id}:${widget.item.alias}:${widget.item.size}'.codeUnits;
     var acc = 2166136261;
     for (final c in seed) {
       acc = ((acc ^ c) * 16777619) & 0x7fffffff;
@@ -399,14 +435,19 @@ class _AudioWaveformVisualizerState extends State<AudioWaveformVisualizer> {
       final phase1 = math.sin(i * 0.29 + (acc % 97) * 0.07).abs();
       final phase2 = math.cos(i * 0.13 + (acc % 53) * 0.11).abs();
       final envelope = math.sin((i / count) * math.pi).clamp(0.25, 1.0);
-      return (0.16 + 0.82 * (0.55 * phase1 + 0.45 * phase2) * envelope).clamp(0.14, 1.0);
+      return (0.16 + 0.82 * (0.55 * phase1 + 0.45 * phase2) * envelope).clamp(
+        0.14,
+        1.0,
+      );
     });
   }
 
   void _seekToLocalDx(double dx, double width, int totalMs) {
     if (width <= 0 || totalMs <= 0) return;
     final ratio = (dx / width).clamp(0.0, 1.0);
-    MediaPlaybackService.instance.seek(Duration(milliseconds: (totalMs * ratio).round()));
+    MediaPlaybackService.instance.seek(
+      Duration(milliseconds: (totalMs * ratio).round()),
+    );
   }
 
   @override
@@ -426,12 +467,16 @@ class _AudioWaveformVisualizerState extends State<AudioWaveformVisualizer> {
 
         return LayoutBuilder(
           builder: (context, constraints) {
-            final width = constraints.maxWidth > 0 ? constraints.maxWidth : 360.0;
+            final width = constraints.maxWidth > 0
+                ? constraints.maxWidth
+                : 360.0;
             return GestureDetector(
               key: const Key('audio_waveform_visualizer'),
               behavior: HitTestBehavior.opaque,
-              onTapDown: (d) => _seekToLocalDx(d.localPosition.dx, width, totalMs),
-              onHorizontalDragUpdate: (d) => _seekToLocalDx(d.localPosition.dx, width, totalMs),
+              onTapDown: (d) =>
+                  _seekToLocalDx(d.localPosition.dx, width, totalMs),
+              onHorizontalDragUpdate: (d) =>
+                  _seekToLocalDx(d.localPosition.dx, width, totalMs),
               child: SizedBox(
                 width: double.infinity,
                 height: widget.height,
@@ -495,7 +540,11 @@ class _AudioWaveformPainter extends CustomPainter {
       final barH = (amp * size.height * 0.88).clamp(6.0, size.height);
       final x = i * step + (step - barW) / 2;
       final rect = RRect.fromRectAndRadius(
-        Rect.fromCenter(center: Offset(x + barW / 2, midY), width: barW, height: barH),
+        Rect.fromCenter(
+          center: Offset(x + barW / 2, midY),
+          width: barW,
+          height: barH,
+        ),
         Radius.circular(barW / 2),
       );
       final isPlayed = ratio <= progress;
@@ -593,7 +642,9 @@ class CompletedDownloadBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final job = ref.watch(galleryControllerProvider.select((s) => s.lastCompletedDownload));
+    final job = ref.watch(
+      galleryControllerProvider.select((s) => s.lastCompletedDownload),
+    );
     if (job == null) return const SizedBox.shrink();
     final ctrl = ref.read(galleryControllerProvider.notifier);
     final colors = Theme.of(context).colorScheme;
@@ -763,7 +814,9 @@ class MediaThumbnailWidget extends StatelessWidget {
               children: [
                 if (item.syncState == SyncState.remote)
                   _BadgePill(
-                    icon: item.deviceOnline ? Icons.cloud_outlined : Icons.cloud_off,
+                    icon: item.deviceOnline
+                        ? Icons.cloud_outlined
+                        : Icons.cloud_off,
                     label: item.deviceOnline ? 'Remote' : 'Offline',
                     color: Colors.blueGrey.shade800,
                   ),
@@ -787,8 +840,8 @@ class MediaThumbnailWidget extends StatelessWidget {
         item.type == MediaType.video
             ? Icons.movie_outlined
             : item.type == MediaType.audio
-                ? Icons.music_note_outlined
-                : Icons.image_outlined,
+            ? Icons.music_note_outlined
+            : Icons.image_outlined,
         size: 36,
         color: colors.onSurfaceVariant,
       ),
@@ -822,7 +875,11 @@ class _BadgePill extends StatelessWidget {
           const SizedBox(width: 3),
           Text(
             label,
-            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
@@ -837,8 +894,10 @@ class FolderMosaicPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final validCovers =
-        folder.previewCovers.where((p) => p.isNotEmpty && File(p).existsSync()).take(4).toList();
+    final validCovers = folder.previewCovers
+        .where((p) => p.isNotEmpty && File(p).existsSync())
+        .take(4)
+        .toList();
     if (validCovers.isEmpty) {
       return const Icon(Icons.folder, size: 36);
     }
@@ -893,11 +952,32 @@ class _MediaViewerDialog extends ConsumerStatefulWidget {
 
 class _MediaViewerDialogState extends ConsumerState<_MediaViewerDialog> {
   late String _currentId;
+  bool _slideshowActive = false;
+  Timer? _slideshowTimer;
 
   @override
   void initState() {
     super.initState();
     _currentId = widget.initialItem.id;
+  }
+
+  @override
+  void dispose() {
+    _slideshowTimer?.cancel();
+    super.dispose();
+  }
+
+  void _toggleSlideshow(List<MediaItem> list) {
+    setState(() => _slideshowActive = !_slideshowActive);
+    _slideshowTimer?.cancel();
+    if (_slideshowActive && list.length > 1) {
+      _slideshowTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+        if (mounted) {
+          final currentList = ref.read(galleryControllerProvider).items;
+          _step(1, currentList);
+        }
+      });
+    }
   }
 
   Future<void> _step(int delta, List<MediaItem> list) async {
@@ -920,11 +1000,15 @@ class _MediaViewerDialogState extends ConsumerState<_MediaViewerDialog> {
       orElse: () => widget.initialItem,
     );
     final coverPath = item.cover?.filePath ?? '';
-    final diskImage = item.type == MediaType.image && File(item.path).existsSync()
+    final diskImage =
+        item.type == MediaType.image && File(item.path).existsSync()
         ? item.path
-        : (coverPath.isNotEmpty && File(coverPath).existsSync() ? coverPath : null);
+        : (coverPath.isNotEmpty && File(coverPath).existsSync()
+              ? coverPath
+              : null);
     final playback = MediaPlaybackService.instance;
-    final showVideoSurface = item.type == MediaType.video &&
+    final showVideoSurface =
+        item.type == MediaType.video &&
         playback.isNativeReady &&
         playback.videoController != null;
 
@@ -948,12 +1032,59 @@ class _MediaViewerDialogState extends ConsumerState<_MediaViewerDialog> {
                   icon: const Icon(Icons.chevron_right),
                   onPressed: () => _step(1, ui.items),
                 ),
-                if (item.type == MediaType.audio || item.type == MediaType.video)
+                if (item.type == MediaType.audio ||
+                    item.type == MediaType.video) ...[
+                  ValueListenableBuilder<double>(
+                    valueListenable: playback.playbackRate,
+                    builder: (_, rate, __) => PopupMenuButton<double>(
+                      tooltip: 'Playback Speed',
+                      onSelected: playback.setRate,
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(value: 0.5, child: Text('0.5×')),
+                        PopupMenuItem(value: 1.0, child: Text('1.0× (Normal)')),
+                        PopupMenuItem(value: 1.25, child: Text('1.25×')),
+                        PopupMenuItem(value: 1.5, child: Text('1.5×')),
+                        PopupMenuItem(value: 2.0, child: Text('2.0×')),
+                      ],
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 6,
+                        ),
+                        child: Text(
+                          '${rate == 1.0 ? "1" : rate}×',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                   IconButton(
                     tooltip: ui.isPlaying ? 'Pause' : 'Play',
-                    icon: Icon(ui.isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill),
+                    icon: Icon(
+                      ui.isPlaying
+                          ? Icons.pause_circle_filled
+                          : Icons.play_circle_fill,
+                    ),
                     onPressed: () => ctrl.playTrack(item),
                   ),
+                ],
+                IconButton(
+                  tooltip: _slideshowActive
+                      ? 'Stop Slideshow'
+                      : 'Slideshow (3s)',
+                  icon: Icon(
+                    _slideshowActive
+                        ? Icons.stop_circle_outlined
+                        : Icons.slideshow_outlined,
+                    color: _slideshowActive
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
+                  ),
+                  onPressed: () => _toggleSlideshow(ui.items),
+                ),
                 IconButton(
                   tooltip: 'Move to Recycle Bin',
                   icon: const Icon(Icons.delete_outline),
@@ -976,114 +1107,140 @@ class _MediaViewerDialogState extends ConsumerState<_MediaViewerDialog> {
                 child: showVideoSurface
                     ? Video(controller: playback.videoController!)
                     : item.type == MediaType.audio
-                        ? Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 16,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (diskImage != null)
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(14),
+                                child: Image.file(
+                                  File(diskImage),
+                                  width: 140,
+                                  height: 140,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            else
+                              const Icon(
+                                Icons.graphic_eq,
+                                size: 72,
+                                color: Colors.cyanAccent,
+                              ),
+                            const SizedBox(height: 12),
+                            Text(
+                              item.alias,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              '${item.artist ?? "Unknown Artist"} · ${item.album ?? item.fileName}',
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 13,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 18),
+                            AudioWaveformVisualizer(
+                              item: item,
+                              isPlaying:
+                                  ui.isPlaying &&
+                                  ui.playingTrack?.id == item.id,
+                              height: 112,
+                            ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 12,
+                              crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
-                                if (diskImage != null)
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(14),
-                                    child: Image.file(
-                                      File(diskImage),
-                                      width: 140,
-                                      height: 140,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  )
-                                else
-                                  const Icon(Icons.graphic_eq, size: 72, color: Colors.cyanAccent),
-                                const SizedBox(height: 12),
-                                Text(
-                                  item.alias,
-                                  style: const TextStyle(
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.skip_previous,
                                     color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
                                   ),
-                                  textAlign: TextAlign.center,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                  onPressed: () => _step(-1, ui.items),
                                 ),
-                                Text(
-                                  '${item.artist ?? "Unknown Artist"} · ${item.album ?? item.fileName}',
-                                  style: const TextStyle(color: Colors.white70, fontSize: 13),
-                                  textAlign: TextAlign.center,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                FilledButton.icon(
+                                  onPressed: () =>
+                                      ui.playingTrack?.id == item.id
+                                      ? ctrl.togglePlayback()
+                                      : ctrl.playTrack(item),
+                                  icon: Icon(
+                                    ui.isPlaying &&
+                                            ui.playingTrack?.id == item.id
+                                        ? Icons.pause
+                                        : Icons.play_arrow,
+                                  ),
+                                  label: Text(
+                                    ui.isPlaying &&
+                                            ui.playingTrack?.id == item.id
+                                        ? 'Pause'
+                                        : 'Play',
+                                  ),
                                 ),
-                                const SizedBox(height: 18),
-                                AudioWaveformVisualizer(
-                                  item: item,
-                                  isPlaying: ui.isPlaying && ui.playingTrack?.id == item.id,
-                                  height: 112,
-                                ),
-                                const SizedBox(height: 12),
-                                Wrap(
-                                  spacing: 12,
-                                  crossAxisAlignment: WrapCrossAlignment.center,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.skip_previous, color: Colors.white),
-                                      onPressed: () => _step(-1, ui.items),
-                                    ),
-                                    FilledButton.icon(
-                                      onPressed: () => ui.playingTrack?.id == item.id
-                                          ? ctrl.togglePlayback()
-                                          : ctrl.playTrack(item),
-                                      icon: Icon(
-                                        ui.isPlaying && ui.playingTrack?.id == item.id
-                                            ? Icons.pause
-                                            : Icons.play_arrow,
-                                      ),
-                                      label: Text(
-                                        ui.isPlaying && ui.playingTrack?.id == item.id
-                                            ? 'Pause'
-                                            : 'Play',
-                                      ),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.skip_next, color: Colors.white),
-                                      onPressed: () => _step(1, ui.items),
-                                    ),
-                                  ],
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.skip_next,
+                                    color: Colors.white,
+                                  ),
+                                  onPressed: () => _step(1, ui.items),
                                 ),
                               ],
                             ),
-                          )
-                        : (diskImage != null
-                            ? InteractiveViewer(
-                                minScale: 0.5,
-                                maxScale: 4.0,
-                                child: Center(
-                                  child: Image.file(File(diskImage), fit: BoxFit.contain),
+                          ],
+                        ),
+                      )
+                    : (diskImage != null
+                          ? InteractiveViewer(
+                              minScale: 0.5,
+                              maxScale: 4.0,
+                              child: Center(
+                                child: Image.file(
+                                  File(diskImage),
+                                  fit: BoxFit.contain,
                                 ),
-                              )
-                            : Center(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      item.type == MediaType.video ? Icons.movie : Icons.image,
-                                      size: 72,
-                                      color: Colors.white70,
-                                    ),
+                              ),
+                            )
+                          : Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    item.type == MediaType.video
+                                        ? Icons.movie
+                                        : Icons.image,
+                                    size: 72,
+                                    color: Colors.white70,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    item.fileName,
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                  if (item.type != MediaType.image) ...[
                                     const SizedBox(height: 12),
-                                    Text(
-                                      item.fileName,
-                                      style: const TextStyle(color: Colors.white),
+                                    FilledButton.icon(
+                                      onPressed: () => ctrl.playTrack(item),
+                                      icon: const Icon(Icons.play_arrow),
+                                      label: const Text('Play Track / Media'),
                                     ),
-                                    if (item.type != MediaType.image) ...[
-                                      const SizedBox(height: 12),
-                                      FilledButton.icon(
-                                        onPressed: () => ctrl.playTrack(item),
-                                        icon: const Icon(Icons.play_arrow),
-                                        label: const Text('Play Track / Media'),
-                                      ),
-                                    ],
                                   ],
-                                ),
-                              )),
+                                ],
+                              ),
+                            )),
               ),
             ),
             Padding(
@@ -1132,8 +1289,9 @@ class _BulkRenameDialog extends ConsumerStatefulWidget {
 }
 
 class _BulkRenameDialogState extends ConsumerState<_BulkRenameDialog> {
-  final TextEditingController _templateCtrl =
-      TextEditingController(text: '{date} {place} {name}');
+  final TextEditingController _templateCtrl = TextEditingController(
+    text: '{date} {place} {name}',
+  );
   List<BulkRenamePreview> _previews = const [];
   bool _loading = true;
 
@@ -1193,7 +1351,10 @@ class _BulkRenameDialogState extends ConsumerState<_BulkRenameDialog> {
                         final p = _previews[idx];
                         return ListTile(
                           dense: true,
-                          title: Text(p.oldFileName, overflow: TextOverflow.ellipsis),
+                          title: Text(
+                            p.oldFileName,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                           subtitle: Text(
                             '→ ${p.newFileName}',
                             style: TextStyle(
@@ -1203,8 +1364,15 @@ class _BulkRenameDialogState extends ConsumerState<_BulkRenameDialog> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           trailing: p.conflict
-                              ? const Icon(Icons.warning_amber, color: Colors.orange)
-                              : const Icon(Icons.check, color: Colors.green, size: 18),
+                              ? const Icon(
+                                  Icons.warning_amber,
+                                  color: Colors.orange,
+                                )
+                              : const Icon(
+                                  Icons.check,
+                                  color: Colors.green,
+                                  size: 18,
+                                ),
                         );
                       },
                     ),
@@ -1279,18 +1447,58 @@ class CleanerDashboardView extends ConsumerWidget {
                     children: [
                       _StatPill(
                         icon: Icons.movie,
-                        label: 'Videos: ${stats.videoCount} (${formatBytes(stats.videoBytes)})',
+                        label:
+                            'Videos: ${stats.videoCount} (${formatBytes(stats.videoBytes)})',
                       ),
                       _StatPill(
                         icon: Icons.image,
-                        label: 'Images: ${stats.imageCount} (${formatBytes(stats.imageBytes)})',
+                        label:
+                            'Images: ${stats.imageCount} (${formatBytes(stats.imageBytes)})',
                       ),
                       _StatPill(
                         icon: Icons.music_note,
-                        label: 'Audio: ${stats.audioCount} (${formatBytes(stats.audioBytes)})',
+                        label:
+                            'Audio: ${stats.audioCount} (${formatBytes(stats.audioBytes)})',
                       ),
                     ],
                   ),
+                  if (stats.totalBytes > 0) ...[
+                    const SizedBox(height: 10),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: SizedBox(
+                        height: 8,
+                        child: Row(
+                          children: [
+                            if (stats.videoBytes > 0)
+                              Expanded(
+                                flex: math.max(
+                                  1,
+                                  (stats.videoBytes * 100 ~/ stats.totalBytes),
+                                ),
+                                child: Container(color: Colors.indigo),
+                              ),
+                            if (stats.imageBytes > 0)
+                              Expanded(
+                                flex: math.max(
+                                  1,
+                                  (stats.imageBytes * 100 ~/ stats.totalBytes),
+                                ),
+                                child: Container(color: Colors.teal),
+                              ),
+                            if (stats.audioBytes > 0)
+                              Expanded(
+                                flex: math.max(
+                                  1,
+                                  (stats.audioBytes * 100 ~/ stats.totalBytes),
+                                ),
+                                child: Container(color: Colors.purple),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1318,13 +1526,16 @@ class CleanerDashboardView extends ConsumerWidget {
               _CleanerActionCard(
                 icon: Icons.delete_outline,
                 title: 'Recycle Bin',
-                subtitle: '${stats.trashedCount} item(s) · ${formatBytes(stats.trashedBytes)}',
+                subtitle:
+                    '${stats.trashedCount} item(s) · ${formatBytes(stats.trashedBytes)}',
                 selected: ui.trashedOnly,
                 onTap: () => ctrl.openCleanerMode(trashed: true),
               ),
             ],
           ),
-          if (ui.onlyDuplicates && !ui.trashedOnly && stats.duplicateGroups > 0) ...[
+          if (ui.onlyDuplicates &&
+              !ui.trashedOnly &&
+              stats.duplicateGroups > 0) ...[
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
@@ -1343,6 +1554,56 @@ class CleanerDashboardView extends ConsumerWidget {
                 ),
               ],
             ),
+            if (ui.duplicateGroups.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              for (final grp in ui.duplicateGroups.take(12))
+                Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ExpansionTile(
+                    leading: const Icon(Icons.compare),
+                    title: Text(
+                      '${grp.items.length} identical copies · ${formatBytes(grp.size)} each (save ${formatBytes(grp.reclaimableBytes)})',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    children: [
+                      for (final copy in grp.items)
+                        ListTile(
+                          dense: true,
+                          leading: SizedBox(
+                            width: 40,
+                            height: 40,
+                            child: MediaThumbnailWidget(
+                              item: copy,
+                              cacheWidth: 100,
+                            ),
+                          ),
+                          title: Text(
+                            copy.fileName,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Text(
+                            '${copy.folderPath} · ${copy.deviceName}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: FilledButton.tonal(
+                            onPressed: () async {
+                              for (final other in grp.items) {
+                                if (other.id != copy.id) {
+                                  await ctrl.moveToTrash(other.id);
+                                }
+                              }
+                            },
+                            child: const Text('Keep Only This'),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+            ],
           ],
           if (ui.trashedOnly && ui.items.isNotEmpty) ...[
             const SizedBox(height: 12),
@@ -1405,7 +1666,10 @@ class _CleanerActionCard extends StatelessWidget {
               children: [
                 Icon(icon, size: 24, color: colors.primary),
                 const SizedBox(height: 8),
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
                 const SizedBox(height: 4),
                 Text(subtitle, style: const TextStyle(fontSize: 12)),
               ],
@@ -1496,12 +1760,16 @@ class _DevicesBackupViewState extends ConsumerState<DevicesBackupView> {
                               avatar: const Icon(Icons.pin, size: 16),
                               label: Text(
                                 'PIN: ${_session!.pin}',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                             TextButton.icon(
                               onPressed: () {
-                                Clipboard.setData(ClipboardData(text: _session!.qrPayload));
+                                Clipboard.setData(
+                                  ClipboardData(text: _session!.qrPayload),
+                                );
                               },
                               icon: const Icon(Icons.copy, size: 15),
                               label: const Text('Copy Pairing Payload'),
@@ -1543,7 +1811,10 @@ class _DevicesBackupViewState extends ConsumerState<DevicesBackupView> {
                         onPressed: () async {
                           final code = _pairCodeCtrl.text.trim();
                           if (code.isEmpty) return;
-                          await ctrl.pairWithDevice(code, peerName: _pairNameCtrl.text);
+                          await ctrl.pairWithDevice(
+                            code,
+                            peerName: _pairNameCtrl.text,
+                          );
                           _pairCodeCtrl.clear();
                           _pairNameCtrl.clear();
                         },
@@ -1563,15 +1834,21 @@ class _DevicesBackupViewState extends ConsumerState<DevicesBackupView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Connected Devices & Quick Backup',
-                      style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    'Connected Devices & Quick Backup',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 10),
                   for (final dev in ui.devices) ...[
                     ListTile(
                       leading: Icon(
-                        dev.type == DeviceType.phone ? Icons.smartphone : Icons.computer,
+                        dev.type == DeviceType.phone
+                            ? Icons.smartphone
+                            : Icons.computer,
                       ),
-                      title: Text('${dev.name}${dev.isSelf ? " (This Device)" : ""}'),
+                      title: Text(
+                        '${dev.name}${dev.isSelf ? " (This Device)" : ""}',
+                      ),
                       subtitle: Text(
                         '${dev.isOnline ? "Online" : "Offline"} · ${dev.transports.map((t) => t.name).join(", ")}',
                       ),
@@ -1589,7 +1866,9 @@ class _DevicesBackupViewState extends ConsumerState<DevicesBackupView> {
                                   tooltip: 'Forget device',
                                   icon: const Icon(Icons.link_off),
                                   onPressed: () async {
-                                    await ref.read(bridgeProvider).forgetDevice(dev.id);
+                                    await ref
+                                        .read(bridgeProvider)
+                                        .forgetDevice(dev.id);
                                     await ctrl.refresh();
                                   },
                                 ),
@@ -1598,13 +1877,21 @@ class _DevicesBackupViewState extends ConsumerState<DevicesBackupView> {
                     ),
                     if (!dev.isSelf)
                       Padding(
-                        padding: const EdgeInsets.only(left: 16, right: 8, bottom: 6),
+                        padding: const EdgeInsets.only(
+                          left: 16,
+                          right: 8,
+                          bottom: 6,
+                        ),
                         child: SwitchListTile(
                           dense: true,
-                          title: Text('Auto-backup Camera & Pictures to ${dev.name}'),
-                          value: ui.autoSyncRules
-                              .any((r) => r.targetDeviceId == dev.id && r.enabled),
-                          onChanged: (enabled) => ctrl.toggleAutoSyncRule(dev.id, enabled),
+                          title: Text(
+                            'Auto-backup Camera & Pictures to ${dev.name}',
+                          ),
+                          value: ui.autoSyncRules.any(
+                            (r) => r.targetDeviceId == dev.id && r.enabled,
+                          ),
+                          onChanged: (enabled) =>
+                              ctrl.toggleAutoSyncRule(dev.id, enabled),
                         ),
                       ),
                   ],
@@ -1620,14 +1907,19 @@ class _DevicesBackupViewState extends ConsumerState<DevicesBackupView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Transfers (${ui.transfers.length})',
-                        style: Theme.of(context).textTheme.titleMedium),
+                    Text(
+                      'Transfers (${ui.transfers.length})',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                     const SizedBox(height: 8),
                     for (final tr in ui.transfers)
                       ListTile(
                         dense: true,
                         leading: const Icon(Icons.swap_horiz),
-                        title: Text(tr.fileName, overflow: TextOverflow.ellipsis),
+                        title: Text(
+                          tr.fileName,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -1640,7 +1932,8 @@ class _DevicesBackupViewState extends ConsumerState<DevicesBackupView> {
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            if (tr.status == 'transferring' || tr.status == 'queued')
+                            if (tr.status == 'transferring' ||
+                                tr.status == 'queued')
                               IconButton(
                                 tooltip: 'Pause',
                                 icon: const Icon(Icons.pause),
@@ -1669,7 +1962,8 @@ class YouTubeDownloadView extends ConsumerStatefulWidget {
   const YouTubeDownloadView({super.key});
 
   @override
-  ConsumerState<YouTubeDownloadView> createState() => _YouTubeDownloadViewState();
+  ConsumerState<YouTubeDownloadView> createState() =>
+      _YouTubeDownloadViewState();
 }
 
 class _YouTubeDownloadViewState extends ConsumerState<YouTubeDownloadView> {
@@ -1711,7 +2005,10 @@ class _YouTubeDownloadViewState extends ConsumerState<YouTubeDownloadView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Download from YouTube', style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    'Download from YouTube',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 10),
                   TextField(
                     controller: _urlCtrl,
@@ -1745,11 +2042,17 @@ class _YouTubeDownloadViewState extends ConsumerState<YouTubeDownloadView> {
                       ),
                       DropdownButton<String>(
                         value: _quality,
-                        items: (_format == 'mp4'
-                                ? const ['1080p', '720p', '480p']
-                                : const ['320kbps', '192kbps'])
-                            .map((q) => DropdownMenuItem(value: q, child: Text(q)))
-                            .toList(),
+                        items:
+                            (_format == 'mp4'
+                                    ? const ['1080p', '720p', '480p']
+                                    : const ['320kbps', '192kbps'])
+                                .map(
+                                  (q) => DropdownMenuItem(
+                                    value: q,
+                                    child: Text(q),
+                                  ),
+                                )
+                                .toList(),
                         onChanged: (v) {
                           if (v != null) setState(() => _quality = v);
                         },
@@ -1768,11 +2071,14 @@ class _YouTubeDownloadViewState extends ConsumerState<YouTubeDownloadView> {
                                   );
                                   _urlCtrl.clear();
                                 } finally {
-                                  if (mounted) setState(() => _submitting = false);
+                                  if (mounted)
+                                    setState(() => _submitting = false);
                                 }
                               },
                         icon: const Icon(Icons.download),
-                        label: Text(_submitting ? 'Downloading...' : 'Download'),
+                        label: Text(
+                          _submitting ? 'Downloading...' : 'Download',
+                        ),
                       ),
                     ],
                   ),
@@ -1787,15 +2093,24 @@ class _YouTubeDownloadViewState extends ConsumerState<YouTubeDownloadView> {
           ),
           if (ui.downloadJobs.isNotEmpty) ...[
             const SizedBox(height: 12),
-            Text('Download Queue (${ui.downloadJobs.length})',
-                style: Theme.of(context).textTheme.titleSmall),
+            Text(
+              'Download Queue (${ui.downloadJobs.length})',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
             const SizedBox(height: 6),
             for (final job in ui.downloadJobs)
               Card(
                 child: ListTile(
-                  leading: Icon(job.format == 'mp3' ? Icons.music_note : Icons.movie),
-                  title: Text(job.title ?? job.url, overflow: TextOverflow.ellipsis),
-                  subtitle: Text('${job.format.toUpperCase()} · ${job.quality} · ${job.status}'),
+                  leading: Icon(
+                    job.format == 'mp3' ? Icons.music_note : Icons.movie,
+                  ),
+                  title: Text(
+                    job.title ?? job.url,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    '${job.format.toUpperCase()} · ${job.quality} · ${job.status}',
+                  ),
                   onTap: job.status == 'completed'
                       ? () => openDownloadedJob(context, ref, job)
                       : null,
@@ -1832,7 +2147,11 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     super.dispose();
   }
 
-  void _toggleExtension(AppSettings settings, GalleryController ctrl, String ext) {
+  void _toggleExtension(
+    AppSettings settings,
+    GalleryController ctrl,
+    String ext,
+  ) {
     final current = settings.effectiveExtensions;
     final next = <String>{...current};
     if (next.contains(ext)) {
@@ -1895,7 +2214,8 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                       'Launch Media Gallery automatically when you sign in to your device',
                     ),
                     value: s.openAtStartup,
-                    onChanged: (v) => ctrl.updateSettings(s.copyWith(openAtStartup: v)),
+                    onChanged: (v) =>
+                        ctrl.updateSettings(s.copyWith(openAtStartup: v)),
                   ),
                   SwitchListTile(
                     dense: true,
@@ -1904,7 +2224,8 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                       'Keep your persisted library loaded and silently index new files in the background',
                     ),
                     value: s.autoScanOnOpen,
-                    onChanged: (v) => ctrl.updateSettings(s.copyWith(autoScanOnOpen: v)),
+                    onChanged: (v) =>
+                        ctrl.updateSettings(s.copyWith(autoScanOnOpen: v)),
                   ),
                   SwitchListTile(
                     dense: true,
@@ -1913,7 +2234,9 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                       'Show each unique item only once while keeping all copies in Clean & Storage',
                     ),
                     value: s.hideDuplicatesInGallery,
-                    onChanged: (v) => ctrl.updateSettings(s.copyWith(hideDuplicatesInGallery: v)),
+                    onChanged: (v) => ctrl.updateSettings(
+                      s.copyWith(hideDuplicatesInGallery: v),
+                    ),
                   ),
                   SwitchListTile(
                     dense: true,
@@ -1922,7 +2245,8 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                       'Prevents crashes on full-drive (C:\\) scans by skipping Windows, Program Files, AppData, and junctions',
                     ),
                     value: s.skipSystemFolders,
-                    onChanged: (v) => ctrl.updateSettings(s.copyWith(skipSystemFolders: v)),
+                    onChanged: (v) =>
+                        ctrl.updateSettings(s.copyWith(skipSystemFolders: v)),
                   ),
                 ],
               ),
@@ -1937,11 +2261,15 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Library Folders & Exclusions',
-                      style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    'Library Folders & Exclusions',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 8),
-                  const Text('What to Scan (Media Categories):',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  const Text(
+                    'What to Scan (Media Categories):',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  ),
                   const SizedBox(height: 6),
                   Wrap(
                     spacing: 8,
@@ -1951,19 +2279,22 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                         avatar: const Icon(Icons.movie_outlined, size: 16),
                         label: const Text('Scan Videos'),
                         selected: s.scanVideos,
-                        onSelected: (v) => ctrl.updateSettings(s.copyWith(scanVideos: v)),
+                        onSelected: (v) =>
+                            ctrl.updateSettings(s.copyWith(scanVideos: v)),
                       ),
                       FilterChip(
                         avatar: const Icon(Icons.image_outlined, size: 16),
                         label: const Text('Scan Images'),
                         selected: s.scanImages,
-                        onSelected: (v) => ctrl.updateSettings(s.copyWith(scanImages: v)),
+                        onSelected: (v) =>
+                            ctrl.updateSettings(s.copyWith(scanImages: v)),
                       ),
                       FilterChip(
                         avatar: const Icon(Icons.music_note_outlined, size: 16),
                         label: const Text('Scan Audio'),
                         selected: s.scanAudio,
-                        onSelected: (v) => ctrl.updateSettings(s.copyWith(scanAudio: v)),
+                        onSelected: (v) =>
+                            ctrl.updateSettings(s.copyWith(scanAudio: v)),
                       ),
                     ],
                   ),
@@ -1980,11 +2311,16 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                       OutlinedButton.icon(
                         onPressed: () async {
                           final dir = await FilePicker.platform
-                              .getDirectoryPath(dialogTitle: 'Select folder to exclude');
+                              .getDirectoryPath(
+                                dialogTitle: 'Select folder to exclude',
+                              );
                           if (dir != null && dir.isNotEmpty) {
                             await ctrl.updateSettings(
                               s.copyWith(
-                                excludedFolders: {...s.excludedFolders, dir}.toList(),
+                                excludedFolders: {
+                                  ...s.excludedFolders,
+                                  dir,
+                                }.toList(),
                               ),
                             );
                           }
@@ -2001,7 +2337,10 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                   ),
                   if (s.scanFolders.isNotEmpty) ...[
                     const SizedBox(height: 10),
-                    const Text('Included Folders:', style: TextStyle(fontWeight: FontWeight.w600)),
+                    const Text(
+                      'Included Folders:',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
                     Wrap(
                       spacing: 6,
                       children: [
@@ -2010,7 +2349,9 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                             label: Text(f),
                             onDeleted: () => ctrl.updateSettings(
                               s.copyWith(
-                                scanFolders: s.scanFolders.where((e) => e != f).toList(),
+                                scanFolders: s.scanFolders
+                                    .where((e) => e != f)
+                                    .toList(),
                               ),
                             ),
                           ),
@@ -2019,7 +2360,10 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                   ],
                   if (s.excludedFolders.isNotEmpty) ...[
                     const SizedBox(height: 10),
-                    const Text('Excluded Folders:', style: TextStyle(fontWeight: FontWeight.w600)),
+                    const Text(
+                      'Excluded Folders:',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
                     Wrap(
                       spacing: 6,
                       children: [
@@ -2028,7 +2372,9 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                             label: Text(f),
                             onDeleted: () => ctrl.updateSettings(
                               s.copyWith(
-                                excludedFolders: s.excludedFolders.where((e) => e != f).toList(),
+                                excludedFolders: s.excludedFolders
+                                    .where((e) => e != f)
+                                    .toList(),
                               ),
                             ),
                           ),
@@ -2051,12 +2397,15 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Media Formats & YouTube Defaults',
-                          style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        'Media Formats & YouTube Defaults',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                       if (s.enabledExtensions.isNotEmpty)
                         TextButton(
-                          onPressed: () =>
-                              ctrl.updateSettings(s.copyWith(enabledExtensions: const [])),
+                          onPressed: () => ctrl.updateSettings(
+                            s.copyWith(enabledExtensions: const []),
+                          ),
                           child: const Text('Enable All Formats'),
                         ),
                     ],
@@ -2092,15 +2441,23 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                       DropdownButton<String>(
                         value: s.youtubeDefaultFormat == 'mp3' ? 'mp3' : 'mp4',
                         items: const [
-                          DropdownMenuItem(value: 'mp4', child: Text('MP4 (Video)')),
-                          DropdownMenuItem(value: 'mp3', child: Text('MP3 (Audio)')),
+                          DropdownMenuItem(
+                            value: 'mp4',
+                            child: Text('MP4 (Video)'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'mp3',
+                            child: Text('MP3 (Audio)'),
+                          ),
                         ],
                         onChanged: (fmt) {
                           if (fmt == null) return;
                           ctrl.updateSettings(
                             s.copyWith(
                               youtubeDefaultFormat: fmt,
-                              youtubeDefaultQuality: fmt == 'mp3' ? '320kbps' : '1080p',
+                              youtubeDefaultQuality: fmt == 'mp3'
+                                  ? '320kbps'
+                                  : '1080p',
                             ),
                           );
                         },
@@ -2113,11 +2470,15 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                       DropdownButton<String>(
                         value: curYtQuality,
                         items: ytQualities
-                            .map((q) => DropdownMenuItem(value: q, child: Text(q)))
+                            .map(
+                              (q) => DropdownMenuItem(value: q, child: Text(q)),
+                            )
                             .toList(),
                         onChanged: (q) {
                           if (q != null) {
-                            ctrl.updateSettings(s.copyWith(youtubeDefaultQuality: q));
+                            ctrl.updateSettings(
+                              s.copyWith(youtubeDefaultQuality: q),
+                            );
                           }
                         },
                       ),
@@ -2136,8 +2497,10 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Alias, Theme & Network Transport',
-                      style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    'Alias, Theme & Network Transport',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 10),
                   Row(
                     children: [
@@ -2226,7 +2589,11 @@ class MiniPlayerBar extends ConsumerWidget {
             child: SizedBox(
               width: 42,
               height: 42,
-              child: MediaThumbnailWidget(item: track, cacheWidth: 120, borderRadius: 6),
+              child: MediaThumbnailWidget(
+                item: track,
+                cacheWidth: 120,
+                borderRadius: 6,
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -2243,7 +2610,10 @@ class MiniPlayerBar extends ConsumerWidget {
                     track.alias,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -2253,27 +2623,37 @@ class MiniPlayerBar extends ConsumerWidget {
                     final totalMs = playback.duration.value.inMilliseconds > 0
                         ? playback.duration.value.inMilliseconds
                         : track.durationMs;
-                    final curMs = pos.inMilliseconds.clamp(0, totalMs > 0 ? totalMs : 1);
+                    final curMs = pos.inMilliseconds.clamp(
+                      0,
+                      totalMs > 0 ? totalMs : 1,
+                    );
                     return SizedBox(
                       height: 24,
                       child: Row(
                         children: [
                           Text(
-                            formatDuration(curMs).isEmpty ? '0:00' : formatDuration(curMs),
+                            formatDuration(curMs).isEmpty
+                                ? '0:00'
+                                : formatDuration(curMs),
                             style: const TextStyle(fontSize: 10),
                           ),
                           Expanded(
                             child: SliderTheme(
                               data: SliderTheme.of(context).copyWith(
                                 trackHeight: 2,
-                                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-                                overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+                                thumbShape: const RoundSliderThumbShape(
+                                  enabledThumbRadius: 5,
+                                ),
+                                overlayShape: const RoundSliderOverlayShape(
+                                  overlayRadius: 10,
+                                ),
                               ),
                               child: Slider(
                                 value: curMs.toDouble(),
                                 max: (totalMs > 0 ? totalMs : 1).toDouble(),
-                                onChanged: (v) =>
-                                    playback.seek(Duration(milliseconds: v.round())),
+                                onChanged: (v) => playback.seek(
+                                  Duration(milliseconds: v.round()),
+                                ),
                               ),
                             ),
                           ),
@@ -2287,6 +2667,43 @@ class MiniPlayerBar extends ConsumerWidget {
                   },
                 ),
               ],
+            ),
+          ),
+          ValueListenableBuilder<double>(
+            valueListenable: playback.playbackRate,
+            builder: (_, rate, __) => PopupMenuButton<double>(
+              tooltip: 'Playback Speed',
+              onSelected: playback.setRate,
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 0.75, child: Text('0.75×')),
+                PopupMenuItem(value: 1.0, child: Text('1.0×')),
+                PopupMenuItem(value: 1.25, child: Text('1.25×')),
+                PopupMenuItem(value: 1.5, child: Text('1.5×')),
+                PopupMenuItem(value: 2.0, child: Text('2.0×')),
+              ],
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Text(
+                  '${rate == 1.0 ? "1" : rate}×',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          ValueListenableBuilder<double>(
+            valueListenable: playback.volume,
+            builder: (_, vol, __) => IconButton(
+              tooltip: vol <= 0 ? 'Unmute' : 'Mute (${vol.round()}%)',
+              icon: Icon(
+                vol <= 0
+                    ? Icons.volume_off
+                    : (vol < 50 ? Icons.volume_down : Icons.volume_up),
+                size: 18,
+              ),
+              onPressed: () => playback.setVolume(vol <= 0 ? 100.0 : 0.0),
             ),
           ),
           IconButton(
@@ -2306,7 +2723,9 @@ class MiniPlayerBar extends ConsumerWidget {
           IconButton(
             tooltip: ui.isPlaying ? 'Pause' : 'Play',
             icon: Icon(
-              ui.isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
+              ui.isPlaying
+                  ? Icons.pause_circle_filled
+                  : Icons.play_circle_filled,
               size: 32,
             ),
             onPressed: ctrl.togglePlayback,
@@ -2321,7 +2740,9 @@ class MiniPlayerBar extends ConsumerWidget {
             icon: Icon(
               Icons.repeat_one,
               size: 18,
-              color: ui.repeatOne ? Theme.of(context).colorScheme.primary : null,
+              color: ui.repeatOne
+                  ? Theme.of(context).colorScheme.primary
+                  : null,
             ),
             onPressed: ctrl.toggleRepeat,
           ),
@@ -2337,7 +2758,9 @@ class MiniPlayerBar extends ConsumerWidget {
 }
 
 Future<void> pickAndScanFolder(BuildContext context, WidgetRef ref) async {
-  final dir = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Select media folder to scan');
+  final dir = await FilePicker.platform.getDirectoryPath(
+    dialogTitle: 'Select media folder to scan',
+  );
   if (dir != null && dir.isNotEmpty) {
     await ref.read(galleryControllerProvider.notifier).scanFolderPaths([dir]);
   }
@@ -2354,7 +2777,9 @@ Future<void> pickCustomCoverForMedia(
   );
   final path = res?.files.singleOrNull?.path;
   if (path != null && path.isNotEmpty) {
-    await ref.read(galleryControllerProvider.notifier).setCustomCover(
+    await ref
+        .read(galleryControllerProvider.notifier)
+        .setCustomCover(
           item.id,
           path,
           item.cover?.aspect ?? AspectPreset.ratio16x9,

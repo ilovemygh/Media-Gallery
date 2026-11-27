@@ -223,7 +223,29 @@ class MockCoreBridge implements CoreBridge {
       if (filter.syncState != null && item.syncState != filter.syncState) return false;
       if (tokens.isNotEmpty) {
         final hay = '${item.fileName} ${item.alias} ${item.autoAlias} ${item.place ?? ''} ${item.folderPath} ${item.deviceName} 2026'.toLowerCase();
-        if (!tokens.every(hay.contains)) return false;
+        for (final tok in tokens) {
+          if (tok == 'res:4k' || tok == 'res:uhd') {
+            if (item.width < 3840) return false;
+          } else if (tok == 'res:hd' || tok == 'res:1080p' || tok == 'res:720p') {
+            if (item.width < 1280) return false;
+          } else if (tok == 'len:long') {
+            if (item.durationMs < 300000) return false;
+          } else if (tok == 'len:short') {
+            if (item.durationMs <= 0 || item.durationMs >= 60000) return false;
+          } else if (tok.startsWith('ext:')) {
+            final ext = tok.substring(4);
+            if (!item.fileName.toLowerCase().endsWith('.$ext')) return false;
+          } else if (tok.startsWith('time:')) {
+            final hr = DateTime.fromMillisecondsSinceEpoch(item.createdAt).hour;
+            final t = tok.substring(5);
+            if (t == 'morning' && (hr < 5 || hr > 11)) return false;
+            if (t == 'afternoon' && (hr < 12 || hr > 16)) return false;
+            if (t == 'evening' && (hr < 17 || hr > 20)) return false;
+            if (t == 'night' && hr > 4 && hr < 21) return false;
+          } else if (!hay.contains(tok)) {
+            return false;
+          }
+        }
       }
       return true;
     }).toList();
