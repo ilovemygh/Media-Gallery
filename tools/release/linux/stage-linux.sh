@@ -136,6 +136,11 @@ Categories=AudioVideo;Utility;FileManager;
 StartupWMClass=io.mediagallery.app
 DESKTOP
 
+PNG_ICON="${REPO_ROOT}/app/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png"
+if [[ -f "$PNG_ICON" ]]; then
+  cp -f "$PNG_ICON" "${STAGE_DIR}/media-gallery.png"
+fi
+
 cat > "${STAGE_DIR}/install.sh" <<'INSTALL'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -144,12 +149,16 @@ INSTALL_DIR="${HOME}/.local/share/MediaGallery"
 BIN_DIR="${HOME}/.local/bin"
 APP_DIR="${HOME}/.local/share/applications"
 ICON_DIR="${HOME}/.local/share/icons/hicolor/scalable/apps"
+ICON_PNG_DIR="${HOME}/.local/share/icons/hicolor/256x256/apps"
 
-mkdir -p "$INSTALL_DIR" "$BIN_DIR" "$APP_DIR" "$ICON_DIR"
+mkdir -p "$INSTALL_DIR" "$BIN_DIR" "$APP_DIR" "$ICON_DIR" "$ICON_PNG_DIR"
 rm -rf "${INSTALL_DIR:?}/"*
 cp -a "${SRC_DIR}/." "$INSTALL_DIR/"
 ln -sf "${INSTALL_DIR}/media_gallery" "${BIN_DIR}/media-gallery"
 cp -f "${INSTALL_DIR}/media-gallery.svg" "${ICON_DIR}/media-gallery.svg"
+if [[ -f "${INSTALL_DIR}/media-gallery.png" ]]; then
+  cp -f "${INSTALL_DIR}/media-gallery.png" "${ICON_PNG_DIR}/media-gallery.png"
+fi
 sed "s|^Exec=.*|Exec=${INSTALL_DIR}/media_gallery %U|" \
   "${INSTALL_DIR}/media-gallery.desktop" > "${APP_DIR}/media-gallery.desktop"
 command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$APP_DIR" || true
@@ -171,7 +180,13 @@ if [[ "$BUILD_APPIMAGE" == "true" ]]; then
   cp -a "${STAGE_DIR}/." "${APPDIR}/"
   cp -f "${STAGE_DIR}/media-gallery.desktop" "${APPDIR}/media-gallery.desktop"
   cp -f "${STAGE_DIR}/media-gallery.svg" "${APPDIR}/media-gallery.svg"
-  ln -sf media-gallery.svg "${APPDIR}/.DirIcon"
+  PNG_ICON="${REPO_ROOT}/app/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png"
+  if [[ -f "$PNG_ICON" ]]; then
+    cp -f "$PNG_ICON" "${APPDIR}/media-gallery.png"
+    cp -f "$PNG_ICON" "${APPDIR}/.DirIcon"
+  else
+    ln -sf media-gallery.svg "${APPDIR}/.DirIcon"
+  fi
   sed -i 's|^Exec=.*|Exec=AppRun|' "${APPDIR}/media-gallery.desktop"
 
   cat > "${APPDIR}/AppRun" <<'APPRUN'

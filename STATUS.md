@@ -58,3 +58,10 @@
 - [x] **Sorting, Audio Grouping & Action Wiring:** Updated `SortField::Date` SQL to `MAX(m.modified_at, m.created_at)`, stopped overriding Sort inside `Recent`, added Sort & Audio Grouping controls to Android Library, rendered `ui.musicGroups` in Audio view, wired YouTube Upload/Channel/Studio browser launch + Reveal in Folder + directory picker for Pin Folder + shuffle track skip + user Home resolution for relative YouTube downloads
 - [x] **Universal Linux & Arch Linux Builds:** Added `app/linux/` CMake runner bundling `libcore_api.so`, `media_kit_libs_linux`, pinned Linux LGPL `ffmpeg`/`ffprobe` + `yt-dlp` checksums in `tools/release/sidecars.lock`, `tools/release/linux/stage-linux.sh` (`.AppImage` + portable `.tar.gz` + `install.sh`), and `linux-build` / `build-linux` CI & Release jobs
 
+---
+
+## PART G: Out-of-the-Box Power Upgrades & Local Linux Setup (v0.2.3)
+- [x] **Magic Query Operators & Filter Chips:** Parsed `res:4k`, `res:hd`, `len:long`, `len:short`, `ext:<fmt>`, and `time:morning|afternoon|evening|night` directly alongside FTS5 in `core-index` + `MockCoreBridge`, and exposed one-click **Magic Filter Chips** (`4K+`, `HD+`, `Long >5m`, `Morning`, `Evening`, `Night`) in `DesktopShell`
+- [x] **Playback Speed, Mute Toggle, Slideshow & Keyboard Cockpit:** Added `MediaPlaybackService.setRate`, speed menu (`0.5x–2.0x`) + volume mute button in `MiniPlayerBar`, 3s **Slideshow** auto-advance in `_MediaViewerDialog`, and desktop keyboard shortcuts (`Ctrl+F` search focus, `←`/`→` navigate items, `Space` play/view, `Delete` trash)
+- [x] **Duplicate Visual Compare & Linux Native Integration:** Added **Storage Breakdown Bar** + **Compare Copies & Pick Keeper** (`Keep Only This`) cards in `CleanerDashboardView`, XDG `~/.config/autostart/media-gallery.desktop` support for `Open at Startup` on Linux, default `auto_scan_on_open = false` consistency in `core-platform`, and PNG `.DirIcon` fix for `appimagetool`
+
