@@ -544,3 +544,77 @@ fn recent_date_and_size_sorting_orders_correctly() {
         .collect();
     assert_eq!(size_ids, vec!["old", "mid", "redownloaded"]);
 }
+
+#[test]
+fn smart_query_operators_filter_resolution_duration_and_ext() {
+    let idx = setup_index_with_self();
+    let make = |id: &str, name: &str, width: u32, dur_ms: u64, alias: &str| MediaRecord {
+        id: id.into(),
+        device_id: "pc-1".into(),
+        path: format!("C:/Media/{name}"),
+        folder_path: "C:/Media".into(),
+        file_name: name.into(),
+        media_type: if name.ends_with(".mp4") {
+            MediaType::Video
+        } else {
+            MediaType::Image
+        },
+        mime: "video/mp4".into(),
+        size: 10_000,
+        blake3: id.into(),
+        partial_hash: id.into(),
+        created_at: 1_773_489_600_000,
+        modified_at: 1_773_489_600_000,
+        duration_ms: dur_ms,
+        width,
+        height: 2160,
+        gps_lat: None,
+        gps_lon: None,
+        place: Some("Bali".into()),
+        tags: MediaTags::default(),
+        alias: alias.into(),
+        auto_alias: alias.into(),
+        cover_id: None,
+        sync_state: SyncState::Local,
+        is_duplicate: false,
+        duplicate_group_id: None,
+        is_trashed: false,
+        trashed_path: None,
+        updated_at: 1_773_489_600_000,
+    };
+
+    idx.upsert_media_batch(&[
+        make("v4k", "bali_drone.mp4", 3840, 420_000, "2026 Bali Drone"),
+        make("v720", "bali_clip.mp4", 1280, 30_000, "2026 Bali Clip"),
+        make("img", "sunset.png", 1920, 0, "2026 Bali Sunset"),
+    ])
+    .unwrap();
+
+    let uhd = idx
+        .list_media(
+            &MediaFilter {
+                query: "res:4k len:long bali".into(),
+                ..Default::default()
+            },
+            SortSpec::default(),
+            None,
+            10,
+        )
+        .unwrap();
+    assert_eq!(uhd.items.len(), 1);
+    assert_eq!(uhd.items[0].media.id, "v4k");
+
+    let pngs = idx
+        .list_media(
+            &MediaFilter {
+                query: "ext:png sunset".into(),
+                ..Default::default()
+            },
+            SortSpec::default(),
+            None,
+            10,
+        )
+        .unwrap();
+    assert_eq!(pngs.items.len(), 1);
+    assert_eq!(pngs.items[0].media.id, "img");
+}

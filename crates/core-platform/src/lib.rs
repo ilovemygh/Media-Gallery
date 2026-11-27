@@ -29,8 +29,9 @@ pub fn hidden_command<S: AsRef<std::ffi::OsStr>>(program: S) -> Command {
     cmd
 }
 
-/// Registers or unregisters Media Gallery in Windows per-user startup (`HKCU\...\Run`)
-/// without flashing a console window. No-op on non-Windows platforms.
+/// Registers or unregisters Media Gallery at user login:
+/// - Windows: per-user `HKCU\...\Run` registry value (hidden console)
+/// - Linux: XDG autostart `.desktop` entry in `~/.config/autostart/media-gallery.desktop`
 pub fn set_windows_startup(enabled: bool) -> Result<(), PlatformError> {
     #[cfg(windows)]
     {
@@ -54,7 +55,33 @@ pub fn set_windows_startup(enabled: bool) -> Result<(), PlatformError> {
         }
         Ok(())
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "linux")]
+    {
+        let config_dir = std::env::var_os("XDG_CONFIG_HOME")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
+            .ok_or_else(|| {
+                PlatformError::Io(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "HOME / XDG_CONFIG_HOME not set",
+                ))
+            })?;
+        let autostart_dir = config_dir.join("autostart");
+        let desktop_file = autostart_dir.join("media-gallery.desktop");
+        if enabled {
+            std::fs::create_dir_all(&autostart_dir)?;
+            let exe = std::env::current_exe()?;
+            let entry = format!(
+                "[Desktop Entry]\nType=Application\nName=Media Gallery\nExec=\"{}\"\nIcon=media-gallery\nX-GNOME-Autostart-enabled=true\n",
+                exe.display()
+            );
+            std::fs::write(&desktop_file, entry)?;
+        } else if desktop_file.exists() {
+            let _ = std::fs::remove_file(&desktop_file);
+        }
+        Ok(())
+    }
+    #[cfg(not(any(windows, target_os = "linux")))]
     {
         let _ = enabled;
         Ok(())
@@ -78,7 +105,6 @@ fn default_yt_quality() -> String {
 #[serde(default)]
 pub struct ExtendedUserPrefs {
     pub open_at_startup: bool,
-    #[serde(default = "default_true")]
     pub auto_scan_on_open: bool,
     #[serde(default = "default_true")]
     pub hide_duplicates_in_gallery: bool,
@@ -101,7 +127,7 @@ impl Default for ExtendedUserPrefs {
     fn default() -> Self {
         Self {
             open_at_startup: false,
-            auto_scan_on_open: true,
+            auto_scan_on_open: false,
             hide_duplicates_in_gallery: true,
             skip_system_folders: true,
             scan_videos: true,

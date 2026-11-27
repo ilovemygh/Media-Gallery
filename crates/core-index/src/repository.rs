@@ -1571,12 +1571,69 @@ fn map_download_job_row(row: &Row<'_>) -> Result<DownloadJobRecord, rusqlite::Er
     })
 }
 
+struct ParsedSmartQuery {
+    plain_query: String,
+    time_of_day: Option<TimeOfDayFilter>,
+    min_width: Option<u32>,
+    min_duration_ms: Option<u64>,
+    max_duration_ms: Option<u64>,
+    extension: Option<String>,
+}
+
+fn parse_query_smart_operators(raw: &str) -> ParsedSmartQuery {
+    let mut plain_words = Vec::new();
+    let mut parsed = ParsedSmartQuery {
+        plain_query: String::new(),
+        time_of_day: None,
+        min_width: None,
+        min_duration_ms: None,
+        max_duration_ms: None,
+        extension: None,
+    };
+
+    for token in raw.split_whitespace() {
+        let lower = token.to_ascii_lowercase();
+        if let Some(val) = lower.strip_prefix("time:") {
+            parsed.time_of_day = match val {
+                "morning" => Some(TimeOfDayFilter::Morning),
+                "afternoon" => Some(TimeOfDayFilter::Afternoon),
+                "evening" => Some(TimeOfDayFilter::Evening),
+                "night" => Some(TimeOfDayFilter::Night),
+                _ => parsed.time_of_day,
+            };
+        } else if let Some(val) = lower.strip_prefix("res:") {
+            parsed.min_width = match val {
+                "4k" | "uhd" => Some(3840),
+                "hd" | "1080p" | "720p" => Some(1280),
+                _ => parsed.min_width,
+            };
+        } else if let Some(val) = lower.strip_prefix("len:") {
+            match val {
+                "long" => parsed.min_duration_ms = Some(300_000),
+                "short" => parsed.max_duration_ms = Some(60_000),
+                _ => {}
+            }
+        } else if let Some(val) = lower.strip_prefix("ext:") {
+            let clean: String = val.chars().filter(|c| c.is_ascii_alphanumeric()).collect();
+            if !clean.is_empty() {
+                parsed.extension = Some(clean);
+            }
+        } else {
+            plain_words.push(token);
+        }
+    }
+
+    parsed.plain_query = plain_words.join(" ");
+    parsed
+}
+
 fn build_where_clause(filter: &MediaFilter) -> (String, Vec<Value>, bool) {
     let mut clauses = Vec::new();
     let mut params = Vec::new();
     let mut join_fts = false;
 
-    let fts_match = build_fts_match_query(&filter.query);
+    let smart = parse_query_smart_operators(&filter.query);
+    let fts_match = build_fts_match_query(&smart.plain_query);
     if !fts_match.is_empty() {
         join_fts = true;
         clauses.push("media_fts MATCH ?".to_string());
@@ -1626,15 +1683,23 @@ fn build_where_clause(filter: &MediaFilter) -> (String, Vec<Value>, bool) {
         clauses.push("m.size <= ?".to_string());
         params.push(Value::Integer(max_sz as i64));
     }
-    if let Some(min_dur) = filter.min_duration_ms {
+    if let Some(min_dur) = filter.min_duration_ms.or(smart.min_duration_ms) {
         clauses.push("m.duration_ms >= ?".to_string());
         params.push(Value::Integer(min_dur as i64));
     }
-    if let Some(min_w) = filter.min_width {
+    if let Some(max_dur) = smart.max_duration_ms {
+        clauses.push("m.duration_ms > 0 AND m.duration_ms < ?".to_string());
+        params.push(Value::Integer(max_dur as i64));
+    }
+    if let Some(min_w) = filter.min_width.or(smart.min_width) {
         clauses.push("m.width >= ?".to_string());
         params.push(Value::Integer(i64::from(min_w)));
     }
-    if let Some(tod) = filter.time_of_day {
+    if let Some(ext) = smart.extension {
+        clauses.push("LOWER(m.file_name) LIKE ?".to_string());
+        params.push(Value::Text(format!("%.{ext}")));
+    }
+    if let Some(tod) = filter.time_of_day.or(smart.time_of_day) {
         let hour_expr =
             "CAST(strftime('%H', m.created_at / 1000, 'unixepoch', 'localtime') AS INTEGER)";
         match tod {
